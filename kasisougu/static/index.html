@@ -2,54 +2,31 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#17553d"><meta name="description" content="装具について相談する前に、困りごとと希望を整理する個人用ノート。">
-<title>下肢装具｜相談ノート</title>
+<meta name="theme-color" content="#17553d"><meta name="description" content="下肢装具について相談する前に、記録を整理する個人用アプリです。">
+<title>下肢装具サポート</title>
 <link rel="manifest" href="/static/manifest.webmanifest"><link rel="icon" href="/static/icon-192.png"><link rel="apple-touch-icon" href="/static/icon-192.png"><link rel="stylesheet" href="/static/style.css">
 <script defer src="/static/app.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">本文へ移動</a>
-<header class="brand"><span class="brand-mark" aria-hidden="true">歩</span><div><strong>下肢装具</strong><span>相談ノート</span></div></header>
-<div class="layout">
+<header class="site-header"><a class="brand" href="/" aria-label="下肢装具サポート ホーム"><span class="brand-mark" aria-hidden="true">歩</span><span><strong>下肢装具</strong><small>サポート</small></span></a><p class="header-status" id="header-status">ログインが必要です</p></header>
 <main id="main">
-<h1>相談の準備を<br class="mobile-break">しましょう</h1><p class="lead">困っていることや、希望をまとめます。</p>
-<nav aria-label="ページ"><button id="memo-tab" aria-pressed="true">相談メモ</button><button id="guide-tab" aria-pressed="false">装具について</button></nav>
-<section id="memo-page" aria-label="相談メモ">
-<form id="memo-form">
-<fieldset><legend><span class="number">01</span>困っていること</legend><p class="hint">あてはまるものを選んでください。いくつでも選べます。</p>
-<div class="choices">
-<label><input type="checkbox" name="concerns" value="歩きにくい">歩きにくい</label>
-<label><input type="checkbox" name="concerns" value="つまずく">つまずく</label>
-<label><input type="checkbox" name="concerns" value="痛みがある">痛みがある</label>
-<label><input type="checkbox" name="concerns" value="装具が重い">装具が重い</label>
-<label><input type="checkbox" name="concerns" value="着けにくい">着けにくい</label>
-<label><input type="checkbox" name="concerns" value="その他">その他</label>
-</div></fieldset>
-<section class="field-section"><h2><span class="number">02</span><label for="wishes">希望すること</label></h2><p class="hint">できるようになりたいことを書いてください。</p><textarea id="wishes" maxlength="2000" rows="3" placeholder="例：近くのお店まで歩きたい"></textarea></section>
-<details><summary>使っている装具・聞きたいことも書く</summary>
-<label class="text-label" for="device">使っている装具</label><textarea id="device" maxlength="2000" rows="2" placeholder="名前がわからなくても大丈夫です"></textarea>
-<label class="text-label" for="questions">相談で聞きたいこと</label><textarea id="questions" maxlength="2000" rows="3" placeholder="例：片手で着けやすくできますか"></textarea></details>
-<p id="status" role="status" aria-live="polite">保存するにはログインしてください。</p>
-<div class="actions"><button class="primary" id="save" type="submit">メモを保存</button><button id="print" type="button">印刷する</button></div>
-</form>
-</section>
-<section id="guide-page" hidden aria-label="装具について">
-<h2>装具を相談するときに</h2><p>装具の名前がわからなくても、困っていることや希望から相談できます。</p>
-<article class="guide-card"><h3>名前をメモしておく</h3><p>短下肢装具（AFO）、長下肢装具（KAFO）などの呼び方があります。お使いの装具の名前は、担当者に確認してメモに残しましょう。</p><p class="hint">呼称の参考：<a href="https://webview.isho.jp/book/detail/abs/10.11477/9784260624886" target="_blank" rel="noopener noreferrer">『脳卒中の下肢装具』目次</a></p></article>
-<article class="guide-card"><h3>生活の場面を伝える</h3><p>「外を歩くとき」「靴を履くとき」「着け外しするとき」など、どんな場面で困るかをメモできます。</p></article>
-<article class="guide-card"><h3>相談先と一緒に考える</h3><p>装具の選択や調整は、医師・理学療法士・義肢装具士などに相談してください。このノートでは装具の適合判定は行いません。</p></article>
-<button id="back-memo" class="primary">相談メモを書く</button>
-</section>
+  <section id="login-page" class="login-page" aria-labelledby="login-title">
+    <div class="login-intro"><p class="screen-id">S01 ログイン</p><h1 id="login-title">相談の準備を、<br>ここから始めましょう</h1><p>今の装具や困りごとを整理して、専門職へ相談するときに役立てる個人用の記録です。</p><ul><li>装具の適合や処方は、医療・リハビリの専門職が判断します。</li><li>入力した内容は、ログイン後に保存できます。</li></ul></div>
+    <section class="login-panel" aria-label="ログインフォーム"><h2>ログイン</h2><p>パスワードを入力してください。</p><form id="login-form"><label for="password">パスワード</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button type="submit" class="primary">ログインする</button></form><p id="auth-status" role="status" aria-live="polite"></p><details><summary>ログイン方法について</summary><p>現在の試作環境では、専用パスワードでログインします。メール確認コードによるログインは、認証基盤の決定後に実装します。</p></details></section>
+  </section>
+  <section id="home-page" hidden aria-labelledby="home-title">
+    <div class="home-heading"><div><p class="screen-id">S02 ホーム</p><h1 id="home-title">相談の準備をしましょう</h1><p class="lead">今の装具と、相談のためにまとめた内容を確認できます。</p></div><div class="save-state"><span>保存状態</span><strong id="saved-at">読み込み中</strong></div></div>
+    <nav class="primary-nav" aria-label="主な機能"><button class="active" type="button" aria-current="page">ホーム</button><button class="future-link" type="button" data-feature="装具図鑑">図鑑</button><button class="future-link" type="button" data-feature="試用・使用記録">記録</button><button class="future-link" type="button" data-feature="相談シート">相談</button></nav>
+    <p id="home-status" class="home-status" role="status" aria-live="polite"></p>
+    <div class="home-grid">
+      <section class="home-section current-orthosis" aria-labelledby="orthosis-title"><div class="section-heading"><div><p class="section-kicker">今の装具</p><h2 id="orthosis-title">登録した装具</h2></div><button class="future-link text-button" type="button" data-feature="今の装具の登録">登録・編集</button></div><p id="orthosis-value" class="orthosis-value">まだ登録されていません</p><p id="orthosis-help">装具名が分からない場合も、次の画面で「不明」として登録できます。</p></section>
+      <section class="home-section recent-records" aria-labelledby="record-title"><div class="section-heading"><div><p class="section-kicker">最近の記録</p><h2 id="record-title">相談メモ</h2></div><button class="future-link text-button" type="button" data-feature="試用・使用記録の登録">記録を追加</button></div><div id="record-summary" class="record-summary"><p>保存された記録はありません。</p></div></section>
+    </div>
+    <section class="next-step" aria-labelledby="next-title"><div><p class="section-kicker">次にすること</p><h2 id="next-title">相談に向けて内容を整える</h2><p>困りごと、希望、使っている装具、聞きたいことをまとめます。</p></div><button class="future-link primary" type="button" data-feature="相談メモの編集">相談メモを編集</button></section>
+    <section class="notice" aria-labelledby="notice-title"><h2 id="notice-title">このアプリについて</h2><p>この画面はS01・S02の実装です。図鑑、記録、相談シート、設定は次の画面実装で追加します。</p></section>
+  </section>
 </main>
-<aside aria-label="保存とログイン"><h2>今回のメモ</h2><p>最終保存</p><strong id="saved-at">未確認</strong><hr>
-<div id="login-area"><p>個人用のノートです。<br>ログインすると保存できます。</p><form id="login-form"><label for="password">パスワード</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button type="submit" class="primary">ログイン</button></form></div>
-<div id="signed-in" hidden><p>ログイン中です。<br>メモはGoogleサーバーに保存されます。</p><button id="logout">ログアウト</button></div>
-<p id="auth-status" role="status"></p>
-<p class="small">入力中の内容は自動保存されません。保存ボタンを押してください。</p>
-<button id="install" hidden>ホーム画面に追加</button>
-<details class="install-help"><summary>アプリとして使うには</summary><p>公開後、スマートフォンのブラウザーのメニューから「ホーム画面に追加」を選べます。表示名は端末によって異なります。</p></details>
-</aside></div>
-<footer>下肢装具 相談ノート <span>·</span> 自分の言葉で、相談の準備を。</footer>
-<section id="printout" aria-label="印刷用の相談メモ"></section>
-<noscript>このノートを使うには、ブラウザーのJavaScriptを有効にしてください。</noscript>
+<footer><span>下肢装具サポート</span><span>自分の言葉で、相談の準備を。</span><button id="logout" type="button" hidden>ログアウト</button><button id="install" type="button" hidden>ホーム画面に追加</button></footer>
+<noscript>このアプリを使うには、ブラウザーのJavaScriptを有効にしてください。</noscript>
 </body></html>
