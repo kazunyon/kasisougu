@@ -13,7 +13,7 @@
 <main id="main">
   <section id="login-page" class="login-page" aria-labelledby="login-title">
     <div class="login-intro"><p class="screen-id">S01 ログイン</p><h1 id="login-title">相談の準備を、<br>ここから始めましょう</h1><p>今の装具や困りごとを整理して、専門職へ相談するときに役立てる個人用の記録です。</p><ul><li>装具の適合や処方は、医療・リハビリの専門職が判断します。</li><li>入力した内容は、ログイン後に保存できます。</li></ul></div>
-    <section class="login-panel" aria-label="ログインフォーム"><h2>ログイン</h2><p>パスワードを入力してください。</p><form id="login-form"><label for="password">パスワード</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button type="submit" class="primary">ログインする</button></form><p id="auth-status" role="status" aria-live="polite"></p><details><summary>ログイン方法について</summary><p>現在の試作環境では、専用パスワードでログインします。メール確認コードによるログインは、認証基盤の決定後に実装します。</p></details></section>
+    <section class="login-panel" aria-label="ログインフォーム"><h2>ログイン</h2><p>登録済みのメールアドレスとパスワードを入力してください。</p><form id="login-form"><label for="email">メールアドレス</label><input id="email" type="email" autocomplete="email" required maxlength="254"><label for="password">パスワード</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button type="submit" class="primary">ログインする</button></form><p id="auth-status" role="status" aria-live="polite"></p><details><summary>ログイン方法について</summary><p>Supabaseに登録済みのメールアドレスとパスワードを使用します。</p></details></section>
   </section>
   <section id="home-page" hidden aria-labelledby="home-title">
     <div class="home-heading"><div><p class="screen-id">S02 ホーム</p><h1 id="home-title">相談の準備をしましょう</h1><p class="lead">今の装具と、相談のためにまとめた内容を確認できます。</p></div><div class="save-state"><span>保存状態</span><strong id="saved-at">読み込み中</strong></div></div>
@@ -24,7 +24,7 @@
       <section class="home-section recent-records" aria-labelledby="record-title"><div class="section-heading"><div><p class="section-kicker">最近の記録</p><h2 id="record-title">相談メモ</h2></div><button class="future-link text-button" type="button" data-feature="試用・使用記録の登録">記録を追加</button></div><div id="record-summary" class="record-summary"><p>保存された記録はありません。</p></div></section>
     </div>
     <section class="next-step" aria-labelledby="next-title"><div><p class="section-kicker">次にすること</p><h2 id="next-title">相談に向けて内容を整える</h2><p>困りごと、希望、使っている装具、聞きたいことをまとめます。</p></div><button class="future-link primary" type="button" data-feature="相談メモの編集">相談メモを編集</button></section>
-    <section class="notice" aria-labelledby="notice-title"><h2 id="notice-title">このアプリについて</h2><p>この画面はS01・S02の実装です。図鑑、記録、相談シート、設定は次の画面実装で追加します。</p></section>
+    <section class="notice" aria-labelledby="notice-title"><h2 id="notice-title">このアプリについて</h2><p>現在はS01～S04を実装しています。記録、相談シート、設定は今後追加します。</p></section>
   </section>
   <section id="orthosis-page" class="app-page" hidden aria-labelledby="orthosis-page-title">
     <div class="page-title"><button class="screen-link back-link" type="button" data-screen="home">ホームへ戻る</button><p class="screen-id">S03 今の装具</p><h1 id="orthosis-page-title">今使っている装具を登録</h1><p class="lead">名前や種類が分からない項目は、「不明」のままで保存できます。</p></div>

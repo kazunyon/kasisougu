@@ -1,86 +1,27 @@
 'use strict';
 const $ = id => document.getElementById(id);
-let csrf = '', orthosisRevision = 0, catalogItems = [];
-
+const config = window.KASISOUGU_SUPABASE_CONFIG || {};
+let token = '', orthosis = null, catalogItems = [];
 function message(id, text, error = false) { $(id).textContent = text; $(id).classList.toggle('error', error); }
-function formatSavedAt(value) { return value ? new Date(value).toLocaleString('ja-JP') : 'まだ保存されていません'; }
-function setAuthenticatedView(authenticated) {
-  $('login-page').hidden = authenticated; $('home-page').hidden = !authenticated;
-  $('logout').hidden = !authenticated; $('header-status').textContent = authenticated ? 'ログイン中' : 'ログインが必要です';
-}
-async function api(path, method = 'GET', data) {
-  let response;
-  try { response = await fetch('/api/' + path, {method, cache: 'no-store', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: data === undefined ? undefined : JSON.stringify(data), signal: AbortSignal.timeout(15000)}); }
-  catch { throw new Error('通信できません。接続を確認して、もう一度お試しください。'); }
-  let result; try { result = await response.json(); } catch { throw new Error('サーバーの応答を確認できません。時間をおいてお試しください。'); }
-  if (!response.ok) throw new Error(result.error || '処理できませんでした。もう一度お試しください。');
-  return result;
-}
-function setScreen(name) {
-  for (const page of document.querySelectorAll('.app-page')) page.hidden = true;
-  $('home-page').hidden = name !== 'home';
-  if (name === 'orthosis') $('orthosis-page').hidden = false;
-  if (name === 'catalog') $('catalog-page').hidden = false;
-  document.querySelectorAll('.primary-nav .screen-link').forEach(button => {
-    const active = button.dataset.screen === name || (name === 'orthosis' && button.dataset.screen === 'home');
-    button.classList.toggle('active', active); if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
-  });
-  document.querySelector('main').scrollIntoView({block: 'start'});
-}
-function renderHome(memo, updatedAt, orthosis) {
-  $('saved-at').textContent = formatSavedAt(updatedAt);
-  const content = memo || {concerns: [], wishes: '', questions: '', device: ''};
-  const name = orthosis?.name || content.device;
-  $('orthosis-value').textContent = name || 'まだ登録されていません';
-  $('orthosis-help').textContent = name ? '登録内容は「登録・編集」から確認・変更できます。' : '装具名が分からない場合も、次の画面で「不明」として登録できます。';
-  const fragments = [];
-  if (content.concerns.length) fragments.push(`困りごと：${content.concerns.join('、')}`);
-  if (content.wishes) fragments.push(`希望：${content.wishes}`);
-  if (content.questions) fragments.push(`聞きたいこと：${content.questions}`);
-  $('record-summary').replaceChildren();
-  for (const text of fragments.length ? fragments : ['保存された記録はありません。']) $('record-summary').append(Object.assign(document.createElement('p'), {textContent: text}));
-}
-async function loadHome() {
-  message('home-status', 'ホームを読み込んでいます。');
-  try { const [memo, orthosis] = await Promise.all([api('memo'), api('orthosis')]); renderHome(memo.content, memo.updated_at, orthosis.orthosis); message('home-status', memo.content || orthosis.orthosis ? '保存した内容を表示しています。' : 'まだ保存された内容はありません。'); }
-  catch (error) { message('home-status', error.message, true); }
-}
-function populateOrthosis(item, revision) {
-  const data = item || {name: '', side: 'unknown', orthosis_type: 'unknown', manufactured_date: '', manufactured_year: '', maker: ''};
-  $('orthosis-name').value = data.name || ''; $('orthosis-side').value = data.side || 'unknown'; $('orthosis-type').value = data.orthosis_type || 'unknown';
-  $('manufactured-date').value = data.manufactured_date || ''; $('manufactured-year').value = data.manufactured_year || ''; $('orthosis-maker').value = data.maker || '';
-  orthosisRevision = revision;
-}
-async function loadOrthosis() {
-  message('orthosis-status', '登録内容を読み込んでいます。');
-  try { const result = await api('orthosis'); populateOrthosis(result.orthosis, result.revision); message('orthosis-status', result.orthosis ? '登録内容を表示しています。' : 'まだ登録されていません。'); }
-  catch (error) { message('orthosis-status', error.message, true); }
-}
-function renderCatalog(filter = 'all') {
-  const items = catalogItems.filter(item => filter === 'all' || item.type === filter);
-  $('catalog-list').replaceChildren();
-  if (!items.length) { $('catalog-list').append(Object.assign(document.createElement('p'), {className: 'empty-state', textContent: '公開済みの記事はありません。専門職レビュー後に、出典と確認日を付けて掲載します。'})); return; }
-  for (const item of items) {
-    const card = document.createElement('article'); card.className = 'catalog-card';
-    card.innerHTML = `<p>${item.category}</p><h2>${item.name}</h2><dl><div><dt>素材</dt><dd>${item.material || '未確認'}</dd></div><div><dt>継手</dt><dd>${item.joint || '未確認'}</dd></div><div><dt>足元の構造</dt><dd>${item.foot || '未確認'}</dd></div></dl><footer>出典：${item.source}　確認日：${item.confirmed_at}</footer>`;
-    $('catalog-list').append(card);
-  }
-}
-async function loadCatalog() {
-  message('catalog-status', '図鑑を読み込んでいます。');
-  try { catalogItems = (await api('catalog')).items; renderCatalog(); message('catalog-status', catalogItems.length ? '公開済みの記事を表示しています。' : '公開済みの記事はありません。'); }
-  catch (error) { message('catalog-status', error.message, true); }
-}
-async function start() {
-  try { const session = await api('session'); csrf = session.csrf; setAuthenticatedView(session.authenticated); if (session.authenticated) await Promise.all([loadHome(), loadOrthosis(), loadCatalog()]); }
-  catch (error) { message('auth-status', error.message, true); }
-}
-$('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { if (!csrf) csrf = (await api('session')).csrf; const result = await api('login', 'POST', {password: $('password').value}); csrf = result.csrf; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), loadOrthosis(), loadCatalog()]); } catch (error) { message('auth-status', error.message, true); } finally { button.disabled = false; } });
-$('logout').addEventListener('click', async () => { try { await api('logout', 'POST', {}); csrf = (await api('session')).csrf; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('password').focus(); } catch (error) { message('home-status', error.message, true); } });
-$('orthosis-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; const year = $('manufactured-year').value; button.disabled = true; message('orthosis-status', '装具情報を保存しています。'); try { const result = await api('orthosis', 'PUT', {name: $('orthosis-name').value, side: $('orthosis-side').value, orthosis_type: $('orthosis-type').value, manufactured_date: $('manufactured-date').value || null, manufactured_year: year ? Number(year) : null, maker: $('orthosis-maker').value, revision: orthosisRevision}); orthosisRevision = result.revision; message('orthosis-status', '装具情報を保存しました。'); await loadHome(); } catch (error) { message('orthosis-status', error.message, true); } finally { button.disabled = false; } });
-$('orthosis-photo').addEventListener('change', event => { const file = event.target.files[0]; if (!file) return message('photo-status', ''); const allowed = ['image/jpeg', 'image/png', 'image/webp']; message('photo-status', allowed.includes(file.type) && file.size <= 10 * 1024 * 1024 ? `${file.name} を確認しました。この試作版では保存しません。` : 'JPEG・PNG・WebPの10MB以下の写真を選んでください。', !(allowed.includes(file.type) && file.size <= 10 * 1024 * 1024)); });
-document.querySelectorAll('.screen-link').forEach(button => button.addEventListener('click', async () => { const screen = button.dataset.screen; setScreen(screen); if (screen === 'orthosis') await loadOrthosis(); if (screen === 'catalog') await loadCatalog(); }));
+function apiHeaders(extra = {}) { return {apikey: config.publishableKey, ...(token ? {Authorization: `Bearer ${token}`} : {}), ...extra}; }
+function setAuthenticatedView(ok) { if (!ok) document.querySelectorAll('.app-page').forEach(p => p.hidden = true); $('login-page').hidden = ok; $('home-page').hidden = !ok; $('logout').hidden = !ok; $('header-status').textContent = ok ? 'ログイン中' : 'ログインが必要です'; }
+function assertConfig() { if (!config.url || !config.publishableKey) throw new Error('公開設定を確認してください。'); }
+async function request(path, options = {}) { assertConfig(); const response = await fetch(`${config.url}${path}`, {headers: apiHeaders(options.headers), ...options}); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || body.msg || '処理できませんでした。'); } return response.status === 204 ? null : response.json(); }
+async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
+async function loadOrthosis() { const rows = await select('kasi_user_orthoses', 'select=id,nickname,side_code,orthosis_type_code,manufactured_on,manufactured_year,manufacturer_name,row_version&deleted_at=is.null&ownership_status=eq.owned&order=updated_at.desc&limit=1'); orthosis = rows[0] || null; populateOrthosis(); }
+function populateOrthosis() { $('orthosis-name').value = orthosis?.nickname || ''; $('orthosis-side').value = orthosis?.side_code || 'unknown'; $('orthosis-type').value = orthosis?.orthosis_type_code || 'unknown'; $('manufactured-date').value = orthosis?.manufactured_on || ''; $('manufactured-year').value = orthosis?.manufactured_year || ''; $('orthosis-maker').value = orthosis?.manufacturer_name || ''; }
+function renderHome() { $('orthosis-value').textContent = orthosis?.nickname || 'まだ登録されていません'; $('orthosis-help').textContent = orthosis ? '登録内容は「登録・編集」から確認・変更できます。' : '装具名が分からない場合も、次の画面で「不明」として登録できます。'; $('saved-at').textContent = orthosis ? '保存済み' : 'まだ保存されていません'; $('record-summary').replaceChildren(Object.assign(document.createElement('p'), {textContent: '保存された記録はありません。'})); }
+async function loadHome() { try { await loadOrthosis(); renderHome(); message('home-status', orthosis ? '保存した内容を表示しています。' : 'まだ保存された内容はありません。'); } catch (error) { message('home-status', error.message, true); } }
+function setScreen(name) { document.querySelectorAll('.app-page').forEach(p => p.hidden = true); $('home-page').hidden = name !== 'home'; if (name === 'orthosis') $('orthosis-page').hidden = false; if (name === 'catalog') $('catalog-page').hidden = false; document.querySelector('main').scrollIntoView({block: 'start'}); }
+function termValues(terms, group) { return terms.filter(t => t.kasi_catalog_terms?.term_group === group).map(t => t.kasi_catalog_terms.label_ja).join('、') || '未確認'; }
+function renderCatalog(filter = 'all') { const items = catalogItems.filter(i => filter === 'all' || i.type === filter); $('catalog-list').replaceChildren(); if (!items.length) return $('catalog-list').append(Object.assign(document.createElement('p'), {className: 'empty-state', textContent: '公開済みの記事はありません。専門職レビュー後に、出典と確認日を付けて掲載します。'})); items.forEach(i => { const card = document.createElement('article'); card.className = 'catalog-card'; card.innerHTML = `<p>${i.category}</p><h2>${i.title}</h2><p>${i.summary}</p><dl><div><dt>素材</dt><dd>${termValues(i.terms, 'material')}</dd></div><div><dt>継手</dt><dd>${termValues(i.terms, 'joint')}</dd></div><div><dt>足元の構造</dt><dd>${termValues(i.terms, 'foot_structure')}</dd></div></dl><footer>確認日：${i.reviewed_at || '未確認'}</footer>`; $('catalog-list').append(card); }); }
+async function loadCatalog() { try { const rows = await select('kasi_catalog_items', 'select=id,title,summary,reviewed_at&publication_status=eq.published&deleted_at=is.null&order=published_at.desc'); const ids = rows.map(r => r.id); const terms = ids.length ? await select('kasi_catalog_item_terms', `select=catalog_item_id,kasi_catalog_terms(term_group,label_ja)&catalog_item_id=in.(${ids.join(',')})`) : []; catalogItems = rows.map(row => { const itemTerms = terms.filter(t => t.catalog_item_id === row.id); const scope = termValues(itemTerms, 'support_scope'); return {...row, terms: itemTerms, category: scope, type: scope.includes('AFO') ? 'afo' : scope.includes('KAFO') ? 'kafo' : scope === '足底装具' ? 'foot_orthosis' : scope === '靴型装具' ? 'orthopedic_shoe' : 'other'}; }); renderCatalog(); message('catalog-status', catalogItems.length ? '公開済みの記事を表示しています。' : '公開済みの記事はありません。'); } catch (error) { message('catalog-status', error.message, true); } }
+$('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), loadCatalog()]); } catch { message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
+$('logout').addEventListener('click', () => { token = ''; orthosis = null; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
+$('orthosis-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; const data = {nickname: $('orthosis-name').value || '不明', side_code: $('orthosis-side').value, orthosis_type_code: $('orthosis-type').value, manufactured_on: $('manufactured-date').value || null, manufactured_year: $('manufactured-year').value ? Number($('manufactured-year').value) : null, manufacturer_name: $('orthosis-maker').value || null, ownership_status: 'owned'}; try { const path = orthosis ? `/rest/v1/kasi_user_orthoses?id=eq.${orthosis.id}&row_version=eq.${orthosis.row_version}` : '/rest/v1/kasi_user_orthoses'; const rows = await request(path, {method: orthosis ? 'PATCH' : 'POST', headers: {'Content-Type': 'application/json', Prefer: 'return=representation'}, body: JSON.stringify(data)}); if (orthosis && !rows.length) throw new Error('別の画面で更新されています。'); orthosis = rows[0]; renderHome(); message('orthosis-status', '装具情報を保存しました。'); } catch (error) { message('orthosis-status', error.message, true); } finally { button.disabled = false; } });
+$('orthosis-photo').addEventListener('change', event => { const file = event.target.files[0]; if (!file) return message('photo-status', ''); const valid = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type) && file.size <= 10 * 1024 * 1024; message('photo-status', valid ? `${file.name} を確認しました。この試作版では保存しません。` : 'JPEG・PNG・WebPの10MB以下の写真を選んでください。', !valid); });
+document.querySelectorAll('.screen-link').forEach(button => button.addEventListener('click', async () => { const screen = button.dataset.screen; setScreen(screen); if (screen === 'orthosis') { await loadOrthosis(); message('orthosis-status', orthosis ? '登録内容を表示しています。' : 'まだ登録されていません。'); } if (screen === 'catalog') await loadCatalog(); }));
 document.querySelectorAll('.future-link').forEach(button => button.addEventListener('click', () => message('home-status', `${button.dataset.feature}は、次の画面実装で追加します。`)));
-document.querySelectorAll('.catalog-filter-button').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.catalog-filter-button').forEach(item => item.classList.toggle('active', item === button)); renderCatalog(button.dataset.filter); }));
-let installPrompt; window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; $('install').hidden = false; }); $('install').addEventListener('click', async () => { if (!installPrompt) return; await installPrompt.prompt(); installPrompt = null; $('install').hidden = true; });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {}); start();
+document.querySelectorAll('.catalog-filter-button').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.catalog-filter-button').forEach(i => i.classList.toggle('active', i === button)); renderCatalog(button.dataset.filter); }));
+let installPrompt; window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; $('install').hidden = false; }); $('install').addEventListener('click', async () => { if (installPrompt) { await installPrompt.prompt(); installPrompt = null; $('install').hidden = true; } });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register(window.KASISOUGU_SUPABASE_CONFIG ? './sw.js' : '/sw.js').catch(() => {});
