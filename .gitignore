@@ -1,0 +1,15 @@
+__pycache__/
+data/
+qa-*.png
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+backend/target/
+.env
+.idea/
+.vscode/
+tmp/pdf*/
+tmp/browser*/
+output/
+outputs/
+dist/
