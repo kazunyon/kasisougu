@@ -5,7 +5,7 @@ import os
 import secrets
 import threading
 import time
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import psycopg
@@ -15,6 +15,8 @@ from werkzeug.security import check_password_hash
 
 ROOT = Path(__file__).parent
 CHOICES = ['歩きにくい', 'つまずく', '痛みがある', '装具が重い', '着けにくい', 'その他']
+SIDES = ('left', 'right', 'bilateral', 'unknown')
+ORTHOSIS_TYPES = ('afo', 'kafo', 'foot_orthosis', 'orthopedic_shoe', 'other', 'unknown')
 
 def create_app(config=None):
     if config is None:
@@ -36,6 +38,16 @@ def create_app(config=None):
             conn.execute('''CREATE TABLE IF NOT EXISTS consultation_memo (
                 id integer PRIMARY KEY CHECK (id = 1),
                 content jsonb NOT NULL,
+                revision integer NOT NULL DEFAULT 1,
+                updated_at timestamptz NOT NULL DEFAULT now())''')
+            conn.execute('''CREATE TABLE IF NOT EXISTS current_orthosis (
+                id integer PRIMARY KEY CHECK (id = 1),
+                name text NOT NULL DEFAULT '',
+                side text NOT NULL DEFAULT 'unknown',
+                orthosis_type text NOT NULL DEFAULT 'unknown',
+                manufactured_date date,
+                manufactured_year integer CHECK (manufactured_year BETWEEN 1900 AND 2200),
+                maker text NOT NULL DEFAULT '',
                 revision integer NOT NULL DEFAULT 1,
                 updated_at timestamptz NOT NULL DEFAULT now())''')
         print('Database ready')
@@ -137,5 +149,57 @@ def create_app(config=None):
                 revision=consultation_memo.revision+1, updated_at=now()
                 RETURNING revision, updated_at''', (Jsonb(content),)).fetchone()
         return jsonify(revision=saved[0], updated_at=saved[1].isoformat())
+
+    @app.get('/api/orthosis')
+    def get_orthosis():
+        with db() as conn:
+            row = conn.execute('''SELECT name, side, orthosis_type, manufactured_date,
+                manufactured_year, maker, revision, updated_at FROM current_orthosis WHERE id=1''').fetchone()
+        if not row:
+            return jsonify(orthosis=None, revision=0, updated_at=None)
+        return jsonify(orthosis={
+            'name': row[0], 'side': row[1], 'orthosis_type': row[2],
+            'manufactured_date': row[3].isoformat() if row[3] else None,
+            'manufactured_year': row[4], 'maker': row[5],
+        }, revision=row[6], updated_at=row[7].isoformat())
+
+    @app.put('/api/orthosis')
+    def put_orthosis():
+        data = request.get_json(silent=True)
+        required = {'name', 'side', 'orthosis_type', 'manufactured_date', 'manufactured_year', 'maker', 'revision'}
+        if not isinstance(data, dict) or set(data) != required or type(data['revision']) is not int or data['revision'] < 0:
+            return jsonify(error='入力内容を確認してください。'), 400
+        name, side, kind, manufactured_date, manufactured_year, maker = (
+            data['name'], data['side'], data['orthosis_type'], data['manufactured_date'],
+            data['manufactured_year'], data['maker'])
+        if (not all(isinstance(value, str) for value in (name, side, kind, maker))
+            or len(name) > 100 or len(maker) > 200 or side not in SIDES or kind not in ORTHOSIS_TYPES
+            or manufactured_date is not None and (not isinstance(manufactured_date, str) or len(manufactured_date) != 10)
+            or manufactured_year is not None and (type(manufactured_year) is not int or not 1900 <= manufactured_year <= 2200)):
+            return jsonify(error='入力内容を確認してください。'), 400
+        if manufactured_date is not None:
+            try:
+                date.fromisoformat(manufactured_date)
+            except ValueError:
+                return jsonify(error='入力内容を確認してください。'), 400
+        with db() as conn:
+            conn.execute('SELECT pg_advisory_xact_lock(7081602)')
+            row = conn.execute('SELECT revision FROM current_orthosis WHERE id=1').fetchone()
+            if (row[0] if row else 0) != data['revision']:
+                return jsonify(error='別の画面で装具情報が更新されています。画面を開き直して確認してください。'), 409
+            saved = conn.execute('''INSERT INTO current_orthosis
+                (id, name, side, orthosis_type, manufactured_date, manufactured_year, maker)
+                VALUES (1, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, side=EXCLUDED.side,
+                orthosis_type=EXCLUDED.orthosis_type, manufactured_date=EXCLUDED.manufactured_date,
+                manufactured_year=EXCLUDED.manufactured_year, maker=EXCLUDED.maker,
+                revision=current_orthosis.revision+1, updated_at=now()
+                RETURNING revision, updated_at''', (name, side, kind, manufactured_date, manufactured_year, maker)).fetchone()
+        return jsonify(revision=saved[0], updated_at=saved[1].isoformat())
+
+    @app.get('/api/catalog')
+    def get_catalog():
+        # Catalog publishing is not yet configured. The UI intentionally shows only reviewed items.
+        return jsonify(items=[])
 
     return app
