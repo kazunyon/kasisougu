@@ -1,5 +1,15 @@
 # 下肢装具 相談ノート・初版
 
+## GitHub Pagesで画面を公開する
+
+このリポジトリのPages URLは `https://kazunyon.github.io/kasisougu/` です。画面はGitHub Pages、認証と保存はSupabaseプロジェクト `https://zvuknqikqbumoswbhjau.supabase.co` を使用します。Google Cloud VMは利用しません。
+
+GitHubリポジトリの Settings → Secrets and variables → Actions → Variables で `SUPABASE_PUBLISHABLE_KEY` を作り、Supabase Dashboard の Connect または Settings → API Keys から取得した `sb_publishable_...` を登録します。これはブラウザに配布される公開用キーであり、データ保護はSupabase AuthとRLSで行います。`sb_secret_...` や旧 `service_role` は絶対に登録しません。
+
+次に Settings → Pages → Build and deployment → Source を **GitHub Actions** に設定します。`main` への反映後、または Actions の **Publish GitHub Pages** を手動実行すると公開されます。
+
+ローカルで配信用ファイルを確認する場合は、環境変数 `SUPABASE_URL` と `SUPABASE_PUBLISHABLE_KEY` を指定して `python tools/build_pages.py` を実行します。生成先は `dist/pages` です。
+
 個人1人用の相談メモPWAです。Google Cloudの既存VM・PostgreSQLを使います。
 
 ## できること

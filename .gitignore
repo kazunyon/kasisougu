@@ -12,3 +12,4 @@ tmp/pdf*/
 tmp/browser*/
 output/
 outputs/
+dist/

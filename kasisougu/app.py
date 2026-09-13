@@ -28,7 +28,6 @@ def create_app(config=None):
                       PERMANENT_SESSION_LIFETIME=timedelta(hours=8))
     failures = []
     lock = threading.Lock()
-
     def db():
         return psycopg.connect(**config['database'], connect_timeout=5)
 

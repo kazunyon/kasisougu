@@ -83,4 +83,5 @@ class ApiTests(unittest.TestCase):
         invalid={**item, 'revision':1, 'orthosis_type':'invalid'}
         self.assertEqual(self.client.put('/api/orthosis',json=invalid,headers=headers).status_code,400)
 
+
 if __name__=='__main__': unittest.main()
