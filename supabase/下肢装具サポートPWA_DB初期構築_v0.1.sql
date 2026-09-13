@@ -294,7 +294,7 @@ create table public.kasi_catalog_media (
   storage_bucket text not null default 'kasi_catalog-media' check (storage_bucket = 'kasi_catalog-media'),
   storage_path text not null,
   alt_text text not null,
-  rights_status text not null check (rights_status in ('owned', 'licensed', 'permission_obtained')),
+  rights_status text not null check (rights_status in ('owned', 'licensed', 'permission_obtained', 'external_reference')),
   rights_note text not null,
   source_url text,
   sort_order smallint not null default 0 check (sort_order between 0 and 99),
