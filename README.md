@@ -1,81 +1,64 @@
-# 下肢装具 相談ノート・初版
+# 下肢装具サポートPWA
 
-## GitHub Pagesで画面を公開する
+下肢装具を使う本人が、装具、使用時の様子、相談内容を整理するための個人用PWAです。装具の適合や処方、歩行可否を判断する機能は含みません。
 
-このリポジトリのPages URLは `https://kazunyon.github.io/kasisougu/` です。画面はGitHub Pages、認証と保存はSupabaseプロジェクト `https://zvuknqikqbumoswbhjau.supabase.co` を使用します。Google Cloud VMは利用しません。
+公開URL: https://kazunyon.github.io/kasisougu/
 
-GitHubリポジトリの Settings → Secrets and variables → Actions → Variables で `SUPABASE_PUBLISHABLE_KEY` を作り、Supabase Dashboard の Connect または Settings → API Keys から取得した `sb_publishable_...` を登録します。これはブラウザに配布される公開用キーであり、データ保護はSupabase AuthとRLSで行います。`sb_secret_...` や旧 `service_role` は絶対に登録しません。
+## 構成
 
-次に Settings → Pages → Build and deployment → Source を **GitHub Actions** に設定します。`main` への反映後、または Actions の **Publish GitHub Pages** を手動実行すると公開されます。
+| 役割 | 使用サービス |
+| --- | --- |
+| 画面公開 | GitHub Pages |
+| 認証・データ保存 | Supabase Auth / PostgreSQL / Storage |
+| Supabaseプロジェクト | `zvuknqikqbumoswbhjau` |
 
-ローカルで配信用ファイルを確認する場合は、環境変数 `SUPABASE_URL` と `SUPABASE_PUBLISHABLE_KEY` を指定して `python tools/build_pages.py` を実行します。生成先は `dist/pages` です。
+Google Cloud VM、Flask、独自サーバーは使用しません。ブラウザはSupabaseの公開用キーと利用者のログインセッションだけで接続し、行レベルセキュリティ（RLS）により本人のデータだけを扱います。
 
-個人1人用の相談メモPWAです。Google Cloudの既存VM・PostgreSQLを使います。
+## 実装済み画面
 
-## できること
+| 画面 | 内容 |
+| --- | --- |
+| S01 | メールアドレスとパスワードによるログイン |
+| S02 | ホーム、登録済み装具と使用記録の確認 |
+| S03 | 装具名、左右、種類、作製情報、製作所の登録 |
+| S04 | 専門職レビュー済み記事だけを表示する装具図鑑 |
+| S05 | 使用日、靴、場面、介助、時間、感想、項目評価の記録 |
+| S06 | 相談内容のプレビューと印刷。外部への自動送信はしない |
+| S07 | 文字倍率、端末下書き保存、書き出し、確認付き削除、ログアウト |
 
-- 困りごとを大きなボタンで選択。希望・装具名・質問を入力。
-- 専用パスワードでログインし、1件のメモをPostgreSQLに保存・再表示。
-- 画面の内容を印刷（ブラウザーの印刷画面からPDF保存も可能）。
-- HTTPS公開後にホーム画面へ追加。通信がなくても画面を開いて入力可能。
+写真はJPEG・PNG・WebP、10MBまでを対象にしています。写真本体のSupabase Storage保存は今後の対応です。
 
-入力内容は自動保存しません。オフラインではサーバー保存できず、閉じると未保存の入力は失われます。端末の永続ストレージへメモやパスワードを保存しません。PWAキャッシュは画面用ファイルのみです。
+## 初回設定
 
-## 現状
+1. Supabase SQL Editorで [初期構築SQL](supabase/下肢装具サポートPWA_DB初期構築_v0.1.sql) を適用します。
+2. Supabase Dashboardの Authentication → Users で利用者を作成します。メールアドレス、パスワードを入力し、`Auto confirm user?` を有効にします。
+3. GitHubリポジトリの Settings → Secrets and variables → Actions → Variables に、次の変数を登録します。
 
-このZIPは配置用です。Google Cloudへのアップロード、実DB接続、HTTPS公開はまだ行っていません。既存DB・バックアップ設定はそのまま利用します。利用者を増やす場合は個別アカウントとデータ分離を別途実装する必要があります。
-
-## 次に行うこと（Cloud Shell）
-
-1. ZIPをパソコンへダウンロード。
-2. Cloud Shellの「︙」→「アップロード」でZIPをアップロード。
-3. Cloud Shellで、サーバーへコピー：
-
-```bash
-gcloud compute scp kasisougu-pwa.zip kasisougu-server:~/ --project=kasisougu --zone=us-west1-b
-gcloud compute ssh kasisougu-server --project=kasisougu --zone=us-west1-b
+```text
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-4. SSH接続後、次を実行。インストール前に `install.sh` を読んで確認できます。
+`sb_secret_...`、`service_role`、データベース接続文字列は登録・公開しません。
 
-```bash
-sudo apt-get install -y unzip
-unzip -n kasisougu-pwa.zip
-cd kasisougu
-sudo bash install.sh
+4. GitHub Settings → Pages で公開元を **GitHub Actions** にします。`main` へマージすると、[Publish GitHub Pages](.github/workflows/pages.yml) が公開用ファイルを生成してデプロイします。
+
+## ディレクトリ
+
+```text
+.github/workflows/pages.yml   GitHub Pages公開
+kasisougu/static/             PWA画面・スタイル・Service Worker
+supabase/                     Supabase初期構築SQL
+tools/build_pages.py          Pages配信用ファイルの生成
 ```
 
-DBのパスワードと、新しいアプリ用パスワードを対話式で入力します。文字は表示されません。チャットには送らないでください。パスワードを間違えた場合は、エラーを確認して同じinstallコマンドを再実行できます。
+## ローカル確認
 
-設定は `/etc/kasisougu/config.json`（root所有・アプリグループのみ読取）、プログラムは `/opt/kasisougu` です。既存設定がある場合は再利用します。既存DBの内容を削除せず、専用テーブル `consultation_memo` を作ります。
+PowerShellで公開用ファイルを生成できます。
 
-## 外部公開の続き
-
-インストール直後は **127.0.0.1:8000でのみ待受**。このままではスマートフォンからアクセスできません。
-次に利用するドメインを決め、DNS、HTTPSリバースプロキシ、必要なWeb用ファイアウォールを設定します。DBの5432番ポートは公開しません。HTTPS用Cookieを有効にしてあるため、通常のHTTPアクセスではログインできません。設定を弱めずHTTPSを用意してください。
-
-VMの外部IPは一時IPです。停止・起動で変わります。DNS設定前に現在値を確認し、必要に応じて固定します。ドメイン費用などは現在のVM費用に別途加わり得ます。
-
-```bash
-gcloud compute instances describe kasisougu-server --project=kasisougu --zone=us-west1-b --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
+```powershell
+$env:SUPABASE_URL='https://zvuknqikqbumoswbhjau.supabase.co'
+$env:SUPABASE_PUBLISHABLE_KEY='sb_publishable_...'
+python tools/build_pages.py
 ```
 
-## 配置後の確認
-
-```bash
-sudo systemctl status kasisougu-web --no-pager
-curl --fail http://127.0.0.1:8000/api/session
-```
-
-HTTPS公開後、ログイン→テスト文を保存→再読み込み→同じ内容の表示→ログアウトの順に確認します。スマートフォンでホーム画面追加も確認します。
-既存の毎日バックアップはDB全体を対象とするので、このテーブルも次回から含まれます。実際の復元テストは未実施です。
-
-## 保守
-
-1ワーカー・2スレッドで稼働します。ログイン失敗を5分間で5回に制限します（単一プロセス内、再起動でリセット）。複数ワーカーに増やす場合は制限を共有化してください。Cookieは8時間有効、HttpOnly/SameSite=Strict/Secureを指定。更新APIはCSRFトークンを検証し、同時編集の上書きは409で停止します。
-
-アプリは1人用で、同じパスワードを共有すると同じメモへアクセスします。公開前に独自ドメイン・HTTPS、実DB保存、バックアップからの復元を確認してください。複数患者の情報管理を想定したシステムではありません。
-
-ログ確認：`sudo journalctl -u kasisougu-web -n 30 --no-pager`
-
-装具の呼称の参考：[脳卒中の下肢装具 第3版・目次](https://webview.isho.jp/book/detail/abs/10.11477/9784260624886)。装具の選択や適合を判定する機能はありません。
+生成先は `dist/pages/` です。公開用キーはブラウザで使用する前提のキーですが、実データへのアクセスはSupabase AuthとRLSで制御されます。
