@@ -6,7 +6,16 @@ let needs = [], editingNeed = null, photos = [], photoUrls = [], photoRenderId =
 let profile = null, profileLoaded = false;
 function message(id, text, error = false) { $(id).textContent = text; $(id).classList.toggle('error', error); }
 function apiHeaders(extra = {}) { return {apikey: config.publishableKey, ...(token ? {Authorization: `Bearer ${token}`} : {}), ...extra}; }
-function setAuthenticatedView(ok) { if (!ok) document.querySelectorAll('.app-page').forEach(p => p.hidden = true); $('login-page').hidden = ok; $('home-page').hidden = !ok; $('logout').hidden = !ok; $('header-status').textContent = ok ? 'ログイン中' : 'ログインが必要です'; }
+function setAuthenticatedView(ok) {
+  document.body.classList.toggle('is-authenticated', ok);
+  $('app-navigation').hidden = !ok;
+  $('app-toolbar').hidden = !ok;
+  document.querySelectorAll('.app-page').forEach(p => p.hidden = true);
+  $('login-page').hidden = ok; $('home-page').hidden = !ok; $('logout').hidden = !ok;
+  $('header-status').textContent = ok ? 'ログイン中' : 'ログインが必要です';
+  if (ok) setScreen('home');
+  else { currentScreen = 'home'; screenLoads.clear(); document.title = '下肢装具サポート'; }
+}
 function assertConfig() { if (!config.url || !config.publishableKey) throw new Error('公開設定を確認してください。'); }
 async function request(path, options = {}) { const {headers: extraHeaders = {}, ...rest} = options; assertConfig(); const response = await fetch(`${config.url}${path}`, {...rest, headers: apiHeaders(extraHeaders)}); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || body.msg || '処理できませんでした。'); } const body = await response.text(); return body ? JSON.parse(body) : null; }
 async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
@@ -202,9 +211,30 @@ async function deletePhoto(item) {
     if (orthosis?.id === id) { await refreshPhotos(); message('photo-status', '写真を削除しました。'); }
   } catch (error) { message('photo-status', `削除を完了できませんでした：${error.message}`, true); }
 }
-function setScreen(name) { document.querySelectorAll('.app-page').forEach(p => p.hidden = true); $('home-page').hidden = name !== 'home'; if (name !== 'home') $(`${name}-page`).hidden = false; document.querySelector('main').scrollIntoView({block: 'start'}); }
+const screenNames = {home:'ホーム', orthosis:'自分の装具', catalog:'装具図鑑', record:'使用記録', consultation:'相談シート', settings:'設定'};
+let currentScreen = 'home';
+const screenLoads = new Map();
+function setScreen(name) {
+  if (!token || !Object.hasOwn(screenNames, name)) return;
+  currentScreen = name;
+  document.querySelectorAll('.app-page').forEach(p => p.hidden = p.id !== `${name}-page`);
+  $('home-page').hidden = name !== 'home';
+  document.querySelectorAll('#app-navigation .screen-link, .mobile-orthosis').forEach(button => {
+    const active = button.dataset.screen === name;
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+  $('current-screen').textContent = screenNames[name];
+  document.title = `${screenNames[name]} | 下肢装具サポート`;
+  if (name !== 'catalog' && window.KASI_F03) KASI_F03.hide();
+  const title = $(`${name}-page`).querySelector('h1');
+  title.setAttribute('tabindex', '-1');
+  title.focus({preventScroll:true});
+  window.scrollTo({top:0, behavior:'instant'});
+}
 $('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
-$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
+$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
 $('orthosis-add').addEventListener('click', () => showOrthosisForm());
 $('orthosis-edit').addEventListener('click', () => showOrthosisForm(orthosis));
 $('orthosis-cancel').addEventListener('click', () => { $('orthosis-form').hidden = true; if (KASI_F04.cancelOrthosisRegistration()) return; $('orthosis-detail').hidden = !orthosis; });
@@ -282,31 +312,40 @@ $('profile-form').addEventListener('input', event => { if (event.target.id === '
 $('profile-form').addEventListener('change', () => message('profile-status', '未保存の変更があります。'));
 $('delete-local').addEventListener('click',()=>{if(confirm('この端末の下書きを削除しますか？')){localStorage.removeItem('kasi_record_draft');message('settings-data-status','端末の下書きを削除しました。DBの本人設定は変更していません。')}});
 $('export-data').addEventListener('click',()=>{const b=new Blob([JSON.stringify({orthoses,exported_at:new Date().toISOString()},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kasisougu-export.json';a.click();URL.revokeObjectURL(a.href)});
-document.querySelectorAll('.screen-link').forEach(button => button.addEventListener('click', async () => {
-  const screen = button.dataset.screen;
+async function navigateTo(screen, action = '') {
+  if (!token || !Object.hasOwn(screenNames, screen)) return;
+  if (screen === currentScreen && !action) return;
   if (screen !== 'orthosis') KASI_F04.leaveOrthosisRegistration();
-  if (screen !== 'orthosis') clearPhotoUrls();
-  if (screen !== 'record') KASI_F04.clearUrls();
-  if (screen !== 'consultation') KASI_F05.clearUrls();
-  if (screen !== 'catalog') KASI_F03.hide();
   setScreen(screen);
-  if (screen === 'home') await loadHome();
-  if (screen === 'orthosis') {
-    try { await loadOrthoses(); $('orthosis-form').hidden = true; $('orthosis-detail').hidden = true; clearPhotoUrls(); }
-    catch (error) { message('orthosis-list-status', error.message, true); }
+  // Keep editors and their photo URLs alive while moving between pages.
+  // They are reset or revoked when replaced and on logout.
+  if (!screenLoads.has(screen)) {
+    const load = async () => {
+      if (screen === 'home') await loadHome();
+      if (screen === 'orthosis' && $('orthosis-form').hidden && $('orthosis-detail').hidden) await loadOrthoses();
+      if (screen === 'catalog') await KASI_F03.resume();
+      if (screen === 'record') { await loadOrthoses(); await KASI_F04.init(); }
+      if (screen === 'consultation') await KASI_F05.init();
+      if (screen === 'settings' && !profileLoaded) await loadProfile();
+    };
+    screenLoads.set(screen, load().finally(() => screenLoads.delete(screen)));
   }
-  if (screen === 'catalog') await KASI_F03.load();
-  if (screen === 'record') {
-    try { await loadOrthoses(); await KASI_F04.init(); }
-    catch (error) { message('record-list-status', error.message, true); }
+  try {
+    await screenLoads.get(screen);
+    if (currentScreen === screen && action === 'new-record' && $('record-form').hidden) $('record-add').click();
+  } catch (error) {
+    const status = {home:'home-status',orthosis:'orthosis-list-status',catalog:'catalog-status',record:'record-list-status',consultation:'sheet-list-status',settings:'profile-status'};
+    message(status[screen], error.message, true);
   }
-  if (screen === 'consultation') {
-    try { await KASI_F05.init(); }
-    catch (error) { message('sheet-list-status', error.message, true); }
-  }
-  if (screen === 'settings') await loadProfile();
-  else if (profileLoaded) applyTextScale(profile?.text_scale ?? 100);
-}));
+}
+document.querySelectorAll('.screen-link').forEach(button => button.addEventListener('click', () => navigateTo(button.dataset.screen, button.dataset.action)));
+document.querySelector('.brand').addEventListener('click', event => {
+  if (token) { event.preventDefault(); navigateTo('home'); }
+});
+// Track the actual bar height, including large text and the device safe area.
+if ('ResizeObserver' in window) new ResizeObserver(entries => {
+  document.documentElement.style.setProperty('--mobile-nav-height', `${Math.ceil(entries[0].target.getBoundingClientRect().height)}px`);
+}).observe(document.querySelector('.primary-nav'));
 document.querySelectorAll('.future-link').forEach(button => button.addEventListener('click', () => message('home-status', `${button.dataset.feature}は、次の画面実装で追加します。`)));
 let installPrompt; window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; $('install').hidden = false; }); $('install').addEventListener('click', async () => { if (installPrompt) { await installPrompt.prompt(); installPrompt = null; $('install').hidden = true; } });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register(window.KASISOUGU_SUPABASE_CONFIG ? './sw.js' : '/sw.js').catch(() => {});

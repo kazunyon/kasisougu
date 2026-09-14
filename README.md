@@ -16,6 +16,10 @@ Google Cloud VM、Flask、独自サーバーは使用しません。ブラウザ
 
 ## 実装済み画面
 
+ログイン後は全画面共通のメニューから、ホーム・装具図鑑・使用記録・相談シート・設定へ直接移動できます。PCは左側メニュー、画面幅760px以下は下部メニューです。「自分の装具」はPCの左メニュー下、スマートフォンの画面上部から開けます。緑を基調に、使用記録は広い画面で一覧と詳細を並べて表示します。
+
+画面を切り替えても、開いている入力フォームは同じログイン中のページ内に保持されます。再読み込みやログアウトをまたぐ下書きの自動保存ではありません。相談シートの印刷には共通メニューを含めません。
+
 | 画面 | 内容 |
 | --- | --- |
 | S01 | メールアドレスとパスワードによるログイン |
@@ -68,6 +72,17 @@ tools/build_pages.py          Pages配信用ファイルの生成
 ```
 
 ## ローカル確認
+
+画面変更のブラウザ確認は、Pagesビルドをローカルで配信し、Playwright CLIで実行できます。`tools/check_redesign.js` はAPIを架空のテストデータに差し替え、画面移動・入力保持・選択表示・印刷・各画面幅・文字200%・ログアウトを確認します。実データには接続しません。スクリーンショットは `output/playwright/` に保存します。
+
+```powershell
+python -m http.server 8765 --bind 127.0.0.1 --directory dist/pages
+# 別のターミナルで実行
+npx --yes --package @playwright/cli playwright-cli -s=green-redesign open http://127.0.0.1:8765 --browser chrome
+npx --yes --package @playwright/cli playwright-cli -s=green-redesign run-code --filename tools/check_redesign.js
+npx --yes --package @playwright/cli playwright-cli -s=green-redesign run-code --filename tools/check_redesign_flows.js
+npx --yes --package @playwright/cli playwright-cli -s=green-redesign run-code --filename tools/check_redesign_layout.js
+```
 
 PowerShellで公開用ファイルを生成できます。
 

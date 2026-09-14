@@ -13,3 +13,4 @@ tmp/browser*/
 output/
 outputs/
 dist/
+.playwright-cli/
