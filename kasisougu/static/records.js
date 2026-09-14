@@ -7,15 +7,25 @@ const recordCategories = [
 const resultLabels = {not_evaluated: '未評価', no_issue: '問題なし', issue: '気になる'};
 const assistanceLabels = {not_evaluated: '未評価', independent: '自立', partial_assistance: '一部介助', full_assistance: '全介助'};
 const F04 = (() => {
-  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0;
+  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false;
+  const orthosisTypeLabels = {kafo:'長下肢装具',afo:'短下肢装具',other:'その他'};
+  const orthosisGroup = code => code === 'kafo' || code === 'afo' ? code : 'other';
   const title = row => `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具名未取得'}`;
   const observation = (row, category) => row.observations?.find(o => o.category_code === category);
   const value = v => v === null || v === undefined || v === '' ? '未記入' : String(v);
   function emptyOption(text) { const option = node('option', text); option.value = ''; return option; }
+  function updateOrthosisChoices(preferredId = '') {
+    const type = $('record-orthosis-type').value, available = orthoses.filter(item => orthosisGroup(item.orthosis_type_code) === type);
+    const selectEl = $('record-orthosis'); selectEl.replaceChildren();
+    if (!available.length) selectEl.append(emptyOption(`${orthosisTypeLabels[type]}は未登録です`));
+    available.forEach(item => { const option = node('option', `${item.nickname}（${ownershipLabels[item.ownership_status]}）`); option.value = item.id; selectEl.append(option); });
+    selectEl.value = available.find(item => item.id === preferredId)?.id || available[0]?.id || '';
+    message('record-orthosis-guide', available.length
+      ? `${orthosisTypeLabels[type]}は${available.length}件登録済みです。使った装具を選んでください。`
+      : `${orthosisTypeLabels[type]}は未登録です。「選択した種類の装具を追加」から登録してください。`);
+  }
   function updateChoices() {
-    $('record-orthosis').replaceChildren();
-    if (!orthoses.length) $('record-orthosis').append(emptyOption('先に装具を登録してください'));
-    orthoses.forEach(item => { const option = node('option', `${item.nickname}（${ownershipLabels[item.ownership_status]}）`); option.value = item.id; $('record-orthosis').append(option); });
+    updateOrthosisChoices($('record-orthosis').value);
     for (const id of ['compare-first', 'compare-second']) {
       const selectEl = $(id); selectEl.replaceChildren(emptyOption('記録を選択'));
       records.forEach(row => { const option = node('option', title(row)); option.value = row.id; selectEl.append(option); });
@@ -47,10 +57,10 @@ const F04 = (() => {
     return records;
   }
   async function init() {
-    const formVisible = !$('record-form').hidden, chosenOrthosis = $('record-orthosis').value;
+    const formVisible = !$('record-form').hidden, chosenOrthosis = $('record-orthosis').value, chosenType = $('record-orthosis-type').value;
     const detailVisible = !$('record-detail').hidden, detailId = selected?.id;
     await load();
-    if (formVisible) $('record-orthosis').value = chosenOrthosis;
+    if (formVisible) { $('record-orthosis-type').value = chosenType; updateOrthosisChoices(chosenOrthosis); }
     else if (detailVisible && detailId) await open(detailId);
   }
   function makeEvaluationInputs() {
@@ -70,9 +80,12 @@ const F04 = (() => {
     });
   }
   function fillForm(row) {
-    $('record-form').reset(); updateChoices();
+    $('record-form').reset();
+    const related = orthoses.find(item => item.id === row?.user_orthosis_id) || orthoses[0];
+    $('record-orthosis-type').value = related ? orthosisGroup(related.orthosis_type_code) : 'kafo';
+    updateChoices();
     $('recorded-on').value = row?.recorded_on || new Date().toLocaleDateString('sv-SE');
-    $('record-orthosis').value = row?.user_orthosis_id || orthoses[0]?.id || '';
+    updateOrthosisChoices(row?.user_orthosis_id || related?.id);
     $('record-footwear').value = row?.footwear || '';
     $('record-setting').value = row?.usage_setting || '';
     $('record-assistance').value = row?.assistance_level || 'not_evaluated';
@@ -93,6 +106,28 @@ const F04 = (() => {
     message('record-status', ''); $('recorded-on').focus();
   }
   function closeForm() { $('record-form').hidden = true; $('record-detail').hidden = !selected; }
+  function addOrthosis() {
+    registeringOrthosis = true;
+    const type = $('record-orthosis-type').value;
+    setScreen('orthosis'); showOrthosisForm();
+    $('orthosis-type').value = type; $('orthosis-name').value = orthosisTypeLabels[type];
+  }
+  async function orthosisSaved(id) {
+    if (!registeringOrthosis) return false;
+    registeringOrthosis = false;
+    await load();
+    const item = orthoses.find(row => row.id === id);
+    $('record-orthosis-type').value = orthosisGroup(item?.orthosis_type_code);
+    updateOrthosisChoices(id);
+    $('record-detail').hidden = true; $('record-form').hidden = false; setScreen('record');
+    message('record-status', `${item?.nickname || '装具'}を追加しました。続けて記録を保存できます。`);
+    return true;
+  }
+  function cancelOrthosisRegistration() {
+    if (!registeringOrthosis) return false;
+    registeringOrthosis = false; setScreen('record'); return true;
+  }
+  function leaveOrthosisRegistration() { registeringOrthosis = false; }
   function facts(row) {
     const entries = [['使用日', row.recorded_on], ['装具', orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '未登録'], ['靴', value(row.footwear)], ['場所・訓練内容', value(row.usage_setting)], ['介助', assistanceLabels[row.assistance_level] || '未評価'], ['使用時間', row.duration_minutes == null ? '未記入' : `${row.duration_minutes}分`], ['感想・メモ', value(row.overall_note)]];
     $('record-facts').replaceChildren(); entries.forEach(([a,b]) => $('record-facts').append(node('dt',a),node('dd',b)));
@@ -155,7 +190,8 @@ const F04 = (() => {
   async function save(event) {
     event.preventDefault(); const button = event.submitter; button.disabled = true;
     try {
-      if (!$('record-orthosis').value) throw new Error('関連する装具を選んでください。');
+      if (!orthoses.some(item => item.id === $('record-orthosis').value && orthosisGroup(item.orthosis_type_code) === $('record-orthosis-type').value))
+        throw new Error('選択した種類の装具を登録し、関連する装具を選んでください。');
       const row = editing, data = {user_orthosis_id:$('record-orthosis').value, recorded_on:$('recorded-on').value, footwear:$('record-footwear').value.trim() || null, usage_setting:$('record-setting').value.trim() || null, assistance_level:$('record-assistance').value, duration_minutes:$('record-duration').value ? Number($('record-duration').value) : null, overall_note:$('record-note').value.trim() || null};
       const values = collectObservations();
       const rows = await request(row ? `/rest/v1/kasi_usage_records?id=eq.${row.id}&row_version=eq.${row.row_version}` : '/rest/v1/kasi_usage_records', {method:row?'PATCH':'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(data)});
@@ -235,18 +271,20 @@ const F04 = (() => {
     message('compare-status', same ? '主要条件がそろっています。評価の違いを専門職と確認してください。' : '条件が異なる項目があります。装具の違いだけによる変化とは断定できません。',!same);
   }
   function reset() {
-    clearUrls(); records = []; selected = null; editing = null; media = [];
+    clearUrls(); records = []; selected = null; editing = null; media = []; registeringOrthosis = false;
     $('record-list').replaceChildren(); $('record-detail').hidden = true; $('record-form').hidden = true;
     $('record-photo-list').replaceChildren(); $('compare-result').replaceChildren(); $('compare-result').hidden = true;
     $('record-summary').replaceChildren(node('p', '保存された記録はありません。'));
   }
   makeEvaluationInputs();
+  $('record-orthosis-type').addEventListener('change', () => updateOrthosisChoices());
+  $('record-add-orthosis').addEventListener('click', addOrthosis);
   $('record-add').addEventListener('click', () => showForm());
   $('record-edit').addEventListener('click', () => showForm(selected));
   $('record-cancel').addEventListener('click', closeForm);
   $('record-form').addEventListener('submit', save);
   $('record-photo-form').addEventListener('submit', uploadPhoto);
   $('compare-run').addEventListener('click', compare);
-  return {init,load,open,renderHomeRecords,clearUrls,reset,getRecords:() => records,comparisonTable};
+  return {init,load,open,renderHomeRecords,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,comparisonTable};
 })();
 window.KASI_F04 = F04;
