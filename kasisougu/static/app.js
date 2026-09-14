@@ -176,7 +176,7 @@ $('login-form').addEventListener('submit', async event => { event.preventDefault
 $('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; needs = []; photos = []; $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
 $('orthosis-add').addEventListener('click', () => showOrthosisForm());
 $('orthosis-edit').addEventListener('click', () => showOrthosisForm(orthosis));
-$('orthosis-cancel').addEventListener('click', () => { $('orthosis-form').hidden = true; $('orthosis-detail').hidden = !orthosis; });
+$('orthosis-cancel').addEventListener('click', () => { $('orthosis-form').hidden = true; if (KASI_F04.cancelOrthosisRegistration()) return; $('orthosis-detail').hidden = !orthosis; });
 $('orthosis-form').addEventListener('submit', async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
   const data = {nickname: $('orthosis-name').value.trim() || '不明', ownership_status:$('orthosis-status-code').value, side_code: $('orthosis-side').value, orthosis_type_code: $('orthosis-type').value, manufactured_on: $('manufactured-date').value || null, manufactured_year: $('manufactured-year').value ? Number($('manufactured-year').value) : null, manufacturer_name: $('orthosis-maker').value.trim() || null};
@@ -184,7 +184,9 @@ $('orthosis-form').addEventListener('submit', async event => {
     const item = editingOrthosis, path = item ? `/rest/v1/kasi_user_orthoses?id=eq.${item.id}&row_version=eq.${item.row_version}` : '/rest/v1/kasi_user_orthoses';
     const rows = await request(path, {method: item ? 'PATCH' : 'POST', headers: {'Content-Type': 'application/json', Prefer: 'return=representation'}, body: JSON.stringify(data)});
     if (!rows.length) throw new Error('別の画面で更新されています。再読み込みしてください。');
-    await loadOrthoses(); await openOrthosis(rows[0].id);
+    await loadOrthoses();
+    if (await KASI_F04.orthosisSaved(rows[0].id)) return;
+    await openOrthosis(rows[0].id);
     message('orthosis-list-status', '装具情報を保存しました。');
   } catch (error) { message('orthosis-status', error.message, true); } finally { button.disabled = false; }
 });
@@ -226,6 +228,7 @@ $('delete-local').addEventListener('click',()=>{if(confirm('この端末の下�
 $('export-data').addEventListener('click',()=>{const b=new Blob([JSON.stringify({orthoses,exported_at:new Date().toISOString()},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kasisougu-export.json';a.click();URL.revokeObjectURL(a.href)});
 document.querySelectorAll('.screen-link').forEach(button => button.addEventListener('click', async () => {
   const screen = button.dataset.screen;
+  if (screen !== 'orthosis') KASI_F04.leaveOrthosisRegistration();
   if (screen !== 'orthosis') clearPhotoUrls();
   if (screen !== 'record') KASI_F04.clearUrls();
   if (screen !== 'consultation') KASI_F05.clearUrls();
