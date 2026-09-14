@@ -26,7 +26,10 @@ const F05 = (() => {
     if (!sheets.length) $('sheet-list').append(node('p', '保存済みの相談シートはありません。', 'empty-state'));
     sheets.forEach(row => {
       const card = node('article', '', 'record-card');
-      card.append(node('h3', row.title), node('p', `${row.consultation_on || '相談日未記入'} · ${row.status_code === 'finalized' ? '確定済み' : '下書き'}`));
+      const state = row.snapshot_json?.revised_from
+        ? row.status_code === 'finalized' ? '追記版・確定済み' : '追記の下書き'
+        : row.status_code === 'finalized' ? '確定済み' : '下書き';
+      card.append(node('h3', row.title), node('p', `${row.consultation_on || '相談日未記入'} · ${state}`));
       const button = node('button', row.status_code === 'finalized' ? '内容を見る' : '開いて編集');
       button.type = 'button'; button.addEventListener('click', () => open(row.id)); card.append(button); $('sheet-list').append(card);
     });
@@ -52,6 +55,7 @@ const F05 = (() => {
   function newSheet() {
     selected = null; $('consultation-form').reset(); $('sheet-title').value = '相談シート';
     $('sheet-form-title').textContent = '新しい相談シート'; renderSelections();
+    $('sheet-revision-note').hidden = true; $('sheet-select-grid').hidden = false;
     $('consultation-form').hidden = false; $('consultation-preview').hidden = true; clearUrls();
     message('consultation-status', ''); $('sheet-title').focus();
   }
@@ -60,18 +64,29 @@ const F05 = (() => {
     selected = row; clearUrls();
     if (row.status_code === 'finalized') {
       $('consultation-form').hidden = true; showPreview(row.snapshot_json || {});
-      message('sheet-list-status', '確定済みの内容は変更できません。'); return;
+      message('sheet-list-status', 'この確定版は保存します。聞きたいことが増えたら、内容を引き継いだ新しい下書きを作れます。'); return;
     }
     const snapshot = row.snapshot_json || {};
     $('sheet-title').value = row.title; $('sheet-display-name').value = row.display_name || '';
     $('consultation-on').value = row.consultation_on || '';
     $('consultation-recipient').value = snapshot.recipient || '';
     $('consultation-question').value = row.question_text || '';
-    renderSelections(snapshot); $('sheet-form-title').textContent = '下書きを編集';
+    const isRevision = Boolean(snapshot.revised_from);
+    renderSelections(snapshot); $('sheet-form-title').textContent = isRevision ? '質問を追記する' : '下書きを編集';
+    $('sheet-revision-note').hidden = !isRevision; $('sheet-select-grid').hidden = isRevision;
     $('consultation-form').hidden = false; $('consultation-preview').hidden = true;
     message('consultation-status', ''); $('sheet-title').focus();
   }
   function buildSnapshot() {
+    if (selected?.status_code === 'draft' && selected.snapshot_json?.revised_from) {
+      const snapshot = JSON.parse(JSON.stringify(selected.snapshot_json));
+      Object.assign(snapshot, {
+        captured_at: new Date().toISOString(), title: $('sheet-title').value.trim() || '相談シート',
+        display_name: $('sheet-display-name').value.trim(), consultation_on: $('consultation-on').value || null,
+        recipient: $('consultation-recipient').value.trim(), question_text: $('consultation-question').value.trim()
+      });
+      return snapshot;
+    }
     const ids = {
       orthoses: selectedIds('sheet-orthoses'), needs: selectedIds('sheet-needs'),
       records: selectedIds('sheet-records'), photos: selectedIds('sheet-photos')
@@ -106,7 +121,32 @@ const F05 = (() => {
   }
   function sheetData(snapshot) {
     return {title:snapshot.title,consultation_on:snapshot.consultation_on,display_name:snapshot.display_name || null,
-      question_text:snapshot.question_text || null,include_photos:snapshot.photos.length > 0,snapshot_json:snapshot,snapshot_version:1};
+      question_text:snapshot.question_text || null,include_photos:(snapshot.photos || []).length > 0,snapshot_json:snapshot,snapshot_version:1};
+  }
+  async function createRevision() {
+    const source = selected, button = $('sheet-revise');
+    if (!source || source.status_code !== 'finalized' || !source.snapshot_json) return;
+    button.disabled = true;
+    try {
+      const snapshot = JSON.parse(JSON.stringify(source.snapshot_json));
+      for (const key of ['orthoses','needs','records','photos']) {
+        if (!Array.isArray(snapshot[key])) snapshot[key] = [];
+      }
+      snapshot.revised_from = source.id;
+      snapshot.captured_at = new Date().toISOString();
+      const rows = await request('/rest/v1/kasi_consultation_sheets', {
+        method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},
+        body:JSON.stringify({...sheetData(snapshot),status_code:'draft'})
+      });
+      if (!rows.length) throw new Error('追記用の下書きを作成できませんでした。');
+      const revisionId = rows[0].id;
+      selected = rows[0]; await load();
+      if (!sheets.some(row => row.id === revisionId)) throw new Error('下書きは作成されましたが、一覧で確認できません。画面を再読み込みしてください。');
+      open(revisionId);
+      message('consultation-status', '確定版を残して新しい下書きを作りました。聞きたいことを追記して保存してください。');
+      $('consultation-question').focus();
+    } catch (error) { message('sheet-list-status', error.message, true); }
+    finally { button.disabled = false; }
   }
   async function persistDraft(snapshot) {
     if (selected?.status_code === 'finalized') throw new Error('確定済みの相談シートは編集できません。');
@@ -174,6 +214,7 @@ const F05 = (() => {
   }
   async function showPreview(snapshot) {
     clearUrls(); const serial = previewSerial, body = $('consultation-preview-body'); body.replaceChildren();
+    $('sheet-revise').hidden = selected?.status_code !== 'finalized';
     $('sheet-preview-title').textContent = snapshot.title || '相談シート';
     const meta = section(body,'相談の概要');
     paragraph(meta,'本人名',snapshot.display_name); paragraph(meta,'相談日',snapshot.consultation_on); paragraph(meta,'相談先',snapshot.recipient);
@@ -196,6 +237,7 @@ const F05 = (() => {
   $('sheet-preview-button').addEventListener('click', () => showPreview(buildSnapshot()).catch(error => message('consultation-status',error.message,true)));
   $('consultation-form').addEventListener('submit',save);
   $('sheet-finalize').addEventListener('click',finalize);
+  $('sheet-revise').addEventListener('click',createRevision);
   $('print-consultation').addEventListener('click',() => window.print());
   function reset() {
     clearUrls(); sheets = []; selected = null; needsForSheet = []; photosForSheet = [];
