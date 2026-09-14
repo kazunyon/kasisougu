@@ -33,7 +33,7 @@ h1, .next-step h2 { text-wrap: balance; }
 .is-authenticated .brand { gap: 10px; }
 .is-authenticated .brand strong { font-size: 1.1rem; letter-spacing: .03em; }
 .is-authenticated .brand small { font-size: .67rem; }
-.is-authenticated .brand-mark { width: 43px; height: 45px; font-size: 1.1rem; flex: none; }
+.is-authenticated .brand-mark { width: 45px; height: 45px; flex: none; }
 .is-authenticated .header-status { margin: 0; font-size: .7rem; }
 .app-sidebar {
   position: fixed; z-index: 30; top: 148px; left: 0; bottom: 0;
