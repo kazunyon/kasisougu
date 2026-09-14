@@ -1,5 +1,5 @@
-const CACHE = 'kasisougu-shell-v3';
-const FILES = ['/', '/static/style.css', '/static/s03-s04.css', '/static/f04-f05.css', '/static/app.js', '/static/records.js', '/static/consultation.js', '/static/manifest.webmanifest', '/static/icon-192.png', '/static/icon-512.png'];
+const CACHE = 'kasisougu-shell-v4';
+const FILES = ['/', '/static/style.css', '/static/s03-s04.css', '/static/f04-f05.css', '/static/app.js', '/static/catalog.js', '/static/records.js', '/static/consultation.js', '/static/manifest.webmanifest', '/static/icon-192.png', '/static/icon-512.png'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('kasisougu-shell-') && key !== CACHE).map(key => caches.delete(key))))); });
 self.addEventListener('fetch', event => {

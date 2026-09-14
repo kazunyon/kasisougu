@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const config = window.KASISOUGU_SUPABASE_CONFIG || {};
 let token = '', userId = '', orthosis = null, orthoses = [], editingOrthosis = null;
-let needs = [], editingNeed = null, photos = [], photoUrls = [], photoRenderId = 0, catalogItems = [];
+let needs = [], editingNeed = null, photos = [], photoUrls = [], photoRenderId = 0;
 function message(id, text, error = false) { $(id).textContent = text; $(id).classList.toggle('error', error); }
 function apiHeaders(extra = {}) { return {apikey: config.publishableKey, ...(token ? {Authorization: `Bearer ${token}`} : {}), ...extra}; }
 function setAuthenticatedView(ok) { if (!ok) document.querySelectorAll('.app-page').forEach(p => p.hidden = true); $('login-page').hidden = ok; $('home-page').hidden = !ok; $('logout').hidden = !ok; $('header-status').textContent = ok ? 'ログイン中' : 'ログインが必要です'; }
@@ -169,11 +169,8 @@ async function deletePhoto(item) {
   } catch (error) { message('photo-status', `削除を完了できませんでした：${error.message}`, true); }
 }
 function setScreen(name) { document.querySelectorAll('.app-page').forEach(p => p.hidden = true); $('home-page').hidden = name !== 'home'; if (name !== 'home') $(`${name}-page`).hidden = false; document.querySelector('main').scrollIntoView({block: 'start'}); }
-function termValues(terms, group) { return terms.filter(t => t.kasi_catalog_terms?.term_group === group).map(t => t.kasi_catalog_terms.label_ja).join('、') || '未確認'; }
-function renderCatalog(filter = 'all') { const items=catalogItems.filter(i=>filter==='all'||i.type===filter); $('catalog-list').replaceChildren(); if(!items.length)return $('catalog-list').append(Object.assign(document.createElement('p'),{className:'empty-state',textContent:'公開済みの記事はありません。'})); items.forEach(i=>{const card=document.createElement('article'),photo=i.media[0],source=i.sources[0];card.className='catalog-card';card.innerHTML=`${photo?`<img class="catalog-photo" src="${photo.source_url}" alt="${photo.alt_text}" loading="lazy">`:''}<p>${i.category}</p><h2>${i.product_name||i.title}</h2><p>${i.summary}</p><footer>${source?`<a href="${source.source_url}" target="_blank" rel="noopener">出典：${source.publisher_name}「${source.title}」</a>`:''}<span>確認日：${i.reviewed_at||'未確認'}</span></footer>`;$('catalog-list').append(card);}); }
-async function loadCatalog() { try { const rows=await select('kasi_catalog_items','select=id,title,product_name,summary,reviewed_at&publication_status=eq.published&deleted_at=is.null&order=published_at.desc'); const ids=rows.map(r=>r.id), inIds=ids.join(','); const terms=ids.length?await select('kasi_catalog_item_terms',`select=catalog_item_id,kasi_catalog_terms(term_group,label_ja)&catalog_item_id=in.(${inIds})`):[]; const media=ids.length?await select('kasi_catalog_media',`select=catalog_item_id,alt_text,source_url,sort_order&catalog_item_id=in.(${inIds})&order=sort_order.asc`):[]; const links=ids.length?await select('kasi_catalog_item_sources',`select=catalog_item_id,kasi_catalog_sources(publisher_name,title,source_url)&catalog_item_id=in.(${inIds})`):[]; catalogItems=rows.map(row=>{const itemTerms=terms.filter(t=>t.catalog_item_id===row.id),scope=termValues(itemTerms,'support_scope');return {...row,terms:itemTerms,media:media.filter(m=>m.catalog_item_id===row.id),sources:links.filter(l=>l.catalog_item_id===row.id).map(l=>l.kasi_catalog_sources),category:scope,type:scope.includes('AFO')?'afo':scope.includes('KAFO')?'kafo':scope==='足底装具'?'foot_orthosis':scope==='靴型装具'?'orthopedic_shoe':'other'};}); renderCatalog(); message('catalog-status',catalogItems.length?`公開済みの${catalogItems.length}件を表示しています。`:'公開済みの記事はありません。'); } catch(error) { message('catalog-status',error.message,true); } }
-$('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), loadCatalog()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
-$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; needs = []; photos = []; $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
+$('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
+$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; needs = []; photos = []; $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
 $('orthosis-add').addEventListener('click', () => showOrthosisForm());
 $('orthosis-edit').addEventListener('click', () => showOrthosisForm(orthosis));
 $('orthosis-cancel').addEventListener('click', () => { $('orthosis-form').hidden = true; if (KASI_F04.cancelOrthosisRegistration()) return; $('orthosis-detail').hidden = !orthosis; });
@@ -232,13 +229,14 @@ document.querySelectorAll('.screen-link').forEach(button => button.addEventListe
   if (screen !== 'orthosis') clearPhotoUrls();
   if (screen !== 'record') KASI_F04.clearUrls();
   if (screen !== 'consultation') KASI_F05.clearUrls();
+  if (screen !== 'catalog') KASI_F03.hide();
   setScreen(screen);
   if (screen === 'home') await loadHome();
   if (screen === 'orthosis') {
     try { await loadOrthoses(); $('orthosis-form').hidden = true; $('orthosis-detail').hidden = true; clearPhotoUrls(); }
     catch (error) { message('orthosis-list-status', error.message, true); }
   }
-  if (screen === 'catalog') await loadCatalog();
+  if (screen === 'catalog') await KASI_F03.load();
   if (screen === 'record') {
     try { await loadOrthoses(); await KASI_F04.init(); }
     catch (error) { message('record-list-status', error.message, true); }
@@ -254,6 +252,5 @@ document.querySelectorAll('.screen-link').forEach(button => button.addEventListe
   }
 }));
 document.querySelectorAll('.future-link').forEach(button => button.addEventListener('click', () => message('home-status', `${button.dataset.feature}は、次の画面実装で追加します。`)));
-document.querySelectorAll('.catalog-filter-button').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.catalog-filter-button').forEach(i => i.classList.toggle('active', i === button)); renderCatalog(button.dataset.filter); }));
 let installPrompt; window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; $('install').hidden = false; }); $('install').addEventListener('click', async () => { if (installPrompt) { await installPrompt.prompt(); installPrompt = null; $('install').hidden = true; } });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register(window.KASISOUGU_SUPABASE_CONFIG ? './sw.js' : '/sw.js').catch(() => {});
