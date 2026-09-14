@@ -54,6 +54,7 @@ const F05 = (() => {
   }
   function newSheet() {
     selected = null; $('consultation-form').reset(); $('sheet-title').value = '相談シート';
+    $('sheet-display-name').value = profileDisplayName();
     $('sheet-form-title').textContent = '新しい相談シート'; renderSelections();
     $('sheet-revision-note').hidden = true; $('sheet-select-grid').hidden = false;
     $('consultation-form').hidden = false; $('consultation-preview').hidden = true; clearUrls();

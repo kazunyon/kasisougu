@@ -3,12 +3,46 @@ const $ = id => document.getElementById(id);
 const config = window.KASISOUGU_SUPABASE_CONFIG || {};
 let token = '', userId = '', orthosis = null, orthoses = [], editingOrthosis = null;
 let needs = [], editingNeed = null, photos = [], photoUrls = [], photoRenderId = 0;
+let profile = null, profileLoaded = false;
 function message(id, text, error = false) { $(id).textContent = text; $(id).classList.toggle('error', error); }
 function apiHeaders(extra = {}) { return {apikey: config.publishableKey, ...(token ? {Authorization: `Bearer ${token}`} : {}), ...extra}; }
 function setAuthenticatedView(ok) { if (!ok) document.querySelectorAll('.app-page').forEach(p => p.hidden = true); $('login-page').hidden = ok; $('home-page').hidden = !ok; $('logout').hidden = !ok; $('header-status').textContent = ok ? 'ログイン中' : 'ログインが必要です'; }
 function assertConfig() { if (!config.url || !config.publishableKey) throw new Error('公開設定を確認してください。'); }
 async function request(path, options = {}) { const {headers: extraHeaders = {}, ...rest} = options; assertConfig(); const response = await fetch(`${config.url}${path}`, {...rest, headers: apiHeaders(extraHeaders)}); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || body.msg || '処理できませんでした。'); } const body = await response.text(); return body ? JSON.parse(body) : null; }
 async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
+function profileDisplayName() { return profile?.display_name || ''; }
+function applyTextScale(value) {
+  const scale = Number(value);
+  const safe = Number.isInteger(scale) && scale >= 100 && scale <= 200 ? scale : 100;
+  document.documentElement.style.fontSize = `${18 * safe / 100}px`;
+  $('text-scale').value = String(safe);
+  $('text-scale-value').textContent = `${safe}%`;
+}
+function showProfile(row) {
+  profile = row;
+  $('profile-display-name').value = row?.display_name || '';
+  applyTextScale(row?.text_scale ?? 100);
+  $('device-storage').checked = row?.device_storage_enabled ?? false;
+  $('profile-fields').disabled = false;
+  $('profile-save').disabled = false;
+  profileLoaded = true;
+}
+async function loadProfile() {
+  const currentUser = userId, currentToken = token;
+  profileLoaded = false;
+  $('profile-fields').disabled = true;
+  $('profile-save').disabled = true;
+  message('profile-status', '本人設定を読み込み中…');
+  try {
+    const rows = await select('kasi_profiles', `select=user_id,display_name,text_scale,device_storage_enabled,row_version,deleted_at&user_id=eq.${currentUser}&limit=1`);
+    if (currentUser !== userId || currentToken !== token) return;
+    if (rows[0]?.deleted_at) throw new Error('本人設定を利用できません。管理者に確認してください。');
+    showProfile(rows[0] || null);
+    message('profile-status', rows.length ? '保存済みの本人設定を表示しています。' : '本人設定は未登録です。入力して保存してください。');
+  } catch (error) {
+    if (currentUser === userId && currentToken === token) message('profile-status', `本人設定を読み込めませんでした：${error.message}`, true);
+  }
+}
 const ownershipLabels = {owned: '現在使用中', trial: '試用中', past: '過去に使用'};
 const categoryLabels = {heavy: '重さ', hard_to_put_on: '着脱', hard_to_wear_shoes: '靴の履きやすさ', pain_or_pressure: '痛み・圧迫', fatigue: '疲労', stability: '安定性', mobility: '移動', daily_activity: '日常生活', other: 'その他'};
 function node(tag, text, className) { const el = document.createElement(tag); el.textContent = text; if (className) el.className = className; return el; }
@@ -169,8 +203,8 @@ async function deletePhoto(item) {
   } catch (error) { message('photo-status', `削除を完了できませんでした：${error.message}`, true); }
 }
 function setScreen(name) { document.querySelectorAll('.app-page').forEach(p => p.hidden = true); $('home-page').hidden = name !== 'home'; if (name !== 'home') $(`${name}-page`).hidden = false; document.querySelector('main').scrollIntoView({block: 'start'}); }
-$('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
-$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; needs = []; photos = []; $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
+$('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
+$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
 $('orthosis-add').addEventListener('click', () => showOrthosisForm());
 $('orthosis-edit').addEventListener('click', () => showOrthosisForm(orthosis));
 $('orthosis-cancel').addEventListener('click', () => { $('orthosis-form').hidden = true; if (KASI_F04.cancelOrthosisRegistration()) return; $('orthosis-detail').hidden = !orthosis; });
@@ -219,9 +253,34 @@ $('orthosis-photo').addEventListener('change', async event => {
     message('photo-status', error.message, true);
   } finally { input.value = ''; input.disabled = false; }
 });
-$('text-scale').addEventListener('input',e=>{const v=e.target.value;document.documentElement.style.fontSize=`${18*v/100}px`;$('text-scale-value').textContent=`${v}%`;localStorage.setItem('kasi_text_scale',v)});
-$('device-storage').addEventListener('change',e=>localStorage.setItem('kasi_device_storage',e.target.checked?'enabled':'disabled'));
-$('delete-local').addEventListener('click',()=>{if(confirm('この端末の下書きを削除しますか？')){localStorage.removeItem('kasi_record_draft');localStorage.removeItem('kasi_device_storage');$('device-storage').checked=false}});
+$('profile-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!profileLoaded || !token || !userId) return;
+  const currentUser = userId, currentToken = token, currentProfile = profile;
+  const displayName = $('profile-display-name').value.trim();
+  const data = {display_name:displayName || null,text_scale:Number($('text-scale').value),device_storage_enabled:$('device-storage').checked};
+  if (displayName.length > 80 || !Number.isInteger(data.text_scale) || data.text_scale < 100 || data.text_scale > 200) {
+    message('profile-status', '表示名は80文字以内、文字の大きさは100～200%にしてください。', true); return;
+  }
+  $('profile-save').disabled = true;
+  message('profile-status', '本人設定を保存しています…');
+  try {
+    const path = currentProfile
+      ? `/rest/v1/kasi_profiles?user_id=eq.${currentUser}&row_version=eq.${currentProfile.row_version}`
+      : '/rest/v1/kasi_profiles';
+    const body = currentProfile ? data : {user_id:currentUser,...data};
+    const rows = await request(path, {method:currentProfile?'PATCH':'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(body)});
+    if (!rows.length) throw new Error('別の画面で更新されています。設定画面を開き直して確認してください。');
+    if (currentUser !== userId || currentToken !== token) return;
+    showProfile(rows[0]);
+    message('profile-status', '本人設定をDBに保存しました。');
+  } catch (error) {
+    if (currentUser === userId && currentToken === token) message('profile-status', `保存できませんでした：${error.message}`, true);
+  } finally { if (currentUser === userId && currentToken === token) $('profile-save').disabled = false; }
+});
+$('profile-form').addEventListener('input', event => { if (event.target.id === 'text-scale') applyTextScale(event.target.value); message('profile-status', '未保存の変更があります。'); });
+$('profile-form').addEventListener('change', () => message('profile-status', '未保存の変更があります。'));
+$('delete-local').addEventListener('click',()=>{if(confirm('この端末の下書きを削除しますか？')){localStorage.removeItem('kasi_record_draft');message('settings-data-status','端末の下書きを削除しました。DBの本人設定は変更していません。')}});
 $('export-data').addEventListener('click',()=>{const b=new Blob([JSON.stringify({orthoses,exported_at:new Date().toISOString()},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kasisougu-export.json';a.click();URL.revokeObjectURL(a.href)});
 document.querySelectorAll('.screen-link').forEach(button => button.addEventListener('click', async () => {
   const screen = button.dataset.screen;
@@ -245,11 +304,8 @@ document.querySelectorAll('.screen-link').forEach(button => button.addEventListe
     try { await KASI_F05.init(); }
     catch (error) { message('sheet-list-status', error.message, true); }
   }
-  if (screen === 'settings') {
-    const v = localStorage.getItem('kasi_text_scale') || '100';
-    $('text-scale').value = v; $('text-scale-value').textContent = `${v}%`;
-    $('device-storage').checked = localStorage.getItem('kasi_device_storage') === 'enabled';
-  }
+  if (screen === 'settings') await loadProfile();
+  else if (profileLoaded) applyTextScale(profile?.text_scale ?? 100);
 }));
 document.querySelectorAll('.future-link').forEach(button => button.addEventListener('click', () => message('home-status', `${button.dataset.feature}は、次の画面実装で追加します。`)));
 let installPrompt; window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; $('install').hidden = false; }); $('install').addEventListener('click', async () => { if (installPrompt) { await installPrompt.prompt(); installPrompt = null; $('install').hidden = true; } });
