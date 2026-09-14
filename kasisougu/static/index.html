@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#17553d"><meta name="description" content="下肢装具について相談する前に、記録を整理する個人用アプリです。">
 <title>下肢装具サポート</title>
 <link rel="manifest" href="/static/manifest.webmanifest"><link rel="icon" href="/static/icon-192.png"><link rel="apple-touch-icon" href="/static/icon-192.png"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/s03-s04.css"><link rel="stylesheet" href="/static/f04-f05.css">
-<script defer src="/static/app.js"></script><script defer src="/static/records.js"></script><script defer src="/static/consultation.js"></script>
+<script defer src="/static/app.js"></script><script defer src="/static/catalog.js"></script><script defer src="/static/records.js"></script><script defer src="/static/consultation.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">本文へ移動</a>
@@ -42,9 +42,16 @@
   </section>
   <section id="catalog-page" class="app-page" hidden aria-labelledby="catalog-title">
     <div class="page-title"><button class="screen-link back-link" type="button" data-screen="home">ホームへ戻る</button><p class="screen-id">S04 装具図鑑</p><h1 id="catalog-title">装具の特徴を調べる</h1><p class="lead">公開済みの記事だけを表示します。装具の適合や選択は専門職に相談してください。</p></div>
-    <div class="catalog-filter" role="group" aria-label="分類で絞り込む"><button class="catalog-filter-button active" type="button" data-filter="all">すべて</button><button class="catalog-filter-button" type="button" data-filter="afo">AFO</button><button class="catalog-filter-button" type="button" data-filter="kafo">KAFO</button><button class="catalog-filter-button" type="button" data-filter="foot_orthosis">足底装具</button><button class="catalog-filter-button" type="button" data-filter="orthopedic_shoe">靴型装具</button></div>
-    <p id="catalog-status" role="status" aria-live="polite"></p><div id="catalog-list" class="catalog-list"></div><section class="catalog-note"><h2>掲載方針</h2><p>分類、素材、継手、足元の構造、出典、確認日を掲載します。未取得の値は「未確認」と表示し、専門職レビュー前の記事は公開しません。</p></section>
+    <section id="catalog-browse" aria-label="図鑑の検索結果">
+      <form id="catalog-search-form" class="catalog-search" role="search"><label for="catalog-keyword">装具を検索</label><div class="catalog-search-controls"><input id="catalog-keyword" type="search" maxlength="100" placeholder="装具名・素材・特徴など"><button class="primary" type="submit">検索</button><button id="catalog-clear" type="button">検索条件をクリア</button></div></form>
+      <div class="catalog-filter" role="group" aria-label="分類で絞り込む"><button class="catalog-filter-button active" type="button" data-filter="all" aria-pressed="true">すべて</button><button class="catalog-filter-button" type="button" data-filter="afo" aria-pressed="false">AFO</button><button class="catalog-filter-button" type="button" data-filter="kafo" aria-pressed="false">KAFO</button><button class="catalog-filter-button" type="button" data-filter="foot_orthosis" aria-pressed="false">足底装具</button><button class="catalog-filter-button" type="button" data-filter="orthopedic_shoe" aria-pressed="false">靴型装具</button></div>
+      <p id="catalog-status" role="status" aria-live="polite"></p><div id="catalog-list" class="catalog-list"></div>
+    </section>
+    <section id="catalog-detail" hidden aria-labelledby="catalog-detail-title"><button id="catalog-detail-back" class="catalog-back" type="button">一覧へ戻る</button><h2 id="catalog-detail-title" tabindex="-1">装具の詳細</h2><div id="catalog-detail-body"></div></section>
+    <section id="catalog-comparison" hidden aria-labelledby="catalog-compare-title"><button id="catalog-compare-back" class="catalog-back" type="button">一覧へ戻る</button><h2 id="catalog-compare-title" tabindex="-1">装具を比較</h2><p>違いを整理する表です。装具の優劣や適合性を判定しません。未確認の項目は専門家に確認してください。スマートフォンでは表を横にスクロールできます。</p><div id="catalog-compare-body" class="catalog-compare-scroll"></div></section>
+    <section class="catalog-note"><h2>掲載方針</h2><p>公開済みの記事だけを表示します。登録のない値は推測せず「未確認」と表示します。左手での着脱や歩行時の安定性は専門家に確認してください。</p></section>
   </section>
+  <aside id="catalog-selection-tray" class="catalog-selection-tray" hidden aria-labelledby="catalog-selection-title"><div class="catalog-selection-inner"><h2 id="catalog-selection-title">比較する装具 <span id="catalog-selection-count">0／3件</span></h2><div id="catalog-selected-items" class="catalog-selected-items"></div><div class="catalog-selection-actions"><button id="catalog-clear-selection" type="button">すべて解除</button><button id="catalog-run-comparison" class="primary" type="button" disabled>2件を比較する</button></div></div></aside>
   <section id="record-page" class="app-page" hidden aria-labelledby="record-page-title">
     <div class="page-title"><button class="screen-link back-link" type="button" data-screen="home">ホームへ戻る</button><p class="screen-id">S05 試用・使用記録</p><h1 id="record-page-title">使ったときの様子を記録</h1><p class="lead">未評価と問題なしを分けて残し、同じ条件での違いを整理します。</p></div>
     <div class="section-heading"><h2>保存済みの記録</h2><button id="record-add" class="primary" type="button">新しい記録を追加</button></div><p id="record-list-status" role="status"></p><div id="record-list" class="record-list"></div>
