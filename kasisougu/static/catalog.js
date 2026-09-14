@@ -316,6 +316,11 @@ const F03 = (() => {
     chosen.clear(); syncOptionButtons(); renderTray();
   });
   $('catalog-run-comparison').addEventListener('click', showComparison);
-  return {load, reset, hide};
+  async function resume() {
+    // Preserve the search, comparison, detail and unfinished administrator edits.
+    if (!items.length) await load();
+    else renderTray();
+  }
+  return {load, reset, hide, resume};
 })();
 window.KASI_F03 = F03;

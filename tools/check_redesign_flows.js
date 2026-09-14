@@ -1,0 +1,52 @@
+// Run after check_redesign.js in the same isolated Playwright session.
+async (page) => {
+  const assert = (value, message) => { if (!value) throw new Error(message); };
+  const go = async screen => {
+    const selector = screen === 'orthosis' ? '.sidebar-secondary [data-screen="orthosis"]' : `.primary-nav [data-screen="${screen}"]`;
+    await page.locator(selector).click();
+    await page.locator(`#${screen}-page`).waitFor({state:'visible'});
+    await page.waitForFunction(() => screenLoads.size === 0);
+    assert(await page.locator(selector).getAttribute('aria-current') === 'page', `Current page is not marked: ${screen}`);
+  };
+  await go('record');
+  await page.locator('#record-add').click();
+  await page.locator('#record-note').fill('画面を移動しても保持するメモ');
+  await go('catalog'); await go('record');
+  assert(await page.locator('#record-note').inputValue()==='画面を移動しても保持するメモ','Record draft lost');
+  await page.locator('#record-cancel').click();
+  await go('consultation');
+  await page.locator('#sheet-add').click();
+  await page.locator('#consultation-question').fill('質問の下書きを保持');
+  await go('settings'); await go('consultation');
+  assert(await page.locator('#consultation-question').inputValue()==='質問の下書きを保持','Consultation draft lost');
+  await page.locator('#sheet-cancel').click();
+  await go('orthosis');
+  await page.locator('#orthosis-add').click();
+  await page.locator('#orthosis-name').fill('未保存の装具名');
+  await go('home'); await go('orthosis');
+  assert(await page.locator('#orthosis-name').inputValue()==='未保存の装具名','Orthosis draft lost');
+  assert(await page.locator('#orthosis-form').isVisible(),'Orthosis editor hidden after navigation');
+  await page.locator('#orthosis-cancel').click();
+  await go('settings');
+  await page.locator('#profile-display-name').fill('未保存の表示名');
+  await go('home'); await go('settings');
+  assert(await page.locator('#profile-display-name').inputValue()==='未保存の表示名','Profile draft lost');
+  await page.locator('#profile-save').click();
+  await page.waitForFunction(() => document.getElementById('profile-status').textContent.includes('DBに保存'));
+  await go('catalog');
+  await page.locator('.catalog-choice').first().click();
+  await go('record'); await go('catalog');
+  assert(await page.locator('#catalog-selection-tray').isVisible(),'Comparison selection not restored');
+  await page.locator('#catalog-clear-selection').click();
+  await page.screenshot({path:'output/playwright/redesign-catalog-desktop.png',fullPage:true});
+  await go('consultation');
+  await page.locator('#sheet-list button').first().click();
+  await page.locator('#consultation-preview').waitFor({state:'visible'});
+  await page.emulateMedia({media:'print'});
+  assert(await page.locator('.primary-nav').isHidden(),'Navigation appears in print');
+  assert(await page.locator('#app-toolbar').isHidden(),'Toolbar appears in print');
+  assert(await page.locator('#consultation-preview').isVisible(),'Consultation missing from print');
+  await page.screenshot({path:'output/playwright/redesign-print.png',fullPage:true});
+  await page.emulateMedia({media:'screen'});
+  return 'PASS: drafts in four editors, profile save, comparison selection and print visibility';
+}

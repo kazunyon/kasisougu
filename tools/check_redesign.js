@@ -1,0 +1,81 @@
+// Run against a locally served Pages build with:
+// playwright-cli -s=green-redesign run-code --filename tools/check_redesign.js
+// All API calls use synthetic fixtures; no account or live data is accessed.
+async (page) => {
+  const appUrl = page.url();
+  await page.evaluate(async () => {
+    for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
+  });
+  await page.goto('about:blank');
+  await page.unrouteAll({behavior:'wait'});
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const assert = (value, message) => { if (!value) throw new Error(message); };
+  const orthoses = [
+    {id:'orthosis-1',nickname:'長下肢装具',orthosis_type_code:'kafo',ownership_status:'owned',side_code:'left',row_version:1},
+    {id:'orthosis-2',nickname:'短下肢装具',orthosis_type_code:'afo',ownership_status:'trial',side_code:'left',row_version:1}
+  ];
+  const records = [
+    {id:'record-1',user_orthosis_id:'orthosis-2',recorded_on:'2026-09-14',usage_setting:'室内での訓練',duration_minutes:180,assistance_level:'independent',overall_note:'着け外しを相談したい',row_version:1},
+    {id:'record-2',user_orthosis_id:'orthosis-1',recorded_on:'2026-09-13',usage_setting:'室内での訓練',duration_minutes:120,assistance_level:'independent',overall_note:'いつも通り使用しました',row_version:1}
+  ];
+  const profile = {user_id:'test-user',display_name:'テスト利用者',text_scale:100,device_storage_enabled:false,row_version:1};
+  const tables = {
+    kasi_user_orthoses:orthoses,
+    kasi_usage_records:records,
+    kasi_usage_record_observations:[{id:'obs-1',usage_record_id:'record-1',category_code:'ease_of_putting_on',result_code:'issue',rating:2,note:'ベルトが少し気になります',row_version:1}],
+    kasi_profiles:[profile],
+    kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',orthoses,records:[],photos:[]}}],
+    kasi_catalog_items:['長下肢装具（スペックス）','長下肢装具（リングロック）','短下肢装具','長下肢装具（CBブレース付）'].map((name,i)=>({id:`catalog-${i}`,title:name,product_name:name,summary:'装具の構造や使い方を確認し、専門職との相談に役立てます。',publication_status:'published',row_version:1})),
+    kasi_catalog_item_terms:[0,1,2,3].map(i=>({catalog_item_id:`catalog-${i}`,kasi_catalog_terms:{id:`term-${i}`,code:i===2?'afo':'kafo',term_group:'support_scope',label_ja:i===2?'短下肢装具（AFO）':'長下肢装具（KAFO）',is_active:true}}))
+  };
+  let mutations = 0;
+  await page.route('**/pages-config.js', route => route.fulfill({contentType:'application/javascript',body:'window.KASISOUGU_SUPABASE_CONFIG={url:"https://redesign-test.invalid",publishableKey:"sb_publishable_fixture"};'}));
+  await page.route('**/sw.js', route => route.fulfill({contentType:'application/javascript',body:'// Disabled only in the isolated browser smoke check.'}));
+  await page.route('https://redesign-test.invalid/**', async route => {
+    const request = route.request(), pathname = request.url().split('.invalid')[1].split('?')[0];
+    let body = [];
+    if (pathname.startsWith('/auth/v1/token')) body = {access_token:'synthetic-test-session'};
+    else if (pathname === '/auth/v1/user') body = {id:'test-user'};
+    else {
+      const table = pathname.split('/').at(-1);
+      body = tables[table] || [];
+      if (request.method() !== 'GET') {
+        mutations++;
+        const data = request.postDataJSON();
+        if (table === 'kasi_profiles') Object.assign(profile,data,{row_version:profile.row_version+1});
+        body = [table === 'kasi_profiles' ? profile : {...data,id:'saved-test-row',row_version:2}];
+      }
+    }
+    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
+  });
+  // Prevent accidental connections to the real API even if the build configuration changes.
+  await page.route('**/*.supabase.co/**', route => route.abort());
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(appUrl);
+  assert(await page.locator('#app-navigation').isHidden(),'Navigation must be hidden before login');
+  await page.getByLabel('メールアドレス',{exact:true}).fill('test@example.invalid');
+  await page.getByLabel('パスワード',{exact:true}).fill('synthetic-password');
+  await page.getByRole('button',{name:'ログインする',exact:true}).click();
+  await page.locator('#home-page').waitFor({state:'visible'});
+  await page.waitForFunction(() => document.getElementById('saved-at').textContent === '保存済み');
+  const go = async screen => {
+    const selector = screen === 'orthosis' ? '.sidebar-secondary [data-screen="orthosis"]' : `.primary-nav [data-screen="${screen}"]`;
+    await page.locator(selector).click();
+    await page.locator(`#${screen}-page`).waitFor({state:'visible'});
+    await page.waitForFunction(() => screenLoads.size === 0);
+    assert(await page.locator(selector).getAttribute('aria-current') === 'page', `Current page is not marked: ${screen}`);
+  };
+  await page.screenshot({path:'output/playwright/redesign-home-desktop.png',fullPage:true});
+  for (const screen of ['catalog','record','consultation','settings','orthosis','home']) await go(screen);
+  assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
+  await go('record');
+  await page.locator('#record-list button').first().click();
+  assert(await page.locator('#record-detail').isVisible(),'Record detail did not open');
+  assert(await page.locator('#record-list .selected').count()===1,'Selected record not marked');
+  const browserBox=await page.locator('.record-browser').boundingBox(), detailBox=await page.locator('.record-content').boundingBox();
+  assert(detailBox.x > browserBox.x+browserBox.width,'Record detail is not beside the list on desktop');
+  await page.screenshot({path:'output/playwright/redesign-record-desktop.png',fullPage:true});
+  assert(errors.length===0,errors.join('\n'));
+  return 'PASS: login, navigation across all screens, current-page indicator and desktop record layout';
+}

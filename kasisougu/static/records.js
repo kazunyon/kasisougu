@@ -36,8 +36,10 @@ const F04 = (() => {
     if (!records.length) $('record-list').append(node('p', '保存済みの記録はありません。', 'empty-state'));
     records.forEach(row => {
       const card = node('article', '', 'record-card');
+      card.dataset.recordId = row.id;
+      card.classList.toggle('selected', row.id === selected?.id);
       card.append(node('h3', title(row)), node('p', `${value(row.usage_setting)} · ${row.duration_minutes == null ? '使用時間未記入' : `${row.duration_minutes}分`}`), node('p', row.overall_note || '感想・メモなし'));
-      const button = node('button', '詳細を見る'); button.type = 'button'; button.addEventListener('click', () => open(row.id)); card.append(button);
+      const button = node('button', '詳細を見る'); button.type = 'button'; button.setAttribute('aria-controls', 'record-detail'); button.setAttribute('aria-pressed', String(row.id === selected?.id)); button.addEventListener('click', () => open(row.id)); card.append(button);
       $('record-list').append(card);
     });
     message('record-list-status', records.length ? `${records.length}件の記録を表示しています。` : 'まだ記録がありません。');
@@ -166,6 +168,16 @@ const F04 = (() => {
   async function open(id) {
     selected = records.find(row => row.id === id) || null; if (!selected) return;
     $('record-form').hidden = true; $('record-detail').hidden = false; facts(selected); renderEvaluationDetails(selected);
+    $('record-list').querySelectorAll('.record-card').forEach(card => {
+      const active = card.dataset.recordId === id;
+      card.classList.toggle('selected', active);
+      card.querySelector('button').setAttribute('aria-pressed', String(active));
+    });
+    if (!$('record-page').hidden) {
+      $('record-detail-title').setAttribute('tabindex', '-1');
+      $('record-detail-title').focus({preventScroll:true});
+      $('record-detail').scrollIntoView({block:'start'});
+    }
     message('record-photo-status', '写真を読み込み中…');
     try { await loadMedia(); message('record-photo-status', `${media.length}枚の写真を表示しています。`); }
     catch (error) { message('record-photo-status', error.message, true); }
