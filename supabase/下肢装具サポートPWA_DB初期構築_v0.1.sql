@@ -180,6 +180,10 @@ create table public.kasi_catalog_items (
   title text not null,
   product_name text,
   summary text not null,
+  support_scope_text text,
+  caution_text text,
+  expert_questions jsonb not null default '[]'::jsonb
+    check (jsonb_typeof(expert_questions) = 'array'),
   publication_status text not null default 'draft'
     check (publication_status in ('draft', 'in_review', 'published', 'suspended')),
   content_version integer not null default 1 check (content_version > 0),

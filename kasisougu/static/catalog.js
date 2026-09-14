@@ -5,7 +5,8 @@ const F03 = (() => {
     '重さ', '左手だけでの着脱', '車椅子に座った状態での着脱', '普通の靴との相性',
     '踵・足首への圧迫', '屋外歩行での安定性', '修理・調整のしやすさ'
   ];
-  let items = [], filter = 'all', keyword = '', chosen = new Set(), view = 'browse', detailId = null, loadCycle = 0;
+  const termGroups = [['support_scope', '分類'], ['material', '素材'], ['joint', '継手'], ['foot_structure', '足元の構造'], ['feature', '特徴']];
+  let items = [], allTerms = [], filter = 'all', keyword = '', chosen = new Set(), view = 'browse', detailId = null, loadCycle = 0, editingItem = null, editableDetailsSupported = true;
 
   function nameOf(item) { return item.product_name || item.title; }
   function termsOf(item, group) {
@@ -102,24 +103,27 @@ const F03 = (() => {
   function renderDetail(item) {
     $('catalog-detail-title').textContent = nameOf(item); $('catalog-detail-body').replaceChildren();
     const body = $('catalog-detail-body');
+    const status = node('p', '', 'catalog-detail-status'); status.id = 'catalog-detail-status'; body.append(status);
     if (item.title !== nameOf(item)) body.append(node('p', item.title, 'catalog-detail-subtitle'));
     const gallery = node('div', '', 'catalog-gallery');
     if (item.media.length) item.media.forEach(photo => gallery.append(imageNode(photo)));
     else gallery.append(node('p', '写真は未確認です。', 'catalog-image-fallback'));
     body.append(gallery);
+    if (!editableDetailsSupported) body.append(node('p', '編集機能を利用するには、管理者がF03追加マイグレーションを適用してください。', 'catalog-edit-migration-note'));
     const facts = node('dl', '', 'catalog-detail-facts');
     for (const [label, value] of [
-      ['分類', valuesOf(item, 'support_scope')], ['支える範囲', unknown],
+      ['分類', valuesOf(item, 'support_scope')], ['支える範囲', item.support_scope_text || unknown],
       ['素材', valuesOf(item, 'material')], ['継手', valuesOf(item, 'joint')],
       ['足元の構造', valuesOf(item, 'foot_structure')], ['特徴', valuesOf(item, 'feature')],
-      ['注意点', unknown], ['確認日', checkedOn(item)]
+      ['注意点', item.caution_text || unknown], ['確認日', checkedOn(item)]
     ]) fact(facts, label, value);
     body.append(facts);
     const summary = node('section', '', 'catalog-detail-section');
     summary.append(node('h3', '概要'), node('p', item.summary)); body.append(summary);
     const questions = node('section', '', 'catalog-detail-section'), list = node('ul', '', 'catalog-question-list');
     questions.append(node('h3', '専門家に確認したいこと（一般的な例）'));
-    for (const question of ['左手だけで着け外しできるか', '車椅子に座ったまま着けられるか', '普段の靴に合うか', '圧迫や痛みがないか']) list.append(node('li', question));
+    const questionsToShow = Array.isArray(item.expert_questions) && item.expert_questions.length ? item.expert_questions : ['左手だけで着け外しできるか', '車椅子に座ったまま着けられるか', '普段の靴に合うか', '圧迫や痛みがないか'];
+    for (const question of questionsToShow) list.append(node('li', question));
     questions.append(list); body.append(questions);
     const sources = node('section', '', 'catalog-detail-section'), sourceList = node('ul', '', 'catalog-source-list');
     sources.append(node('h3', '出典'));
@@ -129,7 +133,65 @@ const F03 = (() => {
       sourceList.append(li);
     });
     sources.append(sourceList); body.append(sources);
-    const actions = node('div', '', 'catalog-detail-actions'); actions.append(optionButton(item)); body.append(actions);
+    const actions = node('div', '', 'catalog-detail-actions'); actions.append(optionButton(item));
+    if (editableDetailsSupported) { const edit = node('button', '内容を編集'); edit.type = 'button'; edit.addEventListener('click', () => showEditor(item)); actions.append(edit); }
+    body.append(actions);
+  }
+  function termsForEditor(item, group) {
+    const linked = new Set(codesOf(item, group));
+    return allTerms.filter(term => term.term_group === group || linked.has(term.code));
+  }
+  function showEditor(item) {
+    editingItem = item;
+    $('catalog-edit-title').value = item.title || '';
+    $('catalog-edit-product').value = item.product_name || '';
+    $('catalog-edit-scope').value = item.support_scope_text || '';
+    $('catalog-edit-caution').value = item.caution_text || '';
+    $('catalog-edit-summary').value = item.summary || '';
+    const source = item.sources[0]?.kasi_catalog_sources || {};
+    $('catalog-edit-checked-on').value = source.checked_on || '';
+    $('catalog-edit-publisher').value = source.publisher_name || '';
+    $('catalog-edit-source-title').value = source.title || '';
+    $('catalog-edit-source-url').value = source.source_url || '';
+    $('catalog-edit-questions').value = (Array.isArray(item.expert_questions) ? item.expert_questions : []).join('\n');
+    const host = $('catalog-edit-terms'); host.replaceChildren();
+    for (const [group, label] of termGroups) {
+      const wrapper = node('label', '', 'catalog-edit-term-group'); wrapper.append(node('span', label));
+      const selectBox = document.createElement('select'); selectBox.multiple = true; selectBox.dataset.group = group; selectBox.setAttribute('aria-label', label);
+      termsForEditor(item, group).forEach(term => { const option = new Option(term.label_ja, term.id); option.selected = codesOf(item, group).includes(term.code); selectBox.add(option); });
+      wrapper.append(selectBox); host.append(wrapper);
+    }
+    $('catalog-edit-form').hidden = false; $('catalog-edit-status').textContent = '編集内容を入力してください。'; $('catalog-edit-title').focus();
+  }
+  function hideEditor() { editingItem = null; $('catalog-edit-form').hidden = true; $('catalog-edit-form').reset(); }
+  async function saveEditor(event) {
+    event.preventDefault(); if (!editingItem) return;
+    const item = editingItem, button = $('catalog-edit-save'); button.disabled = true; message('catalog-edit-status', '図鑑の内容を保存しています…');
+    const questions = $('catalog-edit-questions').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+    const data = {title:$('catalog-edit-title').value.trim(), product_name:$('catalog-edit-product').value.trim() || null, summary:$('catalog-edit-summary').value.trim(), support_scope_text:$('catalog-edit-scope').value.trim() || null, caution_text:$('catalog-edit-caution').value.trim() || null, expert_questions:questions};
+    try {
+      if (!data.title || !data.summary) throw new Error('タイトルと概要を入力してください。');
+      const rows = await request(`/rest/v1/kasi_catalog_items?id=eq.${item.id}&row_version=eq.${item.row_version}`, {method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(data)});
+      if (!rows.length) throw new Error('別の管理者が更新しました。図鑑を読み込み直してください。');
+      const selects = [...$('catalog-edit-terms').querySelectorAll('select')];
+      await request(`/rest/v1/kasi_catalog_item_terms?catalog_item_id=eq.${item.id}`, {method:'DELETE'});
+      const links = selects.flatMap(select => [...select.selectedOptions].map((option, index) => ({catalog_item_id:item.id,catalog_term_id:option.value,sort_order:index})));
+      if (links.length) await request('/rest/v1/kasi_catalog_item_terms', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(links)});
+      const sourceValues = {publisher_name:$('catalog-edit-publisher').value.trim(),title:$('catalog-edit-source-title').value.trim(),source_url:$('catalog-edit-source-url').value.trim() || null,checked_on:$('catalog-edit-checked-on').value};
+      const sourceLink = item.sources[0];
+      if (sourceValues.publisher_name && sourceValues.title && sourceValues.checked_on) {
+        if (sourceLink?.kasi_catalog_sources?.id) {
+          const source = sourceLink.kasi_catalog_sources;
+          const sourceRows = await request(`/rest/v1/kasi_catalog_sources?id=eq.${source.id}&row_version=eq.${source.row_version}`, {method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(sourceValues)});
+          if (!sourceRows.length) throw new Error('出典が別の画面で更新されています。');
+        } else {
+          const sourceRows = await request('/rest/v1/kasi_catalog_sources', {method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({source_type:'other',...sourceValues})});
+          if (!sourceRows.length) throw new Error('出典を保存できませんでした。');
+          await request('/rest/v1/kasi_catalog_item_sources', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({catalog_item_id:item.id,catalog_source_id:sourceRows[0].id})});
+        }
+      }
+      hideEditor(); await load(); const updated = items.find(row => row.id === item.id); if (updated) { showDetail(updated.id); message('catalog-detail-status', '図鑑の内容を保存しました。'); }
+    } catch (error) { message('catalog-edit-status', `保存できませんでした：${error.message}`, true); } finally { button.disabled = false; }
   }
   function renderComparison() {
     const selected = [...chosen].map(id => items.find(item => item.id === id)).filter(Boolean);
@@ -139,11 +201,11 @@ const F03 = (() => {
     selected.forEach(item => headingRow.append(node('th', nameOf(item)))); head.append(headingRow); table.append(head);
     const tbody = node('tbody', '');
     const rows = [
-      ['分類', item => valuesOf(item, 'support_scope')], ['支える範囲', () => unknown],
+      ['分類', item => valuesOf(item, 'support_scope')], ['支える範囲', item => item.support_scope_text || unknown],
       ['素材', item => valuesOf(item, 'material')], ['継手', item => valuesOf(item, 'joint')],
       ['足元の構造', item => valuesOf(item, 'foot_structure')], ['特徴', item => valuesOf(item, 'feature')],
-      ['概要', item => item.summary || unknown], ['注意点', () => unknown],
-      ...compareQuestions.map(label => [label, () => unknown]),
+      ['概要', item => item.summary || unknown], ['注意点', item => item.caution_text || unknown],
+      ...compareQuestions.map(label => [label, item => Array.isArray(item.expert_questions) && item.expert_questions.length ? item.expert_questions.join('、') : unknown]),
       ['確認日', item => checkedOn(item)]
     ];
     for (const [label, getValue] of rows) {
@@ -198,14 +260,24 @@ const F03 = (() => {
   async function load() {
     const cycle = ++loadCycle;
     try {
-      const rows = await select('kasi_catalog_items', 'select=id,title,product_name,summary,reviewed_at&publication_status=eq.published&deleted_at=is.null&order=published_at.desc');
+      let rows;
+      try {
+        rows = await select('kasi_catalog_items', 'select=id,title,product_name,summary,support_scope_text,caution_text,expert_questions,publication_status,reviewed_at,row_version&publication_status=eq.published&deleted_at=is.null&order=published_at.desc');
+        editableDetailsSupported = true;
+      } catch (error) {
+        // Keep the published catalog readable until the additive F03 migration is applied.
+        editableDetailsSupported = false;
+        rows = await select('kasi_catalog_items', 'select=id,title,product_name,summary,publication_status,reviewed_at,row_version&publication_status=eq.published&deleted_at=is.null&order=published_at.desc');
+      }
       const ids = rows.map(row => row.id), condition = `catalog_item_id=in.(${ids.join(',')})`;
-      const [terms, media, links] = ids.length ? await Promise.all([
-        select('kasi_catalog_item_terms', `select=catalog_item_id,sort_order,kasi_catalog_terms(term_group,code,label_ja,description,is_active)&${condition}&order=sort_order.asc`),
+      const [terms, media, links, availableTerms] = ids.length ? await Promise.all([
+        select('kasi_catalog_item_terms', `select=catalog_item_id,sort_order,kasi_catalog_terms(id,term_group,code,label_ja,description,is_active)&${condition}&order=sort_order.asc`),
         select('kasi_catalog_media', `select=catalog_item_id,alt_text,source_url,sort_order&${condition}&order=sort_order.asc`),
-        select('kasi_catalog_item_sources', `select=catalog_item_id,kasi_catalog_sources(publisher_name,title,source_url,checked_on)&${condition}`)
-      ]) : [[], [], []];
+        select('kasi_catalog_item_sources', `select=catalog_item_id,kasi_catalog_sources(id,source_type,publisher_name,title,source_url,checked_on,row_version)&${condition}`),
+        select('kasi_catalog_terms', 'select=id,term_group,code,label_ja,description,is_active&is_active=eq.true&order=term_group.asc,sort_order.asc')
+      ]) : [[], [], [], []];
       if (cycle !== loadCycle) return;
+      allTerms = availableTerms;
       items = rows.map(row => ({...row,
         terms: terms.filter(link => link.catalog_item_id === row.id),
         media: media.filter(photo => photo.catalog_item_id === row.id),
@@ -219,7 +291,7 @@ const F03 = (() => {
     }
   }
   function reset() {
-    loadCycle++; items = []; filter = 'all'; keyword = ''; chosen.clear(); view = 'browse'; detailId = null;
+    loadCycle++; items = []; allTerms = []; filter = 'all'; keyword = ''; chosen.clear(); view = 'browse'; detailId = null; hideEditor();
     $('catalog-keyword').value = ''; $('catalog-list').replaceChildren(); $('catalog-detail-body').replaceChildren();
     $('catalog-compare-body').replaceChildren(); $('catalog-browse').hidden = false;
     $('catalog-detail').hidden = true; $('catalog-comparison').hidden = true; $('catalog-selection-tray').hidden = true;
@@ -237,6 +309,8 @@ const F03 = (() => {
     filter = button.dataset.filter; renderBrowse();
   }));
   $('catalog-detail-back').addEventListener('click', showBrowse);
+  $('catalog-edit-cancel').addEventListener('click', hideEditor);
+  $('catalog-edit-form').addEventListener('submit', saveEditor);
   $('catalog-compare-back').addEventListener('click', showBrowse);
   $('catalog-clear-selection').addEventListener('click', () => {
     chosen.clear(); syncOptionButtons(); renderTray();
