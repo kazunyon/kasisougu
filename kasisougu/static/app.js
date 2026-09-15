@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const config = window.KASISOUGU_SUPABASE_CONFIG || {};
 let token = '', userId = '', orthosis = null, orthoses = [], editingOrthosis = null;
-let needs = [], editingNeed = null, photos = [], photoUrls = [], photoRenderId = 0;
+let needs = [], editingNeed = null, needOrthosisId = '', photos = [], photoUrls = [], photoRenderId = 0;
 let profile = null, profileLoaded = false;
 function message(id, text, error = false) { $(id).textContent = text; $(id).classList.toggle('error', error); }
 function apiHeaders(extra = {}) { return {apikey: config.publishableKey, ...(token ? {Authorization: `Bearer ${token}`} : {}), ...extra}; }
@@ -111,16 +111,13 @@ async function openOrthosis(id) {
   const selected = orthoses.find(item => item.id === id);
   if (!selected) return;
   orthosis = selected; editingOrthosis = null; $('orthosis-form').hidden = true;
-  $('orthosis-detail').hidden = false; renderFacts(); resetNeedForm();
-  $('needs-list').replaceChildren(); $('photo-list').replaceChildren();
+  $('orthosis-detail').hidden = false; renderFacts();
+  $('photo-list').replaceChildren();
   message('photo-status', '写真を読み込み中…');
   try {
-    const [needRows, photoRows] = await Promise.all([
-      select('kasi_user_needs', `select=id,need_type,category_code,description,priority,status_code,row_version&user_orthosis_id=eq.${id}&deleted_at=is.null&order=created_at.asc`),
-      select('kasi_user_media', `select=id,storage_path,original_filename,mime_type,sort_order,row_version&user_orthosis_id=eq.${id}&deleted_at=is.null&order=sort_order.asc,created_at.asc`)
-    ]);
+    const photoRows = await select('kasi_user_media', `select=id,storage_path,original_filename,mime_type,sort_order,row_version&user_orthosis_id=eq.${id}&deleted_at=is.null&order=sort_order.asc,created_at.asc`);
     if (orthosis?.id !== id || !token) return;
-    needs = needRows; photos = photoRows.sort((a, b) => a.sort_order - b.sort_order); renderNeeds(); await renderPhotos();
+    photos = photoRows.sort((a, b) => a.sort_order - b.sort_order); await renderPhotos();
   } catch (error) { if (orthosis?.id === id) message('photo-status', `詳細の読み込みに失敗しました：${error.message}`, true); }
 }
 function renderNeeds() {
@@ -138,6 +135,17 @@ function renderNeeds() {
     card.append(edit); $('needs-list').append(card);
   });
 }
+async function loadNeedsForOrthosis(id) {
+  needOrthosisId = id || ''; resetNeedForm(); $('needs-list').replaceChildren();
+  if (!needOrthosisId) return;
+  try {
+    const selectedId = needOrthosisId;
+    const rows = await select('kasi_user_needs', `select=id,need_type,category_code,description,priority,status_code,row_version&user_orthosis_id=eq.${selectedId}&deleted_at=is.null&order=created_at.asc`);
+    if (needOrthosisId !== selectedId || !token) return;
+    needs = rows; renderNeeds();
+  } catch (error) { if (needOrthosisId === id) message('need-status', `困りごと・希望を読み込めませんでした：${error.message}`, true); }
+}
+window.KASI_NEEDS = {loadForOrthosis:loadNeedsForOrthosis};
 function storagePath(path, authenticated = false) { return `/storage/v1/object/${authenticated ? 'authenticated/' : ''}kasi_user-media/${path.split('/').map(encodeURIComponent).join('/')}`; }
 async function storageRequest(path, options = {}) {
   assertConfig();
@@ -234,7 +242,7 @@ function setScreen(name) {
   window.scrollTo({top:0, behavior:'instant'});
 }
 $('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
-$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
+$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
 $('orthosis-add').addEventListener('click', () => showOrthosisForm());
 $('orthosis-edit').addEventListener('click', () => showOrthosisForm(orthosis));
 $('orthosis-cancel').addEventListener('click', () => { $('orthosis-form').hidden = true; if (KASI_F04.cancelOrthosisRegistration()) return; $('orthosis-detail').hidden = !orthosis; });
@@ -254,14 +262,15 @@ $('orthosis-form').addEventListener('submit', async event => {
 $('need-cancel').addEventListener('click', resetNeedForm);
 $('need-form').addEventListener('submit', async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
-  const id = orthosis.id, item = editingNeed;
+  const id = needOrthosisId, item = editingNeed;
   const data = {need_type:$('need-type').value,category_code:$('need-category').value,description:$('need-description').value.trim(),priority:$('need-priority').value ? Number($('need-priority').value) : null,status_code:$('need-state').value};
   if (!item) data.user_orthosis_id = id;
   try {
+    if (!id) throw new Error('関連する登録済み装具を選んでください。');
     if (!data.description) throw new Error('詳しい説明を入力してください。');
     const rows = await request(item ? `/rest/v1/kasi_user_needs?id=eq.${item.id}&row_version=eq.${item.row_version}` : '/rest/v1/kasi_user_needs', {method:item?'PATCH':'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(data)});
     if (!rows.length) throw new Error('別の画面で更新されています。再読み込みしてください。');
-    if (orthosis?.id === id) { needs = await select('kasi_user_needs', `select=id,need_type,category_code,description,priority,status_code,row_version&user_orthosis_id=eq.${id}&deleted_at=is.null&order=created_at.asc`); renderNeeds(); resetNeedForm(); message('need-status', '保存しました。'); }
+    if (needOrthosisId === id) { needs = await select('kasi_user_needs', `select=id,need_type,category_code,description,priority,status_code,row_version&user_orthosis_id=eq.${id}&deleted_at=is.null&order=created_at.asc`); renderNeeds(); resetNeedForm(); message('need-status', '保存しました。'); }
   } catch (error) { message('need-status', error.message, true); } finally { button.disabled = false; }
 });
 $('orthosis-photo').addEventListener('change', async event => {

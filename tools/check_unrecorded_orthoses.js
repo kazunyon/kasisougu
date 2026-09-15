@@ -31,5 +31,10 @@ async page => {
   assert((await options.allTextContents()).filter(s=>s.includes('記録未入力')).length===2,'Wrong pending count');
   assert(!(await page.locator('#record-picker').inputValue()).startsWith('orthosis:'),'Saved record key missing');
   assert(await page.locator('#record-orthosis').inputValue()==='orthosis-4','Saved orthosis wrong');
+  const needResponse = page.waitForResponse(r => r.url().includes('/kasi_user_needs') && r.request().method() === 'POST');
+  await page.locator('#need-description').fill('使用記録から追加した困りごと');
+  await page.locator('#need-form button.primary').click();
+  const needRequest = (await needResponse).request().postDataJSON();
+  assert(needRequest.user_orthosis_id==='orthosis-4','Need must be linked to the orthosis selected in the usage record');
   return 'PASS: all five orthoses, three trial entries, separate duplicate names, draft retention, pending entry replaced after save';
 }

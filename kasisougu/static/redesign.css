@@ -53,7 +53,8 @@ h1, .next-step h2 { text-wrap: balance; }
 .primary-nav button.active svg circle { fill: var(--green); }
 .nav-short, .mobile-orthosis { display: none; }
 .sidebar-secondary { margin-top: 25px; padding: 20px 10px 0; border-top: 1px solid var(--line); }
-.sidebar-secondary button { width: 100%; text-align: left; font-size: .85rem; border-color: transparent; }
+.sidebar-secondary button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-size: .85rem; border-color: transparent; }
+.sidebar-secondary svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .sidebar-secondary button[aria-current=page], .mobile-orthosis[aria-current=page] { background: var(--soft); border-color: var(--green); }
 .sidebar-secondary p { margin: 28px 6px 0; color: var(--muted); font-size: .72rem; }
 .is-authenticated main { max-width: 1260px; padding: 28px 42px 0; min-height: calc(100dvh - 110px); }
@@ -139,6 +140,7 @@ h1, .next-step h2 { text-wrap: balance; }
 .record-content > .empty-state h2 { font-size: 1.1rem; color: var(--ink); }
 .record-content > .empty-state p { font-size: .85rem; }
 .record-content:has(> #record-detail:not([hidden]), > #record-form:not([hidden])) > #record-selection-empty { display: none; }
+#record-form[hidden] + .record-needs { display: none; }
 .record-workspace:has(#record-form:not([hidden])) { grid-template-columns: 1fr; }
 .record-workspace:has(#record-form:not([hidden])) .record-browser { display: none; }
 .orthosis-facts { grid-template-columns: minmax(85px,.45fr) minmax(0,1fr); padding: 18px; font-size: .85rem; }
