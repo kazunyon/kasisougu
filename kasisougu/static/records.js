@@ -7,10 +7,10 @@ const recordCategories = [
 const resultLabels = {not_evaluated: '未評価', no_issue: '問題なし', issue: '気になる'};
 const assistanceLabels = {not_evaluated: '未評価', independent: '自立', partial_assistance: '一部介助', full_assistance: '全介助'};
 const F04 = (() => {
-  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false;
+  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false, saving = false;
   const orthosisTypeLabels = {kafo:'長下肢装具',afo:'短下肢装具',other:'その他'};
   const orthosisGroup = code => code === 'kafo' || code === 'afo' ? code : 'other';
-  const title = row => `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具名未取得'}`;
+  const title = row => `${row.record_kind === 'comparison' ? '【比較用】' : ''}${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具名未取得'}`;
   const observation = (row, category) => row.observations?.find(o => o.category_code === category);
   const value = v => v === null || v === undefined || v === '' ? '未記入' : String(v);
   function emptyOption(text) { const option = node('option', text); option.value = ''; return option; }
@@ -27,11 +27,15 @@ const F04 = (() => {
   function updateChoices() {
     updateOrthosisChoices($('record-orthosis').value);
     for (const id of ['compare-first', 'compare-second']) {
-      const selectEl = $(id); selectEl.replaceChildren(emptyOption('記録を選択'));
+      const selectEl = $(id), previous = selectEl.value; selectEl.replaceChildren(emptyOption('記録を選択'));
       records.forEach(row => { const option = node('option', title(row)); option.value = row.id; selectEl.append(option); });
+      selectEl.value = records.some(row => row.id === previous) ? previous : '';
     }
   }
   function renderList() {
+    $('record-picker').replaceChildren(emptyOption('記録を選択（過去分もここから）'));
+    records.forEach(row => { const option = node('option', title(row)); option.value = row.id; $('record-picker').append(option); });
+    $('record-picker').value = selected?.id || '';
     $('record-list').replaceChildren();
     if (!records.length) $('record-list').append(node('p', '保存済みの記録はありません。', 'empty-state'));
     records.forEach(row => {
@@ -39,7 +43,7 @@ const F04 = (() => {
       card.dataset.recordId = row.id;
       card.classList.toggle('selected', row.id === selected?.id);
       card.append(node('h3', title(row)), node('p', `${value(row.usage_setting)} · ${row.duration_minutes == null ? '使用時間未記入' : `${row.duration_minutes}分`}`), node('p', row.overall_note || '感想・メモなし'));
-      const button = node('button', '詳細を見る'); button.type = 'button'; button.setAttribute('aria-controls', 'record-detail'); button.setAttribute('aria-pressed', String(row.id === selected?.id)); button.addEventListener('click', () => open(row.id)); card.append(button);
+      const button = node('button', 'この記録を開く'); button.type = 'button'; button.setAttribute('aria-controls', 'record-detail'); button.setAttribute('aria-pressed', String(row.id === selected?.id)); button.addEventListener('click', () => open(row.id)); card.append(button);
       $('record-list').append(card);
     });
     message('record-list-status', records.length ? `${records.length}件の記録を表示しています。` : 'まだ記録がありません。');
@@ -51,11 +55,15 @@ const F04 = (() => {
     records.slice(0, 3).forEach(row => box.append(node('p', `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具'} · ${row.overall_note || 'メモなし'}`)));
   }
   async function load() {
-    const rows = await select('kasi_usage_records', 'select=id,user_orthosis_id,recorded_on,footwear,usage_setting,assistance_level,duration_minutes,overall_note,row_version&deleted_at=is.null&order=recorded_on.desc,created_at.desc');
+    const rows = await select('kasi_usage_records', 'select=*&deleted_at=is.null&order=recorded_on.desc,created_at.desc');
     const obs = await select('kasi_usage_record_observations', 'select=id,usage_record_id,category_code,result_code,rating,note,row_version&deleted_at=is.null');
     records = rows.map(row => ({...row, observations: obs.filter(o => o.usage_record_id === row.id)}));
     selected = records.find(row => row.id === selected?.id) || null;
     renderList(); renderHomeRecords();
+    if (!$('compare-result').hidden) {
+      if ($('compare-first').value && $('compare-second').value) compare();
+      else { $('compare-result').hidden = true; message('compare-status', ''); }
+    }
     return records;
   }
   async function init() {
@@ -64,6 +72,10 @@ const F04 = (() => {
     await load();
     if (formVisible) { $('record-orthosis-type').value = chosenType; updateOrthosisChoices(chosenOrthosis); }
     else if (detailVisible && detailId) await open(detailId);
+    else {
+      const baseline = records.find(row => row.record_kind !== 'comparison' && orthoses.some(o => o.id === row.user_orthosis_id && o.ownership_status === 'owned')) || records.find(row => row.record_kind !== 'comparison');
+      if (baseline) await open(baseline.id); else showForm();
+    }
   }
   function makeEvaluationInputs() {
     $('record-evaluations').replaceChildren();
@@ -83,7 +95,7 @@ const F04 = (() => {
   }
   function fillForm(row) {
     $('record-form').reset();
-    const related = orthoses.find(item => item.id === row?.user_orthosis_id) || orthoses[0];
+    const related = orthoses.find(item => item.id === row?.user_orthosis_id) || orthoses.find(item => item.ownership_status === 'owned') || orthoses[0];
     $('record-orthosis-type').value = related ? orthosisGroup(related.orthosis_type_code) : 'kafo';
     updateChoices();
     $('recorded-on').value = row?.recorded_on || new Date().toLocaleDateString('sv-SE');
@@ -102,12 +114,14 @@ const F04 = (() => {
     });
   }
   function showForm(row = null) {
-    editing = row; fillForm(row);
-    $('record-form-title').textContent = row ? '記録を編集' : '新しい記録を追加';
+    editing = row; selected = row; fillForm(row);
+    $('record-picker').value = row?.id || '';
+    $('record-current-state').textContent = row?.record_kind === 'comparison' ? '比較用' : ownershipLabels[orthoses.find(o => o.id === row?.user_orthosis_id)?.ownership_status] || '未保存';
+    $('record-form-title').textContent = row?.record_kind === 'comparison' ? '比較用の記録を編集' : '現在の記録';
     $('record-detail').hidden = true; $('record-form').hidden = false;
-    message('record-status', ''); $('recorded-on').focus();
+    message('record-status', '');
   }
-  function closeForm() { $('record-form').hidden = true; $('record-detail').hidden = !selected; }
+  async function closeForm() { if (editing && records.some(row => row.id === editing.id)) await open(editing.id); else showForm(); }
   function addOrthosis() {
     registeringOrthosis = true;
     const type = $('record-orthosis-type').value;
@@ -167,17 +181,12 @@ const F04 = (() => {
   }
   async function open(id) {
     selected = records.find(row => row.id === id) || null; if (!selected) return;
-    $('record-form').hidden = true; $('record-detail').hidden = false; facts(selected); renderEvaluationDetails(selected);
+    showForm(selected); $('record-detail').hidden = false; facts(selected); renderEvaluationDetails(selected);
     $('record-list').querySelectorAll('.record-card').forEach(card => {
       const active = card.dataset.recordId === id;
       card.classList.toggle('selected', active);
       card.querySelector('button').setAttribute('aria-pressed', String(active));
     });
-    if (!$('record-page').hidden) {
-      $('record-detail-title').setAttribute('tabindex', '-1');
-      $('record-detail-title').focus({preventScroll:true});
-      $('record-detail').scrollIntoView({block:'start'});
-    }
     message('record-photo-status', '写真を読み込み中…');
     try { await loadMedia(); message('record-photo-status', `${media.length}枚の写真を表示しています。`); }
     catch (error) { message('record-photo-status', error.message, true); }
@@ -189,29 +198,35 @@ const F04 = (() => {
       note: $(`note-${code}`).value.trim() || null
     }));
   }
-  async function saveEvaluations(id, values, old) {
-    const pending = [], creates = [];
-    for (const item of values) {
-      const found = old?.find(o => o.category_code === item.category_code);
-      if (found) pending.push(request(`/rest/v1/kasi_usage_record_observations?id=eq.${found.id}&row_version=eq.${found.row_version}`, {method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(item)}).then(rows => { if (!rows.length) throw new Error('評価が別の画面で更新されました。'); }));
-      else creates.push({...item, usage_record_id:id});
-    }
-    if (creates.length) pending.push(request('/rest/v1/kasi_usage_record_observations', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(creates)}));
-    await Promise.all(pending);
-  }
   async function save(event) {
-    event.preventDefault(); const button = event.submitter; button.disabled = true;
+    event.preventDefault();
+    if (saving) return;
+    const copy = event.submitter?.id === 'record-save-comparison';
+    if (copy && !editing) return message('record-status', '先に現在の記録を保存してください。', true);
+    saving = true;
+    const controls = [...$('record-form').querySelectorAll('button, input, select, textarea'), $('record-picker'), $('record-add')];
+    const disabled = controls.map(control => control.disabled);
+    controls.forEach(control => control.disabled = true);
+    const session = token, owner = userId, baseline = editing;
     try {
       if (!orthoses.some(item => item.id === $('record-orthosis').value && orthosisGroup(item.orthosis_type_code) === $('record-orthosis-type').value))
         throw new Error('選択した種類の装具を登録し、関連する装具を選んでください。');
-      const row = editing, data = {user_orthosis_id:$('record-orthosis').value, recorded_on:$('recorded-on').value, footwear:$('record-footwear').value.trim() || null, usage_setting:$('record-setting').value.trim() || null, assistance_level:$('record-assistance').value, duration_minutes:$('record-duration').value ? Number($('record-duration').value) : null, overall_note:$('record-note').value.trim() || null};
-      const values = collectObservations();
-      const rows = await request(row ? `/rest/v1/kasi_usage_records?id=eq.${row.id}&row_version=eq.${row.row_version}` : '/rest/v1/kasi_usage_records', {method:row?'PATCH':'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(data)});
-      if (!rows.length) throw new Error('記録が別の画面で更新されています。再読み込みしてください。');
-      await saveEvaluations(rows[0].id, values, row?.observations);
-      await load(); await open(rows[0].id); message('record-list-status', '記録を保存しました。');
-    } catch (error) { message('record-status', `${error.message} 記録と評価が一部だけ保存された可能性があります。詳細を再読み込みして確認してください。`, true); }
-    finally { button.disabled = false; }
+      const data = {user_orthosis_id:$('record-orthosis').value, recorded_on:$('recorded-on').value, footwear:$('record-footwear').value.trim() || null, usage_setting:$('record-setting').value.trim() || null, assistance_level:$('record-assistance').value, duration_minutes:$('record-duration').value ? Number($('record-duration').value) : null, overall_note:$('record-note').value.trim() || null};
+      const saved = await request('/rest/v1/rpc/kasi_save_usage_record', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_id:baseline?.id || null,p_version:baseline?.row_version || null,p_comparison:copy,p_record:data,p_observations:collectObservations()})});
+      if (token !== session || userId !== owner) return;
+      await load();
+      if (copy) {
+        // Keep the baseline and unsaved form values; copying must never switch to the copy.
+        selected = records.find(row => row.id === baseline.id); editing = selected;
+        $('record-picker').value = baseline.id;
+        $('compare-first').value = baseline.id; $('compare-second').value = saved.id;
+        compare();
+      } else await open(saved.id);
+      message('record-status', copy ? '比較用として別に保存しました。現在の記録は変更していません。' : '表示中の記録を保存しました。');
+    } catch (error) {
+      if (token === session && userId === owner) message('record-status', `保存できませんでした：${error.message}`, true);
+    } finally { saving = false; controls.forEach((control, i) => control.disabled = disabled[i]);
+      recordCategories.forEach(([code]) => { $(`rating-${code}`).disabled = $(`result-${code}`).value === 'not_evaluated'; }); }
   }
   async function updateCaption(photo, caption) {
     try {
@@ -284,6 +299,7 @@ const F04 = (() => {
   }
   function reset() {
     clearUrls(); records = []; selected = null; editing = null; media = []; registeringOrthosis = false;
+    $('record-picker').replaceChildren(); $('record-current-state').textContent = ''; $('record-form').reset();
     $('record-list').replaceChildren(); $('record-detail').hidden = true; $('record-form').hidden = true;
     $('record-photo-list').replaceChildren(); $('compare-result').replaceChildren(); $('compare-result').hidden = true;
     $('record-summary').replaceChildren(node('p', '保存された記録はありません。'));
@@ -291,12 +307,14 @@ const F04 = (() => {
   makeEvaluationInputs();
   $('record-orthosis-type').addEventListener('change', () => updateOrthosisChoices());
   $('record-add-orthosis').addEventListener('click', addOrthosis);
-  $('record-add').addEventListener('click', () => showForm());
+  $('record-add').addEventListener('click', () => { if (!editing || confirm('入力中の変更を破棄して、別の日・装具の記録を入力しますか？')) showForm(); });
+  $('record-picker').addEventListener('change', async () => { const id = $('record-picker').value; if (!id) { $('record-picker').value = editing?.id || ''; return; } if (editing && !confirm('入力中の変更を破棄して、選択した記録を開きますか？')) { $('record-picker').value = editing.id; return; } await open(id); });
   $('record-edit').addEventListener('click', () => showForm(selected));
   $('record-cancel').addEventListener('click', closeForm);
   $('record-form').addEventListener('submit', save);
   $('record-photo-form').addEventListener('submit', uploadPhoto);
   $('compare-run').addEventListener('click', compare);
+  for (const id of ['compare-first', 'compare-second']) $(id).addEventListener('change', () => { $('compare-result').hidden = true; message('compare-status', ''); });
   return {init,load,open,renderHomeRecords,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,comparisonTable};
 })();
 window.KASI_F04 = F04;

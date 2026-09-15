@@ -246,3 +246,21 @@ h1, .next-step h2 { text-wrap: balance; }
 @media (min-width:1100px) {
   .resource-links { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; }
 }
+
+.record-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.record-selection select { padding: 12px; max-width: 100%; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.record-kind-label { color: var(--green); font-weight: 700; }
+.record-workspace { display: flex; flex-direction: column; }
+.record-browser, .record-content { width: 100%; min-width: 0; }
+.record-workspace:has(#record-form:not([hidden])) .record-browser { display: block; }
+#record-list { display: none; }
+.record-content { display: flex; flex-direction: column; gap: 20px; }
+#record-form { order: -1; }
+#record-detail > .section-heading, #record-facts, #record-detail-evaluations, #record-detail > h3:first-of-type { display: none; }
+#record-form .form-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+#record-form .form-grid > label { min-width: 0; }
+#record-form input, #record-form select { min-width: 0; width: 100%; }
+@media (max-width:760px) { #record-form .form-grid { grid-template-columns: minmax(0,1fr); } }
+
+.record-browser > .section-heading { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.record-browser #record-add { width: auto; font-size: .8rem; }

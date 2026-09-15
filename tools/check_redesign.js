@@ -35,6 +35,17 @@ async (page) => {
   await page.route('https://redesign-test.invalid/**', async route => {
     const request = route.request(), pathname = request.url().split('.invalid')[1].split('?')[0];
     let body = [];
+    if (pathname === '/rest/v1/rpc/kasi_save_usage_record') {
+      const data = request.postDataJSON();
+      const base = records.find(row => row.id === data.p_id);
+      if (data.p_id && (!base || base.row_version !== data.p_version)) return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({message:'記録が別の画面で更新されています。'})});
+      let saved;
+      if (base && !data.p_comparison) { Object.assign(base, data.p_record, {row_version:base.row_version+1}); saved = base; }
+      else { saved = {...data.p_record,id:`record-${records.length+1}`,row_version:1,record_kind:data.p_comparison?'comparison':'current'}; records.push(saved); }
+      tables.kasi_usage_record_observations = tables.kasi_usage_record_observations.filter(row => row.usage_record_id !== saved.id);
+      tables.kasi_usage_record_observations.push(...data.p_observations.map((row,i)=>({...row,id:`obs-${saved.id}-${i}`,usage_record_id:saved.id,row_version:1})));
+      return route.fulfill({contentType:'application/json',body:JSON.stringify({id:saved.id,row_version:saved.row_version})});
+    }
     if (pathname.startsWith('/auth/v1/token')) body = {access_token:'synthetic-test-session'};
     else if (pathname === '/auth/v1/user') body = {id:'test-user'};
     else {
@@ -70,12 +81,10 @@ async (page) => {
   for (const screen of ['catalog','record','consultation','links','settings','orthosis','home']) await go(screen);
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
   await go('record');
-  await page.locator('#record-list button').first().click();
-  assert(await page.locator('#record-detail').isVisible(),'Record detail did not open');
-  assert(await page.locator('#record-list .selected').count()===1,'Selected record not marked');
-  const browserBox=await page.locator('.record-browser').boundingBox(), detailBox=await page.locator('.record-content').boundingBox();
-  assert(detailBox.x > browserBox.x+browserBox.width,'Record detail is not beside the list on desktop');
+  assert(await page.locator('#record-form').isVisible(),'Current record form did not open');
+  assert(await page.locator('#record-picker').inputValue()==='record-2','Current-use orthosis was not preferred');
+  assert(await page.locator('#record-detail').isVisible(),'Record photos did not open');
   await page.screenshot({path:'output/playwright/redesign-record-desktop.png',fullPage:true});
   assert(errors.length===0,errors.join('\n'));
-  return 'PASS: login, navigation across all screens, current-page indicator and desktop record layout';
+  return 'PASS: login, navigation across all screens, current-page indicator and current record form';
 }
