@@ -7,13 +7,19 @@ const recordCategories = [
 const resultLabels = {not_evaluated: '未評価', no_issue: '問題なし', issue: '気になる'};
 const assistanceLabels = {not_evaluated: '未評価', independent: '自立', partial_assistance: '一部介助', full_assistance: '全介助'};
 const F04 = (() => {
-  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false, saving = false;
+  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false, saving = false, draftOrthosisId = '';
   const orthosisTypeLabels = {kafo:'長下肢装具',afo:'短下肢装具',other:'その他'};
   const orthosisGroup = code => code === 'kafo' || code === 'afo' ? code : 'other';
+  const orthosisLabel = item => {
+    if (!item) return '装具名未取得';
+    const same = orthoses.filter(o => o.nickname === item.nickname);
+    return `${item.nickname}${same.length > 1 ? `（${same.findIndex(o => o.id === item.id) + 1}）` : ''}`;
+  };
+  const pickerValue = () => selected?.id || (draftOrthosisId ? `orthosis:${draftOrthosisId}` : '');
   const title = row => {
     const related = orthoses.find(o => o.id === row.user_orthosis_id);
     const status = {owned:'現在使用中', trial:'試用中', past:'過去の記録'}[related?.ownership_status] || '使用状況未確認';
-    return `【${status}】${row.record_kind === 'comparison' ? '【比較用】' : ''}${row.recorded_on} · ${related?.nickname || '装具名未取得'}`;
+    return `【${status}】${row.record_kind === 'comparison' ? '【比較用】' : ''}${row.recorded_on} · ${orthosisLabel(related)}`;
   };
   const observation = (row, category) => row.observations?.find(o => o.category_code === category);
   const value = v => v === null || v === undefined || v === '' ? '未記入' : String(v);
@@ -22,7 +28,7 @@ const F04 = (() => {
     const type = $('record-orthosis-type').value, available = orthoses.filter(item => orthosisGroup(item.orthosis_type_code) === type);
     const selectEl = $('record-orthosis'); selectEl.replaceChildren();
     if (!available.length) selectEl.append(emptyOption(`${orthosisTypeLabels[type]}は未登録です`));
-    available.forEach(item => { const option = node('option', `${item.nickname}（${ownershipLabels[item.ownership_status]}）`); option.value = item.id; selectEl.append(option); });
+    available.forEach(item => { const option = node('option', `${orthosisLabel(item)}（${ownershipLabels[item.ownership_status]}）`); option.value = item.id; selectEl.append(option); });
     selectEl.value = available.find(item => item.id === preferredId)?.id || available[0]?.id || '';
     message('record-orthosis-guide', available.length
       ? `${orthosisTypeLabels[type]}は${available.length}件登録済みです。使った装具を選んでください。`
@@ -39,7 +45,13 @@ const F04 = (() => {
   function renderList() {
     $('record-picker').replaceChildren(emptyOption('記録を選択（過去分もここから）'));
     records.forEach(row => { const option = node('option', title(row)); option.value = row.id; $('record-picker').append(option); });
-    $('record-picker').value = selected?.id || '';
+    const missing = orthoses.filter(item => !records.some(row => row.user_orthosis_id === item.id));
+    missing.forEach(item => {
+      const status = {owned:'現在使用中',trial:'試用中',past:'過去の記録'}[item.ownership_status] || '使用状況未確認';
+      const option = node('option', `【${status}】【記録未入力】${orthosisLabel(item)}`);
+      option.value = `orthosis:${item.id}`; $('record-picker').append(option);
+    });
+    $('record-picker').value = pickerValue();
     $('record-list').replaceChildren();
     if (!records.length) $('record-list').append(node('p', '保存済みの記録はありません。', 'empty-state'));
     records.forEach(row => {
@@ -50,7 +62,7 @@ const F04 = (() => {
       const button = node('button', 'この記録を開く'); button.type = 'button'; button.setAttribute('aria-controls', 'record-detail'); button.setAttribute('aria-pressed', String(row.id === selected?.id)); button.addEventListener('click', () => open(row.id)); card.append(button);
       $('record-list').append(card);
     });
-    message('record-list-status', records.length ? `${records.length}件の記録を表示しています。` : 'まだ記録がありません。');
+    message('record-list-status', `登録済みの装具${orthoses.length}件／保存済みの記録${records.length}件／記録未入力の装具${missing.length}件。記録未入力の装具も上の一覧から選べます。`);
     updateChoices();
   }
   function renderHomeRecords() {
@@ -97,9 +109,9 @@ const F04 = (() => {
       panel.append(resultLabel, ratingLabel, noteLabel); $('record-evaluations').append(panel);
     });
   }
-  function fillForm(row) {
+  function fillForm(row, preferredId = '') {
     $('record-form').reset();
-    const related = orthoses.find(item => item.id === row?.user_orthosis_id) || orthoses.find(item => item.ownership_status === 'owned') || orthoses[0];
+    const related = orthoses.find(item => item.id === (row?.user_orthosis_id || preferredId)) || orthoses.find(item => item.ownership_status === 'owned') || orthoses[0];
     $('record-orthosis-type').value = related ? orthosisGroup(related.orthosis_type_code) : 'kafo';
     updateChoices();
     $('recorded-on').value = row?.recorded_on || new Date().toLocaleDateString('sv-SE');
@@ -117,15 +129,15 @@ const F04 = (() => {
       $(`note-${code}`).value = obs?.note || '';
     });
   }
-  function showForm(row = null) {
-    editing = row; selected = row; fillForm(row);
-    $('record-picker').value = row?.id || '';
-    $('record-current-state').textContent = row?.record_kind === 'comparison' ? '比較用' : ownershipLabels[orthoses.find(o => o.id === row?.user_orthosis_id)?.ownership_status] || '未保存';
+  function showForm(row = null, preferredId = '') {
+    editing = row; selected = row; draftOrthosisId = row ? '' : preferredId; fillForm(row, preferredId);
+    $('record-picker').value = pickerValue();
+    $('record-current-state').textContent = row?.record_kind === 'comparison' ? '比較用' : ownershipLabels[orthoses.find(o => o.id === row?.user_orthosis_id)?.ownership_status] || (draftOrthosisId ? '記録未入力' : '未保存');
     $('record-form-title').textContent = row?.record_kind === 'comparison' ? '比較用の記録を編集' : '現在の記録・過去の記録';
     $('record-detail').hidden = true; $('record-form').hidden = false;
     message('record-status', '');
   }
-  async function closeForm() { if (editing && records.some(row => row.id === editing.id)) await open(editing.id); else showForm(); }
+  async function closeForm() { if (editing && records.some(row => row.id === editing.id)) await open(editing.id); else showForm(null, draftOrthosisId); }
   function addOrthosis() {
     registeringOrthosis = true;
     const type = $('record-orthosis-type').value;
@@ -139,6 +151,8 @@ const F04 = (() => {
     const item = orthoses.find(row => row.id === id);
     $('record-orthosis-type').value = orthosisGroup(item?.orthosis_type_code);
     updateOrthosisChoices(id);
+    editing = null; selected = null; draftOrthosisId = id;
+    $('record-picker').value = pickerValue(); $('record-current-state').textContent = '記録未入力';
     $('record-detail').hidden = true; $('record-form').hidden = false; setScreen('record');
     message('record-status', `${item?.nickname || '装具'}を追加しました。続けて記録を保存できます。`);
     return true;
@@ -302,7 +316,7 @@ const F04 = (() => {
     message('compare-status', same ? '主要条件がそろっています。評価の違いを専門職と確認してください。' : '条件が異なる項目があります。装具の違いだけによる変化とは断定できません。',!same);
   }
   function reset() {
-    clearUrls(); records = []; selected = null; editing = null; media = []; registeringOrthosis = false;
+    clearUrls(); records = []; selected = null; editing = null; media = []; registeringOrthosis = false; draftOrthosisId = '';
     $('record-picker').replaceChildren(); $('record-current-state').textContent = ''; $('record-form').reset();
     $('record-list').replaceChildren(); $('record-detail').hidden = true; $('record-form').hidden = true;
     $('record-photo-list').replaceChildren(); $('compare-result').replaceChildren(); $('compare-result').hidden = true;
@@ -312,7 +326,15 @@ const F04 = (() => {
   $('record-orthosis-type').addEventListener('change', () => updateOrthosisChoices());
   $('record-add-orthosis').addEventListener('click', addOrthosis);
   $('record-add').addEventListener('click', () => { if (!editing || confirm('入力中の変更を破棄して、別の日・装具の記録を入力しますか？')) showForm(); });
-  $('record-picker').addEventListener('change', async () => { const id = $('record-picker').value; if (!id) { $('record-picker').value = editing?.id || ''; return; } if (editing && !confirm('入力中の変更を破棄して、選択した記録を開きますか？')) { $('record-picker').value = editing.id; return; } await open(id); });
+  $('record-picker').addEventListener('change', async () => {
+    const id = $('record-picker').value;
+    if (!id) { $('record-picker').value = pickerValue(); return; }
+    if ((editing || draftOrthosisId) && !confirm('入力中の変更を破棄して、選択した記録を開きますか？')) { $('record-picker').value = pickerValue(); return; }
+    if (id.startsWith('orthosis:')) {
+      const orthosisId = id.slice('orthosis:'.length);
+      if (orthoses.some(item => item.id === orthosisId)) showForm(null, orthosisId);
+    } else await open(id);
+  });
   $('record-edit').addEventListener('click', () => showForm(selected));
   $('record-cancel').addEventListener('click', closeForm);
   $('record-form').addEventListener('submit', save);
