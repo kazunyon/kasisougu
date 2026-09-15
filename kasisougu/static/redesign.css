@@ -95,6 +95,13 @@ h1, .next-step h2 { text-wrap: balance; }
 .next-step button { position: relative; z-index: 1; font-size: .85rem; white-space: normal !important; flex-shrink: 0; }
 .section-kicker { font-size: .7rem; }
 .home-grid { gap: 22px; }
+.home-orthosis-section { margin: 0 0 22px; padding: 25px; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
+.home-orthosis-section > p { margin: 5px 0 18px; color: var(--muted); font-size: .85rem; }
+.home-orthosis-section .orthosis-flow-compact .orthosis-group { padding: 14px; }
+.home-orthosis-section .orthosis-flow-compact .orthosis-step-heading { padding-bottom: 10px; }
+.home-orthosis-section .orthosis-flow-compact .orthosis-card { margin-top: 10px; padding: 12px; }
+.home-orthosis-section .orthosis-flow-compact .orthosis-card p { margin-bottom: 0; }
+.home-grid:has(.recent-records:only-child) { grid-template-columns: 1fr; }
 .home-section { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 25px; min-height: 230px; }
 .home-section h2 { font-size: 1.15rem; }
 .home-section p:not(.section-kicker) { font-size: .85rem; }
@@ -224,6 +231,7 @@ h1, .next-step h2 { text-wrap: balance; }
   .next-step { padding: 24px; }
   .next-step h2 { font-size: 1.4rem; }
   .home-section { padding: 22px; }
+  .home-orthosis-section { padding: 22px; }
   .section-heading { gap: 12px; }
   .section-heading button { font-size: .85rem; }
   .is-authenticated > .site-footer { padding: 20px 0; margin: 0; }
