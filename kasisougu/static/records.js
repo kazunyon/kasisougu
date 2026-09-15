@@ -133,6 +133,7 @@ const F04 = (() => {
     updateChoices();
     $('recorded-on').value = row?.recorded_on || new Date().toLocaleDateString('sv-SE');
     updateOrthosisChoices(row?.user_orthosis_id || related?.id);
+    window.KASI_NEEDS?.loadForOrthosis($('record-orthosis').value);
     $('record-footwear').value = row?.footwear || '';
     $('record-setting').value = row?.usage_setting || '';
     $('record-assistance').value = row?.assistance_level || 'not_evaluated';
@@ -382,7 +383,8 @@ const F04 = (() => {
     $('record-summary').replaceChildren(node('p', '保存された記録はありません。'));
   }
   makeEvaluationInputs();
-  $('record-orthosis-type').addEventListener('change', () => updateOrthosisChoices());
+  $('record-orthosis-type').addEventListener('change', () => { updateOrthosisChoices(); window.KASI_NEEDS?.loadForOrthosis($('record-orthosis').value); });
+  $('record-orthosis').addEventListener('change', () => window.KASI_NEEDS?.loadForOrthosis($('record-orthosis').value));
   $('record-add-orthosis').addEventListener('click', addOrthosis);
   $('record-add').addEventListener('click', () => { if (!editing || confirm('入力中の変更を破棄して、別の日・装具の記録を入力しますか？')) showForm(); });
   $('record-picker').addEventListener('change', async () => {

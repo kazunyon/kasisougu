@@ -100,6 +100,13 @@ async (page) => {
   assert(await page.locator('#record-form').isVisible(),'Current record form did not open');
   assert(await page.locator('#record-picker').inputValue()==='record-2','Current-use orthosis was not preferred');
   assert(await page.locator('#record-detail').isVisible(),'Record photos did not open');
+  assert(await page.locator('.sidebar-secondary button[data-screen="orthosis"] svg').count()===1,'My Orthoses icon missing');
+  assert(await page.locator('#record-form + .record-needs').isVisible(),'Needs section must follow the record save controls');
+  assert(await page.locator('#orthosis-detail #needs-list').count()===0,'Needs section still appears in My Orthoses');
+  const needsResponse = page.waitForResponse(r => r.url().includes('/kasi_user_needs') && r.url().includes('user_orthosis_id=eq.orthosis-2'));
+  await page.locator('#record-orthosis-type').selectOption('afo');
+  await needsResponse;
+  assert(await page.locator('#record-orthosis').inputValue()==='orthosis-2','Needs must switch with the selected registered orthosis');
   await page.screenshot({path:'output/playwright/redesign-record-desktop.png',fullPage:true});
   assert(errors.length===0,errors.join('\n'));
   return 'PASS: login, navigation across all screens, current-page indicator and current record form';
