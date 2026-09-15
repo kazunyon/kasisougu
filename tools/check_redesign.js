@@ -67,7 +67,7 @@ async (page) => {
     assert(await page.locator(selector).getAttribute('aria-current') === 'page', `Current page is not marked: ${screen}`);
   };
   await page.screenshot({path:'output/playwright/redesign-home-desktop.png',fullPage:true});
-  for (const screen of ['catalog','record','consultation','settings','orthosis','home']) await go(screen);
+  for (const screen of ['catalog','record','consultation','links','settings','orthosis','home']) await go(screen);
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
   await go('record');
   await page.locator('#record-list button').first().click();

@@ -211,7 +211,7 @@ async function deletePhoto(item) {
     if (orthosis?.id === id) { await refreshPhotos(); message('photo-status', '写真を削除しました。'); }
   } catch (error) { message('photo-status', `削除を完了できませんでした：${error.message}`, true); }
 }
-const screenNames = {home:'ホーム', orthosis:'自分の装具', catalog:'装具図鑑', record:'使用記録', consultation:'相談シート', settings:'設定'};
+const screenNames = {home:'ホーム', orthosis:'自分の装具', catalog:'装具図鑑', record:'使用記録', consultation:'相談シート', links:'リンク集', settings:'設定'};
 let currentScreen = 'home';
 const screenLoads = new Map();
 function setScreen(name) {
