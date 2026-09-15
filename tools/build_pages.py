@@ -32,7 +32,7 @@ for icon in manifest['icons']:
     icon['src'] = './' + Path(icon['src']).name
 (target / 'manifest.webmanifest').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
 
-(target / 'sw.js').write_text('''const CACHE = 'kasisougu-pages-shell-v13';
+(target / 'sw.js').write_text('''const CACHE = 'kasisougu-pages-shell-v14';
 const FILES = ['./', './index.html', './style.css', './s03-s04.css', './f04-f05.css', './redesign.css', './pages-config.js', './app.js', './catalog.js', './records.js', './consultation.js', './manifest.webmanifest', './brand-mark.svg', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('kasisougu-pages-shell-') && key !== CACHE).map(key => caches.delete(key))))));
