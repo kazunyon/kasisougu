@@ -10,7 +10,7 @@ async (page) => {
   };
   for (const width of [1024,768,390,320]) {
     await page.setViewportSize({width,height:900});
-    for (const screen of ['home','catalog','record','consultation','settings']) {
+    for (const screen of ['home','catalog','record','consultation','links','settings']) {
       await go(screen);
       assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1), `Horizontal overflow: ${screen} at ${width}px`);
       if (width<=760) {
@@ -29,7 +29,7 @@ async (page) => {
   await go('settings');
   await page.locator('#text-scale').fill('200');
   await page.locator('#text-scale').dispatchEvent('input');
-  for (const screen of ['home','catalog','record','consultation','settings']) {
+  for (const screen of ['home','catalog','record','consultation','links','settings']) {
     await go(screen);
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1), `Horizontal overflow with 200% text: ${screen}`);
   }

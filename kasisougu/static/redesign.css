@@ -188,7 +188,7 @@ h1, .next-step h2 { text-wrap: balance; }
   .is-authenticated .brand strong { font-size: 1.1rem; }
   .is-authenticated .header-status { display: block; }
   .app-sidebar { display: contents; }
-  .primary-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 3px; background: #fff; border-top: 1px solid var(--line); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px #193f3406; }
+  .primary-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 3px; background: #fff; border-top: 1px solid var(--line); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px #193f3406; }
   .primary-nav button { flex-direction: column; justify-content: center; gap: 5px; padding: 6px 2px; min-height: 58px; font-size: .68rem; text-align: center; }
   .primary-nav svg { width: 21px; height: 21px; }
   .nav-long, .sidebar-secondary { display: none; }
@@ -229,3 +229,14 @@ h1, .next-step h2 { text-wrap: balance; }
   .is-authenticated main { padding: 0; min-height: 0; max-width: none; }
   .print-preview { border-radius: 0; box-shadow: none; }
 }
+
+/* Curated external resources. */
+.resource-links { list-style: none; padding: 0; margin: 0; display: grid; gap: 20px; }
+.resource-link-card { padding: clamp(20px,3vw,30px); border: 1px solid var(--line); border-radius: 20px; background: #fff; max-width: 850px; }
+.resource-link-card h2 { font-size: 1.25rem; line-height: 1.5; margin: 0 0 12px; }
+.resource-link-card p { color: var(--muted); }
+.resource-publisher { font-size: .85rem; }
+.resource-link { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 48px; padding: 10px 0; color: var(--green); font-weight: 600; text-underline-offset: 4px; }
+.resource-link span { font-size: .8rem; }
+.resource-link svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.resource-link:hover { color: var(--dark-green); }
