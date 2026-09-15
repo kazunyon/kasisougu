@@ -60,15 +60,15 @@ async function loadOrthoses() {
   orthosis = orthoses.find(item => item.id === orthosis?.id) || orthoses.find(item => item.ownership_status === 'owned') || orthoses[0] || null;
   renderOrthosisList(); renderHome();
 }
-function renderOrthosisList() {
-  $('orthosis-list').replaceChildren();
+const orthosisSteps = [
+  ['past', 'これまで使用した装具'],
+  ['owned', 'いま使用している装具'],
+  ['trial', 'これから試す装具']
+];
+function createOrthosisFlow(compact = false) {
   const flow = node('div', '', 'orthosis-flow');
-  const steps = [
-    ['past', 'これまで使用した装具'],
-    ['owned', 'いま使用している装具'],
-    ['trial', 'これから試す装具']
-  ];
-  steps.forEach(([status, description], index) => {
+  if (compact) flow.classList.add('orthosis-flow-compact');
+  orthosisSteps.forEach(([status, description], index) => {
     const group = node('section', '', 'orthosis-group');
     group.classList.add(`orthosis-step-${status}`);
     const heading = node('div', '', 'orthosis-step-heading');
@@ -79,18 +79,21 @@ function renderOrthosisList() {
     items.forEach(item => {
       const card = node('article', '', 'orthosis-card');
       card.append(node('h4', item.nickname), node('p', `${item.manufactured_on || (item.manufactured_year ? `${item.manufactured_year}年作製` : '作製日未記入')}`));
-      const detail = node('button', '詳細を見る'); detail.type = 'button'; detail.addEventListener('click', () => openOrthosis(item.id));
-      card.append(detail); group.append(card);
+      if (!compact) { const detail = node('button', '詳細を見る'); detail.type = 'button'; detail.addEventListener('click', () => openOrthosis(item.id)); card.append(detail); }
+      group.append(card);
     });
     flow.append(group);
-    if (index < steps.length - 1) {
+    if (index < orthosisSteps.length - 1) {
       const arrow = node('div', '', 'orthosis-flow-arrow');
       arrow.setAttribute('aria-hidden', 'true');
       arrow.innerHTML = '<svg viewBox="0 0 48 24" focusable="false"><path d="M3 12h35m-10-7 10 7-10 7"/></svg>';
       flow.append(arrow);
     }
   });
-  $('orthosis-list').append(flow);
+  return flow;
+}
+function renderOrthosisList() {
+  $('orthosis-list').replaceChildren(createOrthosisFlow());
   message('orthosis-list-status', orthoses.length ? `${orthoses.length}件の装具を表示しています。` : 'まだ装具がありません。「新しい装具を追加」から登録できます。');
 }
 function populateOrthosis(item) {
@@ -103,9 +106,8 @@ function populateOrthosis(item) {
   $('orthosis-maker').value = item?.manufacturer_name || '';
 }
 function renderHome() {
-  const current = orthoses.filter(item => item.ownership_status === 'owned');
-  $('orthosis-value').textContent = current.length ? current.map(item => item.nickname).join('、') : '現在使用中の装具は未登録です';
-  $('orthosis-help').textContent = orthoses.length ? `装具は合計${orthoses.length}件です。一覧から試用中・過去の装具も確認できます。` : '装具名が分からない場合も、次の画面で「不明」として登録できます。';
+  $('home-orthosis-flow').replaceChildren(createOrthosisFlow(true));
+  $('home-orthosis-help').textContent = orthoses.length ? `装具は合計${orthoses.length}件です。使用状況ごとに確認できます。` : 'まだ装具はありません。「自分の装具を開く」から登録できます。';
   $('saved-at').textContent = orthoses.length ? '保存済み' : 'まだ保存されていません';
   if (window.KASI_F04) KASI_F04.renderHomeRecords();
 }
