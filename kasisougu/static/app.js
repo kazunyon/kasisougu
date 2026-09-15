@@ -62,9 +62,18 @@ async function loadOrthoses() {
 }
 function renderOrthosisList() {
   $('orthosis-list').replaceChildren();
-  for (const status of ['owned', 'trial', 'past']) {
+  const flow = node('div', '', 'orthosis-flow');
+  const steps = [
+    ['past', 'これまで使用した装具'],
+    ['owned', 'いま使用している装具'],
+    ['trial', 'これから試す装具']
+  ];
+  steps.forEach(([status, description], index) => {
     const group = node('section', '', 'orthosis-group');
-    group.append(node('h3', ownershipLabels[status]));
+    group.classList.add(`orthosis-step-${status}`);
+    const heading = node('div', '', 'orthosis-step-heading');
+    heading.append(node('span', String(index + 1), 'orthosis-step-number'), node('h3', ownershipLabels[status]), node('p', description));
+    group.append(heading);
     const items = orthoses.filter(item => item.ownership_status === status);
     if (!items.length) group.append(node('p', '登録はありません。', 'empty-state'));
     items.forEach(item => {
@@ -73,8 +82,15 @@ function renderOrthosisList() {
       const detail = node('button', '詳細を見る'); detail.type = 'button'; detail.addEventListener('click', () => openOrthosis(item.id));
       card.append(detail); group.append(card);
     });
-    $('orthosis-list').append(group);
-  }
+    flow.append(group);
+    if (index < steps.length - 1) {
+      const arrow = node('div', '', 'orthosis-flow-arrow');
+      arrow.setAttribute('aria-hidden', 'true');
+      arrow.innerHTML = '<svg viewBox="0 0 48 24" focusable="false"><path d="M3 12h35m-10-7 10 7-10 7"/></svg>';
+      flow.append(arrow);
+    }
+  });
+  $('orthosis-list').append(flow);
   message('orthosis-list-status', orthoses.length ? `${orthoses.length}件の装具を表示しています。` : 'まだ装具がありません。「新しい装具を追加」から登録できます。');
 }
 function populateOrthosis(item) {

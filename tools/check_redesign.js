@@ -108,6 +108,10 @@ async (page) => {
   await needsResponse;
   assert(await page.locator('#record-orthosis').inputValue()==='orthosis-2','Needs must switch with the selected registered orthosis');
   await page.screenshot({path:'output/playwright/redesign-record-desktop.png',fullPage:true});
+  await go('orthosis');
+  assert(JSON.stringify(await page.locator('.orthosis-flow .orthosis-step-heading h3').allTextContents()) === JSON.stringify(['過去に使用','現在使用中','試用中']),'Orthosis flow order is incorrect');
+  assert(await page.locator('.orthosis-flow-arrow').count()===2,'Orthosis flow arrows are missing');
+  await page.screenshot({path:'output/playwright/orthosis-flow-desktop.png',fullPage:true});
   assert(errors.length===0,errors.join('\n'));
   return 'PASS: login, navigation across all screens, current-page indicator and current record form';
 }
