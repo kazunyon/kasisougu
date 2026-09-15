@@ -5,6 +5,8 @@ async page => {
   const options = page.locator('#record-picker option');
   assert(await options.count() === 6, 'Five entries plus placeholder required');
   const labels = await options.allTextContents();
+  const values = await options.evaluateAll(items => items.map(item => item.value));
+  assert(JSON.stringify(values) === JSON.stringify(['','record-1','orthosis:orthosis-3','orthosis:orthosis-4','record-2','orthosis:orthosis-5']), 'Picker keys must order trial, current use, then past; within each: date, type, and registered orthosis');
   assert(labels.filter(s=>s.includes('試用中')).length===3, 'Three trial orthoses required');
   assert(labels.filter(s=>s.includes('記録未入力')).length===3,'Three unrecorded orthoses required');
   assert(labels.some(s=>s.includes('その他（1）')) && labels.some(s=>s.includes('その他（2）')),'Duplicate names not distinguished');

@@ -16,6 +16,23 @@ const F04 = (() => {
     return `${item.nickname}${same.length > 1 ? `（${same.findIndex(o => o.id === item.id) + 1}）` : ''}`;
   };
   const pickerValue = () => selected?.id || (draftOrthosisId ? `orthosis:${draftOrthosisId}` : '');
+  const ownershipOrder = {trial: 0, owned: 1, past: 2};
+  const orthosisTypeOrder = {kafo: 0, afo: 1, other: 2};
+  const comparePickerItems = (a, b) => {
+    const byStatus = (ownershipOrder[a.orthosis.ownership_status] ?? 99) - (ownershipOrder[b.orthosis.ownership_status] ?? 99);
+    if (byStatus) return byStatus;
+    const byDate = (b.row?.recorded_on || '').localeCompare(a.row?.recorded_on || '');
+    if (byDate) return byDate;
+    const byType = (orthosisTypeOrder[orthosisGroup(a.orthosis.orthosis_type_code)] ?? 99) - (orthosisTypeOrder[orthosisGroup(b.orthosis.orthosis_type_code)] ?? 99);
+    if (byType) return byType;
+    const byOrthosis = orthosisLabel(a.orthosis).localeCompare(orthosisLabel(b.orthosis), 'ja');
+    if (byOrthosis) return byOrthosis;
+    return (b.row?.created_at || '').localeCompare(a.row?.created_at || '') || a.value.localeCompare(b.value);
+  };
+  const pickerItems = () => [
+    ...records.map(row => ({row, orthosis:orthoses.find(item => item.id === row.user_orthosis_id), value:row.id})),
+    ...orthoses.filter(item => !records.some(row => row.user_orthosis_id === item.id)).map(orthosis => ({row:null, orthosis, value:`orthosis:${orthosis.id}`}))
+  ].filter(item => item.orthosis).sort(comparePickerItems);
   const title = row => {
     const related = orthoses.find(o => o.id === row.user_orthosis_id);
     const status = {owned:'現在使用中', trial:'試用中', past:'過去の記録'}[related?.ownership_status] || '使用状況未確認';
@@ -38,19 +55,19 @@ const F04 = (() => {
     updateOrthosisChoices($('record-orthosis').value);
     for (const id of ['compare-first', 'compare-second']) {
       const selectEl = $(id), previous = selectEl.value; selectEl.replaceChildren(emptyOption('記録を選択'));
-      records.forEach(row => { const option = node('option', title(row)); option.value = row.id; selectEl.append(option); });
+      pickerItems().filter(item => item.row).forEach(item => { const option = node('option', title(item.row)); option.value = item.value; selectEl.append(option); });
       selectEl.value = records.some(row => row.id === previous) ? previous : '';
     }
   }
   function renderList() {
     $('record-picker').replaceChildren(emptyOption('記録を選択（過去分もここから）'));
-    records.forEach(row => { const option = node('option', title(row)); option.value = row.id; $('record-picker').append(option); });
-    const missing = orthoses.filter(item => !records.some(row => row.user_orthosis_id === item.id));
-    missing.forEach(item => {
-      const status = {owned:'現在使用中',trial:'試用中',past:'過去の記録'}[item.ownership_status] || '使用状況未確認';
-      const option = node('option', `【${status}】【記録未入力】${orthosisLabel(item)}`);
-      option.value = `orthosis:${item.id}`; $('record-picker').append(option);
+    const items = pickerItems();
+    items.forEach(item => {
+      const status = {owned:'現在使用中',trial:'試用中',past:'過去の記録'}[item.orthosis.ownership_status] || '使用状況未確認';
+      const option = node('option', item.row ? title(item.row) : `【${status}】【記録未入力】${orthosisLabel(item.orthosis)}`);
+      option.value = item.value; $('record-picker').append(option);
     });
+    const missing = orthoses.filter(item => !records.some(row => row.user_orthosis_id === item.id));
     $('record-picker').value = pickerValue();
     $('record-list').replaceChildren();
     if (!records.length) $('record-list').append(node('p', '保存済みの記録はありません。', 'empty-state'));
