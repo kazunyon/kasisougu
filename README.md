@@ -50,7 +50,7 @@ F02は初期構築SQLに含まれる `kasi_user_orthoses`、`kasi_user_needs`、
 
 ## リンク集
 
-「埼玉県」装具のお役立ち情報サイト（https://sougu.saitama-pt.or.jp/）を掲載しています。共通メニューから開き、外部サイトは新しいタブで表示します。掲載内容は `kasisougu/static/index.html` の `links-page` で管理します。
+「埼玉県」装具のお役立ち情報サイト（https://sougu.saitama-pt.or.jp/）と、注目記事「両側金属支柱付き短下肢装具の足部の種類の選び方と活用方法」を掲載しています。PCの広い画面では2件を横並びに、スマートフォンでは縦に表示します。共通メニューから開き、外部サイトは新しいタブで表示します。掲載内容は `kasisougu/static/index.html` の `links-page` で管理します。
 
 ## 初回設定
 

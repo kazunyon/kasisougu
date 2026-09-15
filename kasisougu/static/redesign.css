@@ -240,3 +240,9 @@ h1, .next-step h2 { text-wrap: balance; }
 .resource-link span { font-size: .8rem; }
 .resource-link svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .resource-link:hover { color: var(--dark-green); }
+
+.resource-link-featured { border-top: 4px solid #b73636; }
+.resource-featured-label { display: inline-block; margin-right: 8px; padding: 3px 9px; border-radius: 6px; background: #fbeeee; color: #a32d2d; font-weight: 700; }
+@media (min-width:1100px) {
+  .resource-links { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; }
+}
