@@ -264,3 +264,6 @@ h1, .next-step h2 { text-wrap: balance; }
 
 .record-browser > .section-heading { flex-direction: row; flex-wrap: wrap; align-items: center; }
 .record-browser #record-add { width: auto; font-size: .8rem; }
+
+#record-delete { color: #a32d2d; border-color: #a32d2d; }
+#record-delete:hover { background: #fbeeee; }

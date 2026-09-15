@@ -54,6 +54,19 @@ async (page) => {
     else {
       const table = pathname.split('/').at(-1);
       body = tables[table] || [];
+      if (['kasi_usage_records','kasi_user_orthoses'].includes(table)) {
+        const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        body = body.filter(row => !row.deleted_at);
+        for (const field of ['id','user_orthosis_id','row_version']) {
+          const filter = query.get(field);
+          if (filter?.startsWith('eq.')) body = body.filter(row => String(row[field]) === filter.slice(3));
+        }
+        if (request.method() === 'PATCH') {
+          body.forEach(row => Object.assign(row,request.postDataJSON(),{row_version:row.row_version+1}));
+          return route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
+        }
+      }
+
       if (request.method() !== 'GET') {
         mutations++;
         const data = request.postDataJSON();

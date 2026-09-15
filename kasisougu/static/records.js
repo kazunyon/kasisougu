@@ -132,10 +132,52 @@ const F04 = (() => {
   function showForm(row = null, preferredId = '') {
     editing = row; selected = row; draftOrthosisId = row ? '' : preferredId; fillForm(row, preferredId);
     $('record-picker').value = pickerValue();
+    $('record-delete').hidden = !row && !preferredId;
     $('record-current-state').textContent = row?.record_kind === 'comparison' ? '比較用' : ownershipLabels[orthoses.find(o => o.id === row?.user_orthosis_id)?.ownership_status] || (draftOrthosisId ? '記録未入力' : '未保存');
     $('record-form-title').textContent = row?.record_kind === 'comparison' ? '比較用の記録を編集' : '現在の記録・過去の記録';
     $('record-detail').hidden = true; $('record-form').hidden = false;
     message('record-status', '');
+  }
+  async function deleteCurrent() {
+    if (saving) return;
+    const row = editing;
+    const item = !row && orthoses.find(o => o.id === draftOrthosisId);
+    if (!row && !item) return;
+    const label = row ? title(row) : orthosisLabel(item);
+    const explanation = row
+      ? 'この使用記録を一覧と比較の候補から削除します。登録装具は残ります。'
+      : '記録未入力の登録装具を削除します。「自分の装具」の一覧からも消えます。';
+    if (!confirm(`${label} を削除しますか？\n${explanation}`)) return;
+    const session = token, owner = userId;
+    const controls = [...$('record-form').querySelectorAll('button, input, select, textarea'), $('record-picker'), $('record-add')];
+    const disabled = controls.map(control => control.disabled);
+    saving = true; controls.forEach(control => control.disabled = true);
+    let removed = false;
+    try {
+      if (item) {
+        const related = await select('kasi_usage_records', `select=id&user_orthosis_id=eq.${item.id}&deleted_at=is.null&limit=1`);
+        if (related.length) throw new Error('この装具には保存済みの記録があります。画面を再読み込みして確認してください。');
+      }
+      const target = row || item, table = row ? 'kasi_usage_records' : 'kasi_user_orthoses';
+      const result = await request(`/rest/v1/${table}?id=eq.${target.id}&row_version=eq.${target.row_version}&deleted_at=is.null`, {
+        method:'PATCH', headers:{'Content-Type':'application/json',Prefer:'return=representation'},
+        body:JSON.stringify({deleted_at:new Date().toISOString()})
+      });
+      if (!result.length) throw new Error('別の画面で更新または削除されています。画面を再読み込みしてください。');
+      removed = true;
+      if (token !== session || userId !== owner) return;
+      clearUrls(); editing = null; selected = null; draftOrthosisId = ''; media = [];
+      $('record-form').hidden = true; $('record-detail').hidden = true;
+      await loadOrthoses(); await init();
+      message('record-status', `${label} を削除しました。`);
+    } catch (error) {
+      if (token === session && userId === owner) message('record-status', removed
+        ? '削除は完了しましたが、表示を更新できませんでした。画面を再読み込みしてください。'
+        : `削除できませんでした：${error.message}`, true);
+    } finally {
+      saving = false; controls.forEach((control,i) => control.disabled = disabled[i]);
+      recordCategories.forEach(([code]) => { $(`rating-${code}`).disabled = $(`result-${code}`).value === 'not_evaluated'; });
+    }
   }
   async function closeForm() { if (editing && records.some(row => row.id === editing.id)) await open(editing.id); else showForm(null, draftOrthosisId); }
   function addOrthosis() {
@@ -152,7 +194,7 @@ const F04 = (() => {
     $('record-orthosis-type').value = orthosisGroup(item?.orthosis_type_code);
     updateOrthosisChoices(id);
     editing = null; selected = null; draftOrthosisId = id;
-    $('record-picker').value = pickerValue(); $('record-current-state').textContent = '記録未入力';
+    $('record-picker').value = pickerValue(); $('record-current-state').textContent = '記録未入力'; $('record-delete').hidden = false;
     $('record-detail').hidden = true; $('record-form').hidden = false; setScreen('record');
     message('record-status', `${item?.nickname || '装具'}を追加しました。続けて記録を保存できます。`);
     return true;
@@ -336,6 +378,7 @@ const F04 = (() => {
     } else await open(id);
   });
   $('record-edit').addEventListener('click', () => showForm(selected));
+  $('record-delete').addEventListener('click', deleteCurrent);
   $('record-cancel').addEventListener('click', closeForm);
   $('record-form').addEventListener('submit', save);
   $('record-photo-form').addEventListener('submit', uploadPhoto);
