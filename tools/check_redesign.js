@@ -13,7 +13,10 @@ async (page) => {
   const assert = (value, message) => { if (!value) throw new Error(message); };
   const orthoses = [
     {id:'orthosis-1',nickname:'長下肢装具',orthosis_type_code:'kafo',ownership_status:'owned',side_code:'left',row_version:1},
-    {id:'orthosis-2',nickname:'短下肢装具',orthosis_type_code:'afo',ownership_status:'trial',side_code:'left',row_version:1}
+    {id:'orthosis-2',nickname:'短下肢装具',orthosis_type_code:'afo',ownership_status:'trial',side_code:'left',row_version:1},
+    {id:'orthosis-3',nickname:'その他',orthosis_type_code:'other',ownership_status:'trial',row_version:1},
+    {id:'orthosis-4',nickname:'その他',orthosis_type_code:'other',ownership_status:'trial',row_version:1},
+    {id:'orthosis-5',nickname:'過去の長下肢装具',orthosis_type_code:'kafo',ownership_status:'past',row_version:1}
   ];
   const records = [
     {id:'record-1',user_orthosis_id:'orthosis-2',recorded_on:'2026-09-14',usage_setting:'室内での訓練',duration_minutes:180,assistance_level:'independent',overall_note:'着け外しを相談したい',row_version:1},
