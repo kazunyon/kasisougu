@@ -10,7 +10,11 @@ const F04 = (() => {
   let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false, saving = false;
   const orthosisTypeLabels = {kafo:'長下肢装具',afo:'短下肢装具',other:'その他'};
   const orthosisGroup = code => code === 'kafo' || code === 'afo' ? code : 'other';
-  const title = row => `${row.record_kind === 'comparison' ? '【比較用】' : ''}${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具名未取得'}`;
+  const title = row => {
+    const related = orthoses.find(o => o.id === row.user_orthosis_id);
+    const status = {owned:'現在使用中', trial:'試用中', past:'過去の記録'}[related?.ownership_status] || '使用状況未確認';
+    return `【${status}】${row.record_kind === 'comparison' ? '【比較用】' : ''}${row.recorded_on} · ${related?.nickname || '装具名未取得'}`;
+  };
   const observation = (row, category) => row.observations?.find(o => o.category_code === category);
   const value = v => v === null || v === undefined || v === '' ? '未記入' : String(v);
   function emptyOption(text) { const option = node('option', text); option.value = ''; return option; }
