@@ -121,7 +121,7 @@ const F04 = (() => {
     editing = row; selected = row; fillForm(row);
     $('record-picker').value = row?.id || '';
     $('record-current-state').textContent = row?.record_kind === 'comparison' ? '比較用' : ownershipLabels[orthoses.find(o => o.id === row?.user_orthosis_id)?.ownership_status] || '未保存';
-    $('record-form-title').textContent = row?.record_kind === 'comparison' ? '比較用の記録を編集' : '現在の記録';
+    $('record-form-title').textContent = row?.record_kind === 'comparison' ? '比較用の記録を編集' : '現在の記録・過去の記録';
     $('record-detail').hidden = true; $('record-form').hidden = false;
     message('record-status', '');
   }
