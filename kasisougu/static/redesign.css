@@ -80,7 +80,7 @@ h1, .next-step h2 { text-wrap: balance; }
 .app-toolbar p > span:first-child { margin: 0 9px; color: #8ca28f; }
 .app-page { padding: 0 0 32px; }
 .page-title, .home-heading { margin: 0 0 28px; padding: 0; }
-.home-heading .home-lead { font-size: calc(.9rem + 2px); }
+.home-heading .home-lead { font-size: calc(.9rem + 2px); font-weight: 700; }
 .page-title h1, .home-heading h1 { font-size: 2rem; line-height: 1.4; margin: 0 0 10px; letter-spacing: -.025em; }
 .screen-id { font-size: .72rem; color: var(--muted); margin-bottom: 10px; }
 .lead { font-size: .9rem; }
