@@ -255,8 +255,7 @@ function setScreen(name) {
   document.title = `${screenNames[name]} | 下肢装具サポート`;
   if (name !== 'catalog' && window.KASI_F03) KASI_F03.hide();
   const title = $(`${name}-page`).querySelector('h1');
-  title.setAttribute('tabindex', '-1');
-  title.focus({preventScroll:true});
+  if (title) { title.setAttribute('tabindex', '-1'); title.focus({preventScroll:true}); }
   window.scrollTo({top:0, behavior:'instant'});
 }
 $('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
