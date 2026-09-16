@@ -72,7 +72,9 @@ Flask・Google Cloud VM・独自の業務APIサーバーは現行構成に含み
 - 「データを書き出す」は読み込み済みの装具一覧と書き出し日時だけを `kasisougu-export.json` に出力します。記録・評価・困りごと・写真・相談シート・設定を含む完全バックアップではありません。
 - 「端末の下書きを削除」は確認後に `localStorage` の `kasi_record_draft` を削除します。DBデータ・本人設定の削除やアカウント削除ではありません。
 
-「埼玉県」装具のお役立ち情報サイト（https://sougu.saitama-pt.or.jp/）、注目記事「両側金属支柱付き短下肢装具の足部の種類の選び方と活用方法」、価格相場の記事を「固定のお役立ち情報」として掲載しています。これらは利用者側では変更できません。利用者は別の「自分で追加したリンク」に名前・URL・メモを保存し、後から編集・削除できます。外部サイトは新しいタブで表示します。自分用リンクには [リンクメモ用マイグレーション](supabase/migrations/20260917090000_personal_links.sql) の適用が必要で、本人だけがRLSで読み書きできます。
+## リンク集
+
+「埼玉県」装具のお役立ち情報サイト、注目記事、価格相場の記事は「固定のお役立ち情報」として掲載し、利用者側では変更できません。別の「自分で追加したリンク」では、名前・URL・メモを本人専用に保存し、後から編集・削除できます。外部サイトは新しいタブで開きます。本人用リンクには [リンクメモ用マイグレーション](supabase/migrations/20260917090000_personal_links.sql) の適用が必要です。
 ## 構築と公開
 
 ### DB
@@ -84,6 +86,7 @@ Flask・Google Cloud VM・独自の業務APIサーバーは現行構成に含み
 | 1 | [20260913224759_f02_user_media_storage.sql](supabase/migrations/20260913224759_f02_user_media_storage.sql) | 既存環境の本人写真バケット・Storageポリシー補完 |
 | 2 | [20260914190000_f03_catalog_editable_details.sql](supabase/migrations/20260914190000_f03_catalog_editable_details.sql) | 図鑑の支える範囲・注意点・質問の列を追加 |
 | 3 | [20260915160000_f04_current_comparison_records.sql](supabase/migrations/20260915160000_f04_current_comparison_records.sql) | 通常／比較用の区分、記録と評価を保存するRPC |
+| 4 | [20260917090000_personal_links.sql](supabase/migrations/20260917090000_personal_links.sql) | 本人専用のリンクメモ、RLS、論理削除 |
 
 F03の追加列がない場合は従来列で閲覧を試みます。F04のRPC未適用では現行の記録保存はできません。初期SQLの図鑑データは代表分類だけで、公開記事本文は別途登録が必要です。
 
