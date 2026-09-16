@@ -111,7 +111,7 @@ function renderHome() {
   $('saved-at').textContent = orthoses.length ? '保存済み' : 'まだ保存されていません';
   if (window.KASI_F04) KASI_F04.renderHomeRecords();
 }
-async function loadHome() { try { await loadOrthoses(); await KASI_F04.load(); message('home-status', orthoses.length ? '保存した内容を表示しています。' : 'まだ保存された内容はありません。'); } catch (error) { message('home-status', error.message, true); } }
+async function loadHome() { try { await loadOrthoses(); await KASI_F04.load(); message('home-status', ''); } catch (error) { message('home-status', error.message, true); } }
 function resetNeedForm() { editingNeed = null; $('need-form').reset(); $('need-form-title').textContent = '困りごと・希望を追加'; $('need-cancel').hidden = true; message('need-status', ''); }
 function showOrthosisForm(item = null) {
   editingOrthosis = item;
