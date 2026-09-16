@@ -1,9 +1,9 @@
 /* Shared green application shell. Feature styles remain responsible for their controls. */
 :root {
   --paper: #f3f6f2;
-  --ink: #193f34;
-  --green: #17553d;
-  --dark-green: #103e2c;
+  --ink: #0f6044;
+  --green: #23805d;
+  --dark-green: #0f6044;
   --line: #d7e3d9;
   --soft: #eaf2e7;
   --muted: #526c5d;
