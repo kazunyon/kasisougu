@@ -127,6 +127,10 @@ async (page) => {
   await page.screenshot({path:'output/playwright/redesign-home-desktop.png',fullPage:true});
   for (const screen of ['catalog','record','consultation','links','settings','orthosis','home']) await go(screen);
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
+  await go('links');
+  const priceGuide = page.locator('a[href="https://sogulabblog.com/price/"]');
+  assert(await priceGuide.getAttribute('href') === 'https://sogulabblog.com/price/','Lower-limb orthosis price guide link is missing');
+  assert(await priceGuide.getAttribute('target') === '_blank','Price guide must open in a new tab');
   await go('record');
   assert(await page.locator('#record-form').isVisible(),'Current record form did not open');
   assert(await page.locator('#record-picker').inputValue()==='record-2','Current-use orthosis was not preferred');
