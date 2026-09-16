@@ -4,6 +4,7 @@ const config = window.KASISOUGU_SUPABASE_CONFIG || {};
 let token = '', userId = '', orthosis = null, orthoses = [], editingOrthosis = null;
 let needs = [], editingNeed = null, needOrthosisId = '', photos = [], photoUrls = [], photoRenderId = 0;
 let profile = null, profileLoaded = false;
+let personalLinks = [], editingPersonalLink = null, personalLinksLoaded = false;
 function message(id, text, error = false) { $(id).textContent = text; $(id).classList.toggle('error', error); }
 function apiHeaders(extra = {}) { return {apikey: config.publishableKey, ...(token ? {Authorization: `Bearer ${token}`} : {}), ...extra}; }
 function setAuthenticatedView(ok) {
@@ -91,6 +92,50 @@ function createOrthosisFlow(compact = false) {
     }
   });
   return flow;
+}
+function externalLinkNode(url, label = 'リンクを開く') {
+  const link = document.createElement('a'); link.className = 'resource-link'; link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+  link.append(label, node('span', '（新しいタブで開く）'));
+  return link;
+}
+function resetPersonalLinkForm() {
+  editingPersonalLink = null; $('personal-link-form').reset(); $('personal-link-form').hidden = true;
+  $('personal-link-form-title').textContent = 'リンクを追加'; message('personal-link-form-status', '');
+}
+function showPersonalLinkForm(item = null) {
+  editingPersonalLink = item; $('personal-link-form').hidden = false;
+  $('personal-link-form-title').textContent = item ? 'リンクを編集' : 'リンクを追加';
+  $('personal-link-title').value = item?.title || ''; $('personal-link-url').value = item?.url || ''; $('personal-link-note').value = item?.note || '';
+  message('personal-link-form-status', ''); $('personal-link-title').focus();
+}
+function renderPersonalLinks() {
+  const list = $('personal-links-list'); list.replaceChildren();
+  if (!personalLinks.length) { list.append(node('p', 'まだ自分用リンクはありません。「リンクを追加」から保存できます。', 'personal-links-empty')); return; }
+  personalLinks.forEach(item => {
+    const card = node('article', '', 'personal-link-card'); card.append(node('h3', item.title));
+    if (item.note) card.append(node('p', item.note));
+    card.append(externalLinkNode(item.url));
+    const actions = node('div', '', 'personal-link-actions');
+    const edit = node('button', '編集する'); edit.type = 'button'; edit.addEventListener('click', () => showPersonalLinkForm(item));
+    const remove = node('button', '削除する'); remove.type = 'button'; remove.addEventListener('click', () => deletePersonalLink(item));
+    actions.append(edit, remove); card.append(actions); list.append(card);
+  });
+}
+async function loadPersonalLinks() {
+  const currentUser = userId, currentToken = token; personalLinksLoaded = false; message('personal-links-status', '自分用リンクを読み込み中…');
+  try {
+    const rows = await select('kasi_personal_links', `select=id,title,url,note,row_version&owner_id=eq.${currentUser}&deleted_at=is.null&order=updated_at.desc`);
+    if (currentUser !== userId || currentToken !== token) return;
+    personalLinks = rows; personalLinksLoaded = true; renderPersonalLinks(); message('personal-links-status', rows.length ? `${rows.length}件の自分用リンクを表示しています。` : '');
+  } catch (error) { if (currentUser === userId && currentToken === token) message('personal-links-status', `自分用リンクを読み込めませんでした：${error.message}`, true); }
+}
+async function deletePersonalLink(item) {
+  if (!confirm(`「${item.title}」を削除しますか？`)) return;
+  try {
+    const rows = await request(`/rest/v1/kasi_personal_links?id=eq.${item.id}&row_version=eq.${item.row_version}`, {method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({deleted_at:new Date().toISOString()})});
+    if (!rows.length) throw new Error('別の画面で更新されています。再読み込みしてください。');
+    await loadPersonalLinks(); message('personal-links-status', 'リンクを削除しました。');
+  } catch (error) { message('personal-links-status', `削除できませんでした：${error.message}`, true); }
 }
 function renderOrthosisList() {
   $('orthosis-list').replaceChildren(createOrthosisFlow());
@@ -259,7 +304,23 @@ function setScreen(name) {
   window.scrollTo({top:0, behavior:'instant'});
 }
 $('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
-$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
+$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
+$('personal-link-add').addEventListener('click', () => showPersonalLinkForm());
+$('personal-link-cancel').addEventListener('click', resetPersonalLinkForm);
+$('personal-link-form').addEventListener('submit', async event => {
+  event.preventDefault(); const button = event.submitter; const title = $('personal-link-title').value.trim(), url = $('personal-link-url').value.trim(), note = $('personal-link-note').value.trim();
+  let parsed; try { parsed = new URL(url); } catch { message('personal-link-form-status', '正しいURLを入力してください。', true); return; }
+  if (!['http:', 'https:'].includes(parsed.protocol)) { message('personal-link-form-status', 'http:// または https:// で始まるURLを入力してください。', true); return; }
+  if (!title) { message('personal-link-form-status', '名前を入力してください。', true); return; }
+  button.disabled = true; message('personal-link-form-status', '保存しています…'); const item = editingPersonalLink;
+  try {
+    const data = {title,url:parsed.href,note:note || null};
+    const path = item ? `/rest/v1/kasi_personal_links?id=eq.${item.id}&row_version=eq.${item.row_version}` : '/rest/v1/kasi_personal_links';
+    const rows = await request(path, {method:item?'PATCH':'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(data)});
+    if (!rows.length) throw new Error('別の画面で更新されています。再読み込みしてください。');
+    resetPersonalLinkForm(); await loadPersonalLinks(); message('personal-links-status', item ? 'リンクを更新しました。' : 'リンクを追加しました。');
+  } catch (error) { message('personal-link-form-status', `保存できませんでした：${error.message}`, true); } finally { button.disabled = false; }
+});
 $('orthosis-add').addEventListener('click', () => showOrthosisForm());
 $('orthosis-edit').addEventListener('click', () => showOrthosisForm(orthosis));
 $('orthosis-cancel').addEventListener('click', () => { $('orthosis-form').hidden = true; if (KASI_F04.cancelOrthosisRegistration()) return; $('orthosis-detail').hidden = !orthosis; });
@@ -353,6 +414,7 @@ async function navigateTo(screen, action = '') {
       if (screen === 'record') { await loadOrthoses(); await KASI_F04.init(); }
       if (screen === 'consultation') await KASI_F05.init();
       if (screen === 'settings' && !profileLoaded) await loadProfile();
+      if (screen === 'links' && !personalLinksLoaded) await loadPersonalLinks();
     };
     screenLoads.set(screen, load().finally(() => screenLoads.delete(screen)));
   }
