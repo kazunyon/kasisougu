@@ -365,6 +365,7 @@ async function navigateTo(screen, action = '') {
   }
 }
 document.querySelectorAll('.screen-link').forEach(button => button.addEventListener('click', () => navigateTo(button.dataset.screen, button.dataset.action)));
+$('home-guide-open').addEventListener('click', () => $('home-guide-dialog').showModal());
 document.querySelector('.brand').addEventListener('click', event => {
   if (token) { event.preventDefault(); navigateTo('home'); }
 });
