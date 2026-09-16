@@ -43,7 +43,10 @@ const F05 = (() => {
         : row.status_code === 'finalized' ? '確定済み' : '下書き';
       card.append(node('h3', row.title), node('p', `${row.consultation_on || '相談日未記入'} · ${state}`));
       const button = node('button', row.status_code === 'finalized' ? '内容を見る・編集' : '開いて編集');
-      button.type = 'button'; button.addEventListener('click', () => open(row.id)); card.append(button); $('sheet-list').append(card);
+      const remove = node('button', '削除', 'danger-button');
+      button.type = 'button'; button.addEventListener('click', () => open(row.id));
+      remove.type = 'button'; remove.addEventListener('click', () => deleteSheet(row));
+      const actions = node('div', '', 'record-card-actions'); actions.append(button, remove); card.append(actions); $('sheet-list').append(card);
     });
     message('sheet-list-status', `${sheets.length}件の相談シートを表示しています。`);
   }
@@ -165,6 +168,27 @@ const F05 = (() => {
     try { const snapshot = buildSnapshot(); await persistDraft(snapshot); await showPreview(snapshot); message('consultation-status', '下書きを保存しました。'); }
     catch (error) { message('consultation-status', error.message, true); }
     finally { button.disabled = false; }
+  }
+  async function deleteSheet(row) {
+    const copiedPaths = (row.snapshot_json?.photos || [])
+      .map(photo => photo.storage_path)
+      .filter(path => path?.startsWith(`${userId}/consultations/${row.id}/`));
+    const explanation = copiedPaths.length
+      ? '\n確定版用に複製した写真も削除します。'
+      : '';
+    if (!confirm(`「${row.title}」を削除しますか？${explanation}`)) return;
+    try {
+      if (copiedPaths.length) await Promise.all(copiedPaths.map(deleteStorageObject));
+      const rows = await request(`/rest/v1/kasi_consultation_sheets?id=eq.${row.id}&row_version=eq.${row.row_version}&deleted_at=is.null`, {
+        method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({deleted_at:new Date().toISOString()})
+      });
+      if (!rows.length) throw new Error('別の画面で更新または削除されています。画面を再読み込みしてください。');
+      if (selected?.id === row.id) {
+        selected = null; clearUrls(); $('consultation-form').hidden = true; $('consultation-preview').hidden = true;
+      }
+      await load();
+      message('sheet-list-status', '相談シートを削除しました。');
+    } catch (error) { message('sheet-list-status', `削除できませんでした：${error.message}`, true); }
   }
   async function uploadPhoto() {
     const button = $('sheet-photo-upload'), file = $('sheet-photo-file').files[0], orthosisId = $('sheet-photo-orthosis').value;

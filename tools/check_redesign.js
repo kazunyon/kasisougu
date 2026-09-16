@@ -61,13 +61,14 @@ async (page) => {
       const table = pathname.split('/').at(-1);
       body = tables[table] || [];
       if (table === 'kasi_consultation_sheets') {
+        body = body.filter(row => !row.deleted_at);
         if (request.method() === 'POST') {
           const saved = {...request.postDataJSON(),id:`sheet-${tables[table].length + 1}`,row_version:1};
           tables[table].push(saved);
           return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
         }
         if (request.method() === 'PATCH') {
-          const query = new URL(request.url()).searchParams;
+          const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
           const id = query.get('id')?.replace('eq.','');
           const version = Number(query.get('row_version')?.replace('eq.',''));
           const saved = tables[table].find(row => row.id === id && row.row_version === version);
