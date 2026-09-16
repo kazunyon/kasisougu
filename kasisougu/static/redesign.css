@@ -52,11 +52,10 @@ h1, .next-step h2 { text-wrap: balance; }
 .primary-nav svg circle { fill: #fff; }
 .primary-nav button.active svg circle { fill: var(--green); }
 .nav-short, .mobile-orthosis { display: none; }
-.sidebar-secondary { margin-top: 25px; padding: 20px 10px 0; border-top: 1px solid var(--line); }
-.sidebar-secondary button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-size: .85rem; border-color: transparent; }
+.sidebar-secondary { margin-top: 25px; padding: 20px 0 0; border-top: 1px solid var(--line); }
+.sidebar-secondary button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 14px; text-align: left; font-size: .9rem; border: 0; border-radius: 12px; }
 .sidebar-secondary svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .sidebar-secondary button[aria-current=page], .mobile-orthosis[aria-current=page] { background: var(--soft); border-color: var(--green); }
-.sidebar-secondary p { margin: 28px 6px 0; color: var(--muted); font-size: .72rem; }
 .orthosis-list { margin: 20px 0 34px; }
 .orthosis-flow { display: grid; grid-template-columns: minmax(0,1fr) 42px minmax(0,1fr) 42px minmax(0,1fr); align-items: stretch; gap: 0; }
 .orthosis-group { min-width: 0; border: 1px solid var(--line); border-radius: 16px; padding: 18px; background: #fff; }
