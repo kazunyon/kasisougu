@@ -165,6 +165,10 @@ async (page) => {
   await page.waitForFunction(() => document.getElementById('personal-links-list').textContent.includes('まだ自分用リンクはありません'));
   await go('record');
   assert(await page.locator('#record-form').isVisible(),'Current record form did not open');
+  await page.getByRole('button',{name:'意味を確認',exact:true}).first().click();
+  assert(await page.locator('#record-help-dialog').isVisible(),'Record field help dialog did not open');
+  assert((await page.locator('#record-help-dialog').textContent()).includes('靴によって装具の入りやすさ・歩きやすさが変わるため、記録しておくと比較に役立ちます。'),'Footwear help text is missing');
+  await page.locator('#record-help-dialog').getByRole('button',{name:'閉じる',exact:true}).click();
   assert(await page.locator('#record-picker').inputValue()==='record-2','Current-use orthosis was not preferred');
   assert(await page.locator('#record-detail').isVisible(),'Record photos did not open');
   assert(await page.locator('.sidebar-secondary button[data-screen="orthosis"] svg').count()===1,'My Orthoses icon missing');

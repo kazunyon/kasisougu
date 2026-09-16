@@ -314,6 +314,12 @@ h1, .next-step h2 { text-wrap: balance; }
 #record-detail > .section-heading, #record-facts, #record-detail-evaluations, #record-detail > h3:first-of-type { display: none; }
 #record-form .form-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 #record-form .form-grid > label { min-width: 0; }
+.record-help-field { display: grid; grid-template-columns: 1fr auto; align-items: center; min-width: 0; font-size: .85rem; font-weight: 700; }
+.record-help-link { min-height: auto; padding: 0; border: 0; border-radius: 0; color: var(--green); background: transparent; font-size: .75rem; text-decoration: underline; text-underline-offset: 3px; }
+.record-help-link:hover { background: transparent; color: var(--dark-green); }
+.record-help-field input, .record-help-field select { grid-column: 1 / -1; display: block; width: 100%; margin-top: 7px; padding: 12px; border: 1px solid #b9cdbf; border-radius: 10px; background: #fff; color: var(--ink); font: inherit; }
+.record-help-dialog section + section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.record-help-dialog h3 { margin: 0 0 7px; font-size: 1rem; }
 #record-form input, #record-form select { min-width: 0; width: 100%; }
 @media (max-width:760px) { #record-form .form-grid { grid-template-columns: minmax(0,1fr); } }
 
