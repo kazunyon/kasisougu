@@ -109,6 +109,13 @@ async (page) => {
   await page.getByRole('button',{name:'ログインする',exact:true}).click();
   await page.locator('#home-page').waitFor({state:'visible'});
   await page.waitForFunction(() => document.getElementById('saved-at').textContent === '保存済み');
+  assert(await page.getByText('装具のこと、使って感じたことを少しずつ残しましょう。',{exact:true}).count()===0,'Removed home lead remains');
+  await page.getByRole('button',{name:'最初に読んでほしいこと',exact:true}).click();
+  assert(await page.locator('#home-guide-dialog').isVisible(),'Home guide dialog did not open');
+  assert((await page.locator('#home-guide-dialog').textContent()).includes('このアプリは、「下肢装具サポート」といって、足に装着する装具を使っている方や、そのご家族・支援者の方に向けたアプリです。'),'Home guide text is missing');
+  await page.screenshot({path:'output/playwright/home-guide-dialog.png',fullPage:true});
+  await page.locator('#home-guide-dialog').getByRole('button',{name:'閉じる',exact:true}).click();
+  assert(await page.locator('#home-guide-dialog').isHidden(),'Home guide dialog did not close');
   assert(await page.locator('#home-orthosis-flow .orthosis-flow').count()===1,'Home My Orthoses flow missing');
   const go = async screen => {
     const selector = screen === 'orthosis' ? '.sidebar-secondary [data-screen="orthosis"]' : `.primary-nav [data-screen="${screen}"]`;

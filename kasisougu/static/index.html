@@ -18,7 +18,7 @@
     <section class="login-panel" aria-label="ログインフォーム"><h2>ログイン</h2><p>登録済みのメールアドレスとパスワードを入力してください。</p><form id="login-form"><label for="email">メールアドレス</label><input id="email" type="email" autocomplete="email" required maxlength="254"><label for="password">パスワード</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button type="submit" class="primary">ログインする</button></form><p id="auth-status" role="status" aria-live="polite"></p><details><summary>ログイン方法について</summary><p>Supabaseに登録済みのメールアドレスとパスワードを使用します。</p></details></section>
   </section>
   <section id="home-page" hidden aria-label="ホーム">
-    <div class="home-heading"><div><p class="screen-id">ホーム</p><p class="lead home-lead">装具のこと、使って感じたことを少しずつ残しましょう。</p></div><div class="save-state"><span>保存状態</span><strong id="saved-at">読み込み中</strong></div></div>
+    <div class="home-heading"><div><p class="screen-id">ホーム</p><button id="home-guide-open" class="home-guide-open" type="button" aria-haspopup="dialog">最初に読んでほしいこと</button></div><div class="save-state"><span>保存状態</span><strong id="saved-at">読み込み中</strong></div></div>
     <p id="home-status" class="home-status" role="status" aria-live="polite"></p>
     <section class="next-step" aria-label="相談の準備"><div><p class="section-kicker">相談の準備</p><p>装具や日々の記録をまとめて、相談の場で伝えやすく。</p></div><button class="screen-link primary" type="button" data-screen="consultation">相談シートを作る</button></section>
     <section class="home-orthosis-section" aria-labelledby="home-orthosis-title"><div class="section-heading"><div><p class="section-kicker">自分の装具</p><h2 id="home-orthosis-title">登録した装具</h2></div><button class="screen-link text-button" type="button" data-screen="orthosis">自分の装具を開く</button></div><p id="home-orthosis-help">登録済みの装具を、使用状況ごとに確認できます。</p><div id="home-orthosis-flow"></div></section>
@@ -26,6 +26,7 @@
       <section class="home-section recent-records" aria-labelledby="record-title"><div class="section-heading"><div><p class="section-kicker">最近の記録</p><h2 id="record-title">使用記録</h2></div><button class="screen-link text-button" type="button" data-screen="record" data-action="new-record">＋ 記録する</button></div><div id="record-summary" class="record-summary"><p>保存された記録はありません。</p></div></section>
     </div>
     <section class="notice" aria-labelledby="notice-title"><h2 id="notice-title">このアプリについて</h2><p>装具の適合や処方は判断しません。記録や相談内容を整理し、専門職との相談に役立てるアプリです。</p></section>
+    <dialog id="home-guide-dialog" class="home-guide-dialog" aria-labelledby="home-guide-title"><div class="home-guide-dialog-content"><h2 id="home-guide-title">最初に読んでほしいこと</h2><p>ありがとうございます。<br>このアプリは、「下肢装具サポート」といって、足に装着する装具を使っている方や、そのご家族・支援者の方に向けたアプリです。</p><p>下肢装具は、病気やけがなどによって足を動かしにくくなった方の、立つ・歩くといった動作を支えるものです。</p><p>装具を使って生活していると、使い方やお手入れ、修理など、わからないことや困ることが出てくると思います。このアプリが、そうしたときに必要な情報を確認するための手助けになればと思っています。</p><p>初めて使う方は、まず「最初に読んでほしいこと」をご確認ください。このアプリの目的や使い方、利用する際に知っておいてほしいことをまとめています。</p><p>装具の種類や身体の状態は、一人ひとり異なります。気になることがある場合は、担当の医師や義肢装具士などに相談しながらご活用ください。</p><p>よろしくお願いします。</p><form method="dialog"><button class="primary" type="submit">閉じる</button></form></div></dialog>
   </section>
   <section id="orthosis-page" class="app-page" hidden aria-labelledby="orthosis-page-title">
     <div class="page-title"><p class="screen-id">今の装具・困りごと</p><h1 id="orthosis-page-title">自分の装具一覧</h1><p class="lead">装具ごとに困りごと、希望、写真を整理できます。</p></div>
