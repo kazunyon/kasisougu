@@ -14,12 +14,24 @@ const F05 = (() => {
     });
   }
   function selectedIds(id) { return [...$(id).querySelectorAll('input:checked')].map(input => input.value); }
+  function renderPhotoTarget() {
+    const select = $('sheet-photo-orthosis');
+    select.replaceChildren();
+    if (!orthoses.length) {
+      select.append(new Option('登録済みの装具がありません', ''));
+      select.disabled = true;
+      return;
+    }
+    orthoses.forEach(row => select.append(new Option(`${ownershipLabels[row.ownership_status]} · ${row.nickname}`, row.id)));
+    select.disabled = false;
+  }
   function renderSelections(saved = {}) {
     const chosen = saved.selected || {};
     checkList('sheet-orthoses', orthoses, row => `${ownershipLabels[row.ownership_status]} · ${row.nickname}`, chosen.orthoses || []);
     checkList('sheet-needs', needsForSheet, row => `${row.need_type === 'problem' ? '困りごと' : '希望'} · ${orthosisName(row.user_orthosis_id)} · ${row.description}`, chosen.needs || []);
     checkList('sheet-records', KASI_F04.getRecords(), row => `${row.recorded_on} · ${orthosisName(row.user_orthosis_id)} · ${row.overall_note || 'メモなし'}`, chosen.records || []);
     checkList('sheet-photos', photosForSheet, row => `${row.usage_record_id ? '使用記録' : '装具'} · ${row.caption || row.original_filename || '写真'}`, chosen.photos || []);
+    renderPhotoTarget();
   }
   function renderList() {
     $('sheet-list').replaceChildren();
@@ -154,6 +166,36 @@ const F05 = (() => {
     catch (error) { message('consultation-status', error.message, true); }
     finally { button.disabled = false; }
   }
+  async function uploadPhoto() {
+    const button = $('sheet-photo-upload'), file = $('sheet-photo-file').files[0], orthosisId = $('sheet-photo-orthosis').value;
+    if (!file || !orthosisId) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size < 1 || file.size > 10485760)
+      return message('sheet-photo-status', 'JPEG・PNG・WebPの10MB以下の写真を選んでください。', true);
+    button.disabled = true; let path = '', uploaded = false, metadataSaved = false;
+    try {
+      const current = await select('kasi_user_media', `select=id&user_orthosis_id=eq.${orthosisId}&deleted_at=is.null`);
+      if (current.length >= 10) throw new Error('写真は装具ごとに最大10枚です。');
+      const extension = {'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[file.type];
+      path = `${userId}/orthoses/${orthosisId}/${crypto.randomUUID()}.${extension}`;
+      await storageRequest(storagePath(path), {method:'POST',headers:{'Content-Type':file.type,'x-upsert':'false'},body:file}); uploaded = true;
+      const rows = await request('/rest/v1/kasi_user_media', {method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({user_orthosis_id:orthosisId,storage_path:path,original_filename:file.name,mime_type:file.type,byte_size:file.size,caption:$('sheet-photo-caption').value.trim() || null,sort_order:current.length})});
+      if (!rows.length) throw new Error('写真の情報を保存できませんでした。');
+      metadataSaved = true;
+      const chosen = {orthoses:selectedIds('sheet-orthoses'),needs:selectedIds('sheet-needs'),records:selectedIds('sheet-records'),photos:selectedIds('sheet-photos')};
+      photosForSheet.push(rows[0]);
+      chosen.photos.push(rows[0].id);
+      renderSelections({selected:chosen});
+      $('sheet-photo-file').value = ''; $('sheet-photo-caption').value = '';
+      message('sheet-photo-status', '新しい写真を追加し、掲載する写真として選びました。');
+    } catch (error) {
+      if (uploaded && !metadataSaved) {
+        try { await deleteStorageObject(path); }
+        catch { message('sheet-photo-status', `保存に失敗し、アップロード済み写真の後片付けも失敗しました：${error.message}`, true); return; }
+      }
+      if (metadataSaved) return message('sheet-photo-status', `写真は保存されましたが一覧を更新できませんでした。画面を開き直してください：${error.message}`, true);
+      message('sheet-photo-status', error.message, true);
+    } finally { button.disabled = false; }
+  }
   async function copyPhotos(snapshot, sheetId) {
     const copied = [];
     try {
@@ -229,6 +271,7 @@ const F05 = (() => {
   $('sheet-preview-button').addEventListener('click', () => showPreview(buildSnapshot()).catch(error => message('consultation-status',error.message,true)));
   $('consultation-form').addEventListener('submit',save);
   $('sheet-finalize').addEventListener('click',finalize);
+  $('sheet-photo-upload').addEventListener('click',uploadPhoto);
   $('sheet-revise').addEventListener('click',createRevision);
   $('print-consultation').addEventListener('click',() => window.print());
   function reset() {

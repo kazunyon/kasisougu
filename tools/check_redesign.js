@@ -56,6 +56,7 @@ async (page) => {
     }
     if (pathname.startsWith('/auth/v1/token')) body = {access_token:'synthetic-test-session'};
     else if (pathname === '/auth/v1/user') body = {id:'test-user'};
+    else if (pathname.startsWith('/storage/v1/object/')) return route.fulfill({contentType:'application/json',body:'{}'});
     else {
       const table = pathname.split('/').at(-1);
       body = tables[table] || [];

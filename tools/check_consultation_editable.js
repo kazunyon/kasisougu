@@ -21,5 +21,9 @@ async (page) => {
   await page.locator('#sheet-preview-button').click();
   await page.locator('#consultation-preview').waitFor({state:'visible'});
   assert(await page.locator('#consultation-preview .sheet-photo').count()===1,'Removed photo remains in the editable preview');
-  return 'PASS: finalized consultation opens an editable revision and photos can be added or removed';
+  await page.locator('#sheet-photo-file').setInputFiles('output/playwright/redesign-home-desktop.png');
+  await page.locator('#sheet-photo-upload').click();
+  await page.waitForFunction(() => document.getElementById('sheet-photo-status').textContent.includes('新しい写真を追加'));
+  assert(await page.locator('#sheet-photos input:checked').count()===2,'Newly uploaded photo is not selected for the consultation');
+  return 'PASS: finalized consultation opens an editable revision and photos can be added, removed or newly uploaded';
 }
