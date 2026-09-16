@@ -30,7 +30,7 @@ const F05 = (() => {
         ? row.status_code === 'finalized' ? '追記版・確定済み' : '追記の下書き'
         : row.status_code === 'finalized' ? '確定済み' : '下書き';
       card.append(node('h3', row.title), node('p', `${row.consultation_on || '相談日未記入'} · ${state}`));
-      const button = node('button', row.status_code === 'finalized' ? '内容を見る' : '開いて編集');
+      const button = node('button', row.status_code === 'finalized' ? '内容を見る・編集' : '開いて編集');
       button.type = 'button'; button.addEventListener('click', () => open(row.id)); card.append(button); $('sheet-list').append(card);
     });
     message('sheet-list-status', `${sheets.length}件の相談シートを表示しています。`);
@@ -65,7 +65,7 @@ const F05 = (() => {
     selected = row; clearUrls();
     if (row.status_code === 'finalized') {
       $('consultation-form').hidden = true; showPreview(row.snapshot_json || {});
-      message('sheet-list-status', 'この確定版は保存します。聞きたいことが増えたら、内容を引き継いだ新しい下書きを作れます。'); return;
+      message('sheet-list-status', 'この確定版は履歴として保存しています。内容を編集する場合は、下のボタンから新しい下書きを作れます。'); return;
     }
     const snapshot = row.snapshot_json || {};
     $('sheet-title').value = row.title; $('sheet-display-name').value = row.display_name || '';
@@ -73,21 +73,12 @@ const F05 = (() => {
     $('consultation-recipient').value = snapshot.recipient || '';
     $('consultation-question').value = row.question_text || '';
     const isRevision = Boolean(snapshot.revised_from);
-    renderSelections(snapshot); $('sheet-form-title').textContent = isRevision ? '質問を追記する' : '下書きを編集';
-    $('sheet-revision-note').hidden = !isRevision; $('sheet-select-grid').hidden = isRevision;
+    renderSelections(snapshot); $('sheet-form-title').textContent = isRevision ? '相談シートを編集' : '下書きを編集';
+    $('sheet-revision-note').hidden = !isRevision; $('sheet-select-grid').hidden = false;
     $('consultation-form').hidden = false; $('consultation-preview').hidden = true;
     message('consultation-status', ''); $('sheet-title').focus();
   }
   function buildSnapshot() {
-    if (selected?.status_code === 'draft' && selected.snapshot_json?.revised_from) {
-      const snapshot = JSON.parse(JSON.stringify(selected.snapshot_json));
-      Object.assign(snapshot, {
-        captured_at: new Date().toISOString(), title: $('sheet-title').value.trim() || '相談シート',
-        display_name: $('sheet-display-name').value.trim(), consultation_on: $('consultation-on').value || null,
-        recipient: $('consultation-recipient').value.trim(), question_text: $('consultation-question').value.trim()
-      });
-      return snapshot;
-    }
     const ids = {
       orthoses: selectedIds('sheet-orthoses'), needs: selectedIds('sheet-needs'),
       records: selectedIds('sheet-records'), photos: selectedIds('sheet-photos')
@@ -144,7 +135,7 @@ const F05 = (() => {
       selected = rows[0]; await load();
       if (!sheets.some(row => row.id === revisionId)) throw new Error('下書きは作成されましたが、一覧で確認できません。画面を再読み込みしてください。');
       open(revisionId);
-      message('consultation-status', '確定版を残して新しい下書きを作りました。聞きたいことを追記して保存してください。');
+      message('consultation-status', '確定版を残して、すべての内容を編集できる新しい下書きを作りました。写真の追加・削除もできます。');
       $('consultation-question').focus();
     } catch (error) { message('sheet-list-status', error.message, true); }
     finally { button.disabled = false; }
@@ -187,7 +178,7 @@ const F05 = (() => {
       const snapshot = buildSnapshot();
       if (!snapshot.orthoses.length && !snapshot.needs.length && !snapshot.records.length && !snapshot.photos.length && !snapshot.question_text)
         throw new Error('掲載内容か聞きたいことを入力してください。');
-      if (!confirm('現在の内容を確定しますか？確定後は編集できません。')) return;
+      if (!confirm('現在の内容を確定しますか？確定版は履歴として保存されます。あとから編集したい場合は、新しい下書きとして開けます。')) return;
       const row = await persistDraft(snapshot);
       copied = await copyPhotos(snapshot, row.id);
       const rows = await request(`/rest/v1/kasi_consultation_sheets?id=eq.${row.id}&row_version=eq.${row.row_version}`, {

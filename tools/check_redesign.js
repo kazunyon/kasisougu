@@ -22,13 +22,18 @@ async (page) => {
     {id:'record-1',user_orthosis_id:'orthosis-2',recorded_on:'2026-09-14',usage_setting:'室内での訓練',duration_minutes:180,assistance_level:'independent',overall_note:'着け外しを相談したい',row_version:1},
     {id:'record-2',user_orthosis_id:'orthosis-1',recorded_on:'2026-09-13',usage_setting:'室内での訓練',duration_minutes:120,assistance_level:'independent',overall_note:'いつも通り使用しました',row_version:1}
   ];
+  const photos = [
+    {id:'photo-1',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-1.jpg',original_filename:'装具の写真.jpg',mime_type:'image/jpeg',caption:'装具の写真',sort_order:1},
+    {id:'photo-2',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-2.jpg',original_filename:'追加する写真.jpg',mime_type:'image/jpeg',caption:'追加する写真',sort_order:2}
+  ];
   const profile = {user_id:'test-user',display_name:'テスト利用者',text_scale:100,device_storage_enabled:false,row_version:1};
   const tables = {
     kasi_user_orthoses:orthoses,
     kasi_usage_records:records,
     kasi_usage_record_observations:[{id:'obs-1',usage_record_id:'record-1',category_code:'ease_of_putting_on',result_code:'issue',rating:2,note:'ベルトが少し気になります',row_version:1}],
     kasi_profiles:[profile],
-    kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',orthoses,records:[],photos:[]}}],
+    kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',selected:{orthoses:['orthosis-1'],needs:[],records:[],photos:['photo-1']},orthoses,records:[],photos}}],
+    kasi_user_media:photos,
     kasi_catalog_items:['長下肢装具（スペックス）','長下肢装具（リングロック）','短下肢装具','長下肢装具（CBブレース付）'].map((name,i)=>({id:`catalog-${i}`,title:name,product_name:name,summary:'装具の構造や使い方を確認し、専門職との相談に役立てます。',publication_status:'published',row_version:1})),
     kasi_catalog_item_terms:[0,1,2,3].map(i=>({catalog_item_id:`catalog-${i}`,kasi_catalog_terms:{id:`term-${i}`,code:i===2?'afo':'kafo',term_group:'support_scope',label_ja:i===2?'短下肢装具（AFO）':'長下肢装具（KAFO）',is_active:true}}))
   };
@@ -54,6 +59,22 @@ async (page) => {
     else {
       const table = pathname.split('/').at(-1);
       body = tables[table] || [];
+      if (table === 'kasi_consultation_sheets') {
+        if (request.method() === 'POST') {
+          const saved = {...request.postDataJSON(),id:`sheet-${tables[table].length + 1}`,row_version:1};
+          tables[table].push(saved);
+          return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+        }
+        if (request.method() === 'PATCH') {
+          const query = new URL(request.url()).searchParams;
+          const id = query.get('id')?.replace('eq.','');
+          const version = Number(query.get('row_version')?.replace('eq.',''));
+          const saved = tables[table].find(row => row.id === id && row.row_version === version);
+          if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
+          Object.assign(saved,request.postDataJSON(),{row_version:saved.row_version+1});
+          return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+        }
+      }
       if (['kasi_usage_records','kasi_user_orthoses'].includes(table)) {
         const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
         body = body.filter(row => !row.deleted_at);
