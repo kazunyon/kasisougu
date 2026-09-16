@@ -72,6 +72,8 @@
   </section>
   <section id="links-page" class="app-page" hidden aria-labelledby="links-title">
     <div class="page-title"><p class="screen-id">お役立ち情報</p><h1 id="links-title">リンク集</h1><p class="lead">装具について調べたいときに役立つサイトを紹介します。</p></div>
+    <section class="resource-section" aria-labelledby="fixed-links-title">
+      <div class="resource-section-heading"><div><p class="section-kicker">運営からのお知らせ</p><h2 id="fixed-links-title">固定のお役立ち情報</h2></div><p>ここにある情報は変更できません。</p></div>
     <ul class="resource-links">
       <li class="resource-link-card">
         <p class="section-kicker">埼玉県</p>
@@ -93,6 +95,20 @@
         <a class="resource-link" href="https://sogulabblog.com/price/" target="_blank" rel="noopener noreferrer">記事を読む<span>（新しいタブで開く）</span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2v-5"/></svg></a>
       </li>
     </ul>
+    </section>
+    <section class="resource-section personal-links-section" aria-labelledby="personal-links-title">
+      <div class="resource-section-heading"><div><p class="section-kicker">自分用メモ</p><h2 id="personal-links-title">自分で追加したリンク</h2></div><button id="personal-link-add" class="primary" type="button">＋ リンクを追加</button></div>
+      <p class="resource-section-help">調べたサイトや、あとで見返したいページを自分用に保存できます。追加したリンクは編集・削除できます。</p>
+      <p id="personal-links-status" role="status" aria-live="polite"></p>
+      <div id="personal-links-list" class="personal-links-list"></div>
+      <form id="personal-link-form" class="form-panel personal-link-form" hidden>
+        <h3 id="personal-link-form-title">リンクを追加</h3>
+        <div class="form-grid"><label>名前<input id="personal-link-title" maxlength="120" required placeholder="例：病院の案内ページ"></label><label>URL<input id="personal-link-url" type="url" maxlength="2048" required placeholder="https://example.com"></label></div>
+        <label class="wide-field">メモ（任意）<textarea id="personal-link-note" maxlength="1000" placeholder="例：次の受診前に確認する"></textarea></label>
+        <p id="personal-link-form-status" role="status" aria-live="polite"></p>
+        <div class="form-actions"><button id="personal-link-cancel" type="button">やめる</button><button class="primary" type="submit">保存する</button></div>
+      </form>
+    </section>
   </section>
   <section id="settings-page" class="app-page" hidden aria-labelledby="settings-title"><div class="page-title"><p class="screen-id">本人設定</p><h1 id="settings-title">自分に合った、使いやすさに。</h1><p class="lead">表示名・文字の大きさ・端末保存の設定を、本人専用のデータとして保存します。</p></div>
     <section class="form-panel settings-panel" aria-labelledby="profile-heading"><h2 id="profile-heading">本人設定</h2><form id="profile-form"><fieldset id="profile-fields" class="settings-fields" disabled><label for="profile-display-name">表示名（任意）</label><input id="profile-display-name" type="text" maxlength="80" autocomplete="nickname" placeholder="例：一真"><p class="settings-help">相談シートを新しく作るとき、本人名の初期値にも使います。空欄で保存すると表示名を消せます。</p><label for="text-scale">文字の大きさ <output id="text-scale-value" for="text-scale">100%</output></label><input id="text-scale" type="range" min="100" max="200" step="1" value="100"><label class="check-line" for="device-storage"><input id="device-storage" type="checkbox"> 端末への下書き保存を許可する</label><p class="settings-help">下書きの自動保存機能はまだありません。この項目は設定のみ保存します。</p></fieldset><p class="settings-help">変更は「本人設定を保存」を押すと反映されます。</p><p id="profile-status" role="status" aria-live="polite">読み込み中…</p><div class="form-actions"><button id="profile-save" class="primary" type="submit" disabled>本人設定を保存</button></div></form></section>

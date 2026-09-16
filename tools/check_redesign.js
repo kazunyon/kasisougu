@@ -27,11 +27,13 @@ async (page) => {
     {id:'photo-2',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-2.jpg',original_filename:'追加する写真.jpg',mime_type:'image/jpeg',caption:'追加する写真',sort_order:2}
   ];
   const profile = {user_id:'test-user',display_name:'テスト利用者',text_scale:100,device_storage_enabled:false,row_version:1};
+  const personalLinks = [];
   const tables = {
     kasi_user_orthoses:orthoses,
     kasi_usage_records:records,
     kasi_usage_record_observations:[{id:'obs-1',usage_record_id:'record-1',category_code:'ease_of_putting_on',result_code:'issue',rating:2,note:'ベルトが少し気になります',row_version:1}],
     kasi_profiles:[profile],
+    kasi_personal_links:personalLinks,
     kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',selected:{orthoses:['orthosis-1'],needs:[],records:[],photos:['photo-1']},orthoses,records:[],photos}}],
     kasi_user_media:photos,
     kasi_catalog_items:['長下肢装具（スペックス）','長下肢装具（リングロック）','短下肢装具','長下肢装具（CBブレース付）'].map((name,i)=>({id:`catalog-${i}`,title:name,product_name:name,summary:'装具の構造や使い方を確認し、専門職との相談に役立てます。',publication_status:'published',row_version:1})),
@@ -57,6 +59,20 @@ async (page) => {
     if (pathname.startsWith('/auth/v1/token')) body = {access_token:'synthetic-test-session'};
     else if (pathname === '/auth/v1/user') body = {id:'test-user'};
     else if (pathname.startsWith('/storage/v1/object/')) return route.fulfill({contentType:'application/json',body:'{}'});
+    else if (pathname === '/rest/v1/kasi_personal_links') {
+      if (request.method() === 'GET') body = personalLinks.filter(row => !row.deleted_at);
+      else if (request.method() === 'POST') {
+        const saved = {...request.postDataJSON(),id:`personal-link-${personalLinks.length + 1}`,row_version:1}; personalLinks.push(saved);
+        return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+      } else {
+        const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        const id = query.get('id')?.replace('eq.',''); const version = Number(query.get('row_version')?.replace('eq.',''));
+        const saved = personalLinks.find(row => row.id === id && row.row_version === version);
+        if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
+        Object.assign(saved, request.postDataJSON(), {row_version:saved.row_version + 1});
+        return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+      }
+    }
     else {
       const table = pathname.split('/').at(-1);
       body = tables[table] || [];
@@ -131,6 +147,22 @@ async (page) => {
   const priceGuide = page.locator('a[href="https://sogulabblog.com/price/"]');
   assert(await priceGuide.getAttribute('href') === 'https://sogulabblog.com/price/','Lower-limb orthosis price guide link is missing');
   assert(await priceGuide.getAttribute('target') === '_blank','Price guide must open in a new tab');
+  assert(await page.getByRole('heading',{name:'固定のお役立ち情報',exact:true}).count() === 1,'Fixed links section is missing');
+  await page.getByRole('button',{name:'＋ リンクを追加',exact:true}).click();
+  await page.getByLabel('名前',{exact:true}).fill('病院のお知らせ');
+  await page.getByLabel('URL',{exact:true}).fill('https://example.invalid/notice');
+  await page.getByLabel('メモ（任意）',{exact:true}).fill('次回の受診前に確認');
+  await page.getByRole('button',{name:'保存する',exact:true}).click();
+  await page.getByRole('heading',{name:'病院のお知らせ',exact:true}).waitFor();
+  assert(await page.getByRole('heading',{name:'病院のお知らせ',exact:true}).count() === 1,'Personal link was not added');
+  await page.getByRole('button',{name:'編集する',exact:true}).click();
+  await page.getByLabel('メモ（任意）',{exact:true}).fill('確認済み');
+  await page.getByRole('button',{name:'保存する',exact:true}).click();
+  await page.getByText('確認済み',{exact:true}).waitFor();
+  assert(await page.getByText('確認済み',{exact:true}).count() === 1,'Personal link was not updated');
+  await page.evaluate(() => { window.confirm = () => true; });
+  await page.getByRole('button',{name:'削除する',exact:true}).click();
+  await page.waitForFunction(() => document.getElementById('personal-links-list').textContent.includes('まだ自分用リンクはありません'));
   await go('record');
   assert(await page.locator('#record-form').isVisible(),'Current record form did not open');
   assert(await page.locator('#record-picker').inputValue()==='record-2','Current-use orthosis was not preferred');

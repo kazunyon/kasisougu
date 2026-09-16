@@ -72,6 +72,18 @@ create table public.kasi_profiles (
   check (display_name is null or char_length(display_name) between 1 and 80)
 );
 
+create table public.kasi_personal_links (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title text not null check (char_length(btrim(title)) between 1 and 120),
+  url text not null check (char_length(url) between 1 and 2048 and url ~ '^https?://'),
+  note text check (note is null or char_length(note) <= 1000),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  row_version bigint not null default 1 check (row_version > 0),
+  deleted_at timestamptz
+);
+
 create table public.kasi_user_orthoses (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
@@ -410,6 +422,8 @@ create unique index kasi_user_orthoses_owner_operation_uidx
   where client_operation_id is not null;
 create index kasi_user_orthoses_owner_updated_idx
   on public.kasi_user_orthoses(owner_id, updated_at desc) where deleted_at is null;
+create index kasi_personal_links_owner_updated_idx
+  on public.kasi_personal_links(owner_id, updated_at desc) where deleted_at is null;
 create index kasi_user_orthoses_catalog_idx
   on public.kasi_user_orthoses(catalog_item_id) where catalog_item_id is not null;
 
@@ -465,7 +479,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'kasi_profiles', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
+    'kasi_profiles', 'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
     'kasi_usage_record_observations', 'kasi_catalog_items', 'kasi_catalog_terms',
     'kasi_catalog_sources', 'kasi_user_media', 'kasi_catalog_media', 'kasi_consultation_sheets'
   ]
@@ -506,7 +520,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'kasi_profiles', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
+    'kasi_profiles', 'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
     'kasi_usage_record_observations', 'kasi_user_media', 'kasi_consultation_sheets',
     'kasi_consultation_sheet_orthoses', 'kasi_consultation_sheet_records',
     'kasi_consultation_sheet_needs', 'kasi_catalog_items', 'kasi_catalog_terms',
@@ -522,6 +536,7 @@ $$;
 -- 本人データ: SELECT/INSERT/UPDATEのみ。物理DELETEはバックエンド処理に限定。
 grant select, insert, update on table
   public.kasi_profiles,
+  public.kasi_personal_links,
   public.kasi_user_orthoses,
   public.kasi_user_needs,
   public.kasi_usage_records,
@@ -546,7 +561,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records', 'kasi_usage_record_observations',
+    'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records', 'kasi_usage_record_observations',
     'kasi_user_media', 'kasi_consultation_sheets', 'kasi_consultation_sheet_orthoses',
     'kasi_consultation_sheet_records', 'kasi_consultation_sheet_needs'
   ]
