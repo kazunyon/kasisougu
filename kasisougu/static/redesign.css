@@ -22,6 +22,7 @@ textarea { resize: vertical; }
 h1, h2, h3, h4, p, button, label { overflow-wrap: anywhere; }
 h1, .next-step h2 { text-wrap: balance; }
 .site-header { border-bottom: 0; }
+.brand-logo { display: block; width: min(300px,60vw); height: auto; object-fit: contain; }
 .login-panel { background: #fff; border-radius: 20px; border: 1px solid var(--line); }
 .is-authenticated { padding: 0 0 0 var(--sidebar-width); }
 .is-authenticated .site-header {
@@ -30,10 +31,8 @@ h1, .next-step h2 { text-wrap: balance; }
   background: #fff; border-right: 1px solid var(--line);
   flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 16px;
 }
-.is-authenticated .brand { gap: 10px; }
-.is-authenticated .brand strong { font-size: 1.1rem; letter-spacing: .03em; }
-.is-authenticated .brand small { font-size: .67rem; }
-.is-authenticated .brand-mark { width: 45px; height: 45px; flex: none; }
+.is-authenticated .brand { width: 100%; }
+.is-authenticated .brand-logo { width: 100%; max-width: 188px; height: auto; }
 .is-authenticated .header-status { margin: 0; font-size: .7rem; }
 .app-sidebar {
   position: fixed; z-index: 30; top: 148px; left: 0; bottom: 0;
@@ -221,7 +220,7 @@ h1, .next-step h2 { text-wrap: balance; }
   body, .is-authenticated { padding: 0 18px; }
   .is-authenticated { padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 20px); }
   .is-authenticated .site-header { position: static; width: auto; height: auto; min-height: 88px; padding: 18px 0; border: 0; background: transparent; flex-direction: row; align-items: center; justify-content: space-between; }
-  .is-authenticated .brand strong { font-size: 1.1rem; }
+  .is-authenticated .brand-logo { width: min(190px,58vw); }
   .is-authenticated .header-status { display: block; }
   .app-sidebar { display: contents; }
   .primary-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 3px; background: #fff; border-top: 1px solid var(--line); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px #193f3406; }
@@ -255,6 +254,7 @@ h1, .next-step h2 { text-wrap: balance; }
   .print-preview { padding: 20px; }
 }
 @media (max-width:520px) {
+  .is-authenticated .brand-logo { width: min(170px,52vw); }
   .catalog-list { grid-template-columns: 1fr; }
   .catalog-photo { height: 230px; }
   .orthosis-facts { grid-template-columns: 1fr; gap: 4px; }
