@@ -98,6 +98,8 @@ create table public.kasi_user_orthoses (
   manufactured_year smallint check (manufactured_year between 1900 and 2200),
   manufacturer_name text,
   price_yen bigint check (price_yen >= 0),
+  funding_system_code text check (funding_system_code in ('medical_insurance', 'disability_support', 'other')),
+  self_payment_rate smallint check (self_payment_rate in (1, 2, 3)),
   usage_scene text,
   catalog_item_id uuid,
   client_operation_id uuid,
