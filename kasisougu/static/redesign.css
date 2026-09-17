@@ -193,6 +193,7 @@ h1, .next-step h2 { text-wrap: balance; }
 #sheet-list .record-card-actions button { margin-top: 0; }
 .danger-button { color: #a32d2d; border-color: #a32d2d; }
 .danger-button:hover { background: #fbeeee; }
+.item-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .orthosis-card { width: min(100%,340px); }
 .orthosis-card h4 { font-size: 1rem; }
 .orthosis-card p { font-size: .8rem; }
