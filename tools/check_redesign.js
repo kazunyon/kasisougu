@@ -12,7 +12,7 @@ async (page) => {
   page.on('pageerror', error => errors.push(error.message));
   const assert = (value, message) => { if (!value) throw new Error(message); };
   const orthoses = [
-    {id:'orthosis-1',nickname:'長下肢装具',orthosis_type_code:'kafo',ownership_status:'owned',side_code:'left',row_version:1},
+    {id:'orthosis-1',nickname:'長下肢装具',orthosis_type_code:'kafo',ownership_status:'owned',side_code:'left',price_yen:120000,row_version:1},
     {id:'orthosis-2',nickname:'短下肢装具',orthosis_type_code:'afo',ownership_status:'trial',side_code:'left',row_version:1},
     {id:'orthosis-3',nickname:'その他',orthosis_type_code:'other',ownership_status:'trial',row_version:1},
     {id:'orthosis-4',nickname:'その他',orthosis_type_code:'other',ownership_status:'trial',row_version:1},
@@ -182,6 +182,8 @@ async (page) => {
   await go('orthosis');
   assert(JSON.stringify(await page.locator('#orthosis-list .orthosis-step-heading h3').allTextContents()) === JSON.stringify(['過去に使用','現在使用中','試用中']),'Orthosis flow order is incorrect');
   assert(await page.locator('#orthosis-list .orthosis-flow-arrow').count()===2,'Orthosis flow arrows are missing');
+  await page.getByRole('button',{name:'詳細を見る',exact:true}).nth(1).click();
+  assert(await page.locator('#orthosis-facts').textContent().then(text => text.includes('価格') && text.includes('120,000円')),'Orthosis price is missing from the detail');
   await page.screenshot({path:'output/playwright/orthosis-flow-desktop.png',fullPage:true});
   assert(errors.length===0,errors.join('\n'));
   return 'PASS: login, navigation across all screens, current-page indicator and current record form';
