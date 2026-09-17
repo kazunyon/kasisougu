@@ -1,8 +1,9 @@
 'use strict';
 const F05 = (() => {
-  let sheets = [], selected = null, needsForSheet = [], photosForSheet = [], previewUrls = [], previewSerial = 0;
+  let sheets = [], selected = null, needsForSheet = [], concernsForSheet = [], photosForSheet = [], previewUrls = [], previewSerial = 0;
   const text = value => value === null || value === undefined || value === '' ? '未記入' : String(value);
   const orthosisName = id => orthoses.find(row => row.id === id)?.nickname || '装具';
+  const concernOrthosisName = item => orthosisName(KASI_F04.getRecords().find(row => row.id === item.usage_record_id)?.user_orthosis_id);
   function clearUrls() { previewSerial++; previewUrls.forEach(url => URL.revokeObjectURL(url)); previewUrls = []; }
   function checkList(id, items, label, checkedIds) {
     const box = $(id); box.replaceChildren();
@@ -29,7 +30,8 @@ const F05 = (() => {
     const chosen = saved.selected || {};
     checkList('sheet-orthoses', orthoses, row => `${ownershipLabels[row.ownership_status]} · ${row.nickname}`, chosen.orthoses || []);
     checkList('sheet-needs', needsForSheet, row => `${row.need_type === 'problem' ? '困りごと' : '希望'} · ${orthosisName(row.user_orthosis_id)} · ${row.description}`, chosen.needs || []);
-    checkList('sheet-records', KASI_F04.getRecords(), row => `${row.recorded_on} · ${orthosisName(row.user_orthosis_id)} · ${row.overall_note || 'メモなし'}`, chosen.records || []);
+    checkList('sheet-records', KASI_F04.getRecords(), row => `${row.recorded_on} · ${orthosisName(row.user_orthosis_id)} · ${row.overall_note || 'その日の感想なし'}`, chosen.records || []);
+    checkList('sheet-concerns', concernsForSheet, row => `${row.noted_on} · ${concernOrthosisName(row)} · ${concernCategoryLabels[row.category_code] || 'その他'} · ${row.description}`, chosen.concerns || []);
     checkList('sheet-photos', photosForSheet, row => `${row.usage_record_id ? '使用記録' : '装具'} · ${row.caption || row.original_filename || '写真'}`, chosen.photos || []);
     renderPhotoTarget();
   }
@@ -56,10 +58,11 @@ const F05 = (() => {
   }
   async function init() {
     const formVisible = !$('consultation-form').hidden, previewVisible = !$('consultation-preview').hidden;
-    const chosen = formVisible ? {orthoses:selectedIds('sheet-orthoses'),needs:selectedIds('sheet-needs'),records:selectedIds('sheet-records'),photos:selectedIds('sheet-photos')} : null;
+    const chosen = formVisible ? {orthoses:selectedIds('sheet-orthoses'),needs:selectedIds('sheet-needs'),records:selectedIds('sheet-records'),concerns:selectedIds('sheet-concerns'),photos:selectedIds('sheet-photos')} : null;
     await loadOrthoses(); await KASI_F04.load();
-    [needsForSheet, photosForSheet] = await Promise.all([
+    [needsForSheet, concernsForSheet, photosForSheet] = await Promise.all([
       select('kasi_user_needs', 'select=id,user_orthosis_id,need_type,category_code,description,priority,status_code&deleted_at=is.null&order=created_at.asc'),
+      select('kasi_usage_record_concerns', 'select=id,usage_record_id,noted_on,category_code,description,occurred_timing,status_code,action_note,resolved_on&deleted_at=is.null&status_code=neq.resolved&order=noted_on.desc'),
       select('kasi_user_media', 'select=id,user_orthosis_id,usage_record_id,storage_path,original_filename,mime_type,caption,sort_order&deleted_at=is.null&order=created_at.asc')
     ]);
     await load(); renderSelections(chosen ? {selected:chosen} : {});
@@ -96,7 +99,7 @@ const F05 = (() => {
   function buildSnapshot() {
     const ids = {
       orthoses: selectedIds('sheet-orthoses'), needs: selectedIds('sheet-needs'),
-      records: selectedIds('sheet-records'), photos: selectedIds('sheet-photos')
+      records: selectedIds('sheet-records'), concerns: selectedIds('sheet-concerns'), photos: selectedIds('sheet-photos')
     };
     const records = KASI_F04.getRecords();
     return {
@@ -120,6 +123,11 @@ const F05 = (() => {
         observations: recordCategories.map(([code]) => row.observations?.find(item => item.category_code === code)).filter(Boolean)
           .map(item => ({category_code:item.category_code,result_code:item.result_code,rating:item.rating,note:item.note}))
       })),
+      concerns: ids.concerns.map(id => concernsForSheet.find(row => row.id === id)).filter(Boolean).map(row => ({
+        id:row.id, orthosis_name:concernOrthosisName(row), noted_on:row.noted_on, category_code:row.category_code,
+        description:row.description, occurred_timing:row.occurred_timing, status_code:row.status_code,
+        action_note:row.action_note, resolved_on:row.resolved_on
+      })),
       photos: ids.photos.map(id => photosForSheet.find(row => row.id === id)).filter(Boolean).map(row => ({
         id: row.id, storage_path: row.storage_path, original_filename: row.original_filename,
         mime_type: row.mime_type, caption: row.caption, source: row.usage_record_id ? '使用記録' : '装具'
@@ -136,7 +144,7 @@ const F05 = (() => {
     button.disabled = true;
     try {
       const snapshot = JSON.parse(JSON.stringify(source.snapshot_json));
-      for (const key of ['orthoses','needs','records','photos']) {
+      for (const key of ['orthoses','needs','records','concerns','photos']) {
         if (!Array.isArray(snapshot[key])) snapshot[key] = [];
       }
       snapshot.revised_from = source.id;
@@ -205,7 +213,7 @@ const F05 = (() => {
       const rows = await request('/rest/v1/kasi_user_media', {method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({user_orthosis_id:orthosisId,storage_path:path,original_filename:file.name,mime_type:file.type,byte_size:file.size,caption:$('sheet-photo-caption').value.trim() || null,sort_order:current.length})});
       if (!rows.length) throw new Error('写真の情報を保存できませんでした。');
       metadataSaved = true;
-      const chosen = {orthoses:selectedIds('sheet-orthoses'),needs:selectedIds('sheet-needs'),records:selectedIds('sheet-records'),photos:selectedIds('sheet-photos')};
+      const chosen = {orthoses:selectedIds('sheet-orthoses'),needs:selectedIds('sheet-needs'),records:selectedIds('sheet-records'),concerns:selectedIds('sheet-concerns'),photos:selectedIds('sheet-photos')};
       photosForSheet.push(rows[0]);
       chosen.photos.push(rows[0].id);
       renderSelections({selected:chosen});
@@ -242,7 +250,7 @@ const F05 = (() => {
     try {
       if (selected?.status_code === 'finalized') throw new Error('すでに確定済みです。');
       const snapshot = buildSnapshot();
-      if (!snapshot.orthoses.length && !snapshot.needs.length && !snapshot.records.length && !snapshot.photos.length && !snapshot.question_text)
+      if (!snapshot.orthoses.length && !snapshot.needs.length && !snapshot.records.length && !snapshot.concerns.length && !snapshot.photos.length && !snapshot.question_text)
         throw new Error('掲載内容か聞きたいことを入力してください。');
       if (!confirm('現在の内容を確定しますか？確定版は履歴として保存されます。あとから編集したい場合は、新しい下書きとして開けます。')) return;
       const row = await persistDraft(snapshot);
@@ -279,7 +287,8 @@ const F05 = (() => {
     paragraph(meta,'作成日',snapshot.captured_at ? snapshot.captured_at.slice(0,10) : new Date().toLocaleDateString('sv-SE'));
     if (snapshot.orthoses?.length) { const area=section(body,'掲載する装具'); snapshot.orthoses.forEach(row => paragraph(area,ownershipLabels[row.ownership_status] || '装具',`${row.nickname}${row.manufacturer_name ? `／${row.manufacturer_name}` : ''}`)); }
     if (snapshot.needs?.length) { const area=section(body,'困りごと・希望'); snapshot.needs.forEach(row => paragraph(area,`${row.need_type === 'problem' ? '困りごと' : '希望'}（${row.orthosis_name}）`,row.description)); }
-    if (snapshot.records?.length) { const area=section(body,'使用記録'); snapshot.records.forEach(row => paragraph(area,`${row.recorded_on}・${row.orthosis_name}`,row.overall_note || 'メモなし')); if (snapshot.records.length >= 2) area.append(comparisonForSnapshot(snapshot.records)); else { const row=snapshot.records[0]; recordCategories.forEach(([code,label]) => { const obs=row.observations?.find(item => item.category_code === code); paragraph(area,label,`${resultLabels[obs?.result_code || 'not_evaluated']}${obs?.note ? `：${obs.note}` : ''}`); }); } }
+    if (snapshot.records?.length) { const area=section(body,'使用記録'); snapshot.records.forEach(row => paragraph(area,`${row.recorded_on}・${row.orthosis_name}`,row.overall_note || 'その日の感想なし')); if (snapshot.records.length >= 2) area.append(comparisonForSnapshot(snapshot.records)); else { const row=snapshot.records[0]; recordCategories.forEach(([code,label]) => { const obs=row.observations?.find(item => item.category_code === code); paragraph(area,label,`${resultLabels[obs?.result_code || 'not_evaluated']}${obs?.note ? `：${obs.note}` : ''}`); }); } }
+    if (snapshot.concerns?.length) { const area=section(body,'気になったこと・変化'); snapshot.concerns.forEach(row => paragraph(area,`${row.noted_on}・${row.orthosis_name}・${concernCategoryLabels[row.category_code] || 'その他'}`,`${row.description}（${concernStatusLabels[row.status_code] || '未対応'}）${row.action_note ? `／対応内容：${row.action_note}` : ''}`)); }
     if (snapshot.photos?.length) { const area=section(body,'写真'), gallery=node('div','','sheet-photo-grid'); area.classList.add('sheet-photos-section'); area.append(gallery);
       for (const photo of snapshot.photos) { const figure=node('figure','','sheet-photo'), image=document.createElement('img'); image.alt=photo.caption || photo.original_filename || '写真'; figure.append(image,node('figcaption',photo.caption || photo.original_filename || photo.source)); gallery.append(figure);
         try { const response=await storageRequest(storagePath(photo.storage_path,true)); const blob=await response.blob(); if(serial !== previewSerial || !token) return; const url=URL.createObjectURL(blob); previewUrls.push(url); image.src=url; }
@@ -299,7 +308,7 @@ const F05 = (() => {
   $('sheet-revise').addEventListener('click',createRevision);
   $('print-consultation').addEventListener('click',() => window.print());
   function reset() {
-    clearUrls(); sheets = []; selected = null; needsForSheet = []; photosForSheet = [];
+    clearUrls(); sheets = []; selected = null; needsForSheet = []; concernsForSheet = []; photosForSheet = [];
     $('sheet-list').replaceChildren(); $('consultation-form').hidden = true;
     $('consultation-preview').hidden = true; $('consultation-preview-body').replaceChildren();
   }

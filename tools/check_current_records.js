@@ -2,14 +2,31 @@
 async (page) => {
   const assert = (v,m) => { if (!v) throw new Error(m); };
   await page.evaluate(() => { window.confirm = () => true; });
+  let lastSavePayload = null;
   const save = async selector => {
+    const request = page.waitForRequest(r => r.url().endsWith('/rpc/kasi_save_usage_record'));
     const response = page.waitForResponse(r => r.url().endsWith('/rpc/kasi_save_usage_record'));
-    await page.locator(selector).click(); await response;
+    await page.locator(selector).click(); lastSavePayload = (await request).postDataJSON(); await response;
     await page.waitForFunction(() => document.getElementById('record-save-comparison').disabled === false);
   };
   await page.locator('.primary-nav [data-screen="record"]').click();
   assert(await page.locator('#record-picker').inputValue()==='record-2','Baseline must be current KAFO');
   assert(await page.locator('#record-note').inputValue()==='いつも通り使用しました','Existing values missing');
+  assert((await page.locator('#record-concern-list').textContent()).includes('右くるぶし付近が当たる'),'Existing concern missing');
+  await page.locator('#record-concern-date').fill('2026-09-17');
+  await page.locator('#record-concern-category').selectOption('damage_wear');
+  await page.locator('#record-concern-status-code').selectOption('open');
+  await page.locator('#record-concern-description').fill('ベルトが緩みやすくなった');
+  const concernCreate = page.waitForResponse(r => r.url().includes('/kasi_usage_record_concerns') && r.request().method()==='POST');
+  await page.locator('#record-concern-form button.primary').click(); await concernCreate;
+  await page.waitForFunction(() => document.getElementById('record-concern-list').textContent.includes('ベルトが緩みやすくなった'));
+  await page.locator('#record-concern-list .concern-card').filter({hasText:'ベルトが緩みやすくなった'}).getByRole('button',{name:'編集する'}).click();
+  await page.locator('#record-concern-status-code').selectOption('resolved');
+  await page.locator('#record-concern-resolved-on').fill('2026-09-20');
+  await page.locator('#record-concern-action').fill('製作所でベルトを調整');
+  const concernUpdate = page.waitForResponse(r => r.url().includes('/kasi_usage_record_concerns') && r.request().method()==='PATCH');
+  await page.locator('#record-concern-form button.primary').click(); await concernUpdate;
+  await page.waitForFunction(() => document.getElementById('record-concern-list').textContent.includes('対応状況：解決'));
   await page.locator('#record-note').fill('画面移動でも保持');
   await page.locator('.primary-nav [data-screen=home]').click();
   await page.locator('.primary-nav [data-screen=record]').click();
@@ -21,7 +38,8 @@ async (page) => {
   await page.locator('#rating-other').selectOption('2');
   await page.locator('#note-other').fill('比較用にも残す評価');
   await save('#record-form button.primary');
-  assert(await page.locator('#record-picker option').count()===before,'Normal save created duplicate');
+  const afterNormalSave = await page.locator('#record-picker option').count();
+  assert(afterNormalSave===before,`Normal save created duplicate (${before} -> ${afterNormalSave}, p_id=${lastSavePayload?.p_id}, comparison=${lastSavePayload?.p_comparison})`);
   assert(await page.locator('#record-note').inputValue()==='保存する現在の記録','Updated value missing');
   await page.locator('#record-note').fill('比較用だけのメモ');
   await save('#record-save-comparison');
@@ -58,7 +76,13 @@ async (page) => {
     await page.evaluate(() => applyTextScale(200));
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),`Overflow at ${width}/200%`);
     await page.evaluate(() => applyTextScale(100));
-    await page.screenshot({path:`output/playwright/current-record-${width}.png`,fullPage:true});
+    await page.screenshot({path:`output/playwright/current-record-${width}.png`});
   }
-  return 'PASS: current baseline, in-place save, independent comparison copy + evaluations, past edit, conflict recovery, responsive layout';
+  await page.locator('.primary-nav [data-screen="consultation"]').click();
+  await page.waitForFunction(() => screenLoads.size === 0);
+  await page.locator('#sheet-add').click();
+  const sheetConcerns = await page.locator('#sheet-concerns').textContent();
+  assert(sheetConcerns.includes('右くるぶし付近が当たる'),'Unresolved concern is missing from consultation selection');
+  assert(!sheetConcerns.includes('ベルトが緩みやすくなった'),'Resolved concern must not appear in consultation selection');
+  return 'PASS: dated concern create/update, unresolved consultation selection, current baseline, in-place save, independent comparison copy + evaluations, past edit, conflict recovery, responsive layout';
 }

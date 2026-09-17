@@ -22,6 +22,9 @@ async (page) => {
     {id:'record-1',user_orthosis_id:'orthosis-2',recorded_on:'2026-09-14',usage_setting:'室内での訓練',duration_minutes:180,assistance_level:'independent',overall_note:'着け外しを相談したい',row_version:1},
     {id:'record-2',user_orthosis_id:'orthosis-1',recorded_on:'2026-09-13',usage_setting:'室内での訓練',duration_minutes:120,assistance_level:'independent',overall_note:'いつも通り使用しました',row_version:1}
   ];
+  const concerns = [
+    {id:'concern-1',usage_record_id:'record-2',noted_on:'2026-09-16',category_code:'pain_pressure',description:'右くるぶし付近が当たる',occurred_timing:'使用開始から2年後',status_code:'planned',action_note:null,resolved_on:null,row_version:1}
+  ];
   const photos = [
     {id:'photo-1',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-1.jpg',original_filename:'装具の写真.jpg',mime_type:'image/jpeg',caption:'装具の写真',sort_order:1},
     {id:'photo-2',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-2.jpg',original_filename:'追加する写真.jpg',mime_type:'image/jpeg',caption:'追加する写真',sort_order:2}
@@ -32,6 +35,7 @@ async (page) => {
     kasi_user_orthoses:orthoses,
     kasi_usage_records:records,
     kasi_usage_record_observations:[{id:'obs-1',usage_record_id:'record-1',category_code:'ease_of_putting_on',result_code:'issue',rating:2,note:'ベルトが少し気になります',row_version:1}],
+    kasi_usage_record_concerns:concerns,
     kasi_profiles:[profile],
     kasi_personal_links:personalLinks,
     kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',selected:{orthoses:['orthosis-1'],needs:[],records:[],photos:['photo-1']},orthoses,records:[],photos}}],
@@ -59,6 +63,20 @@ async (page) => {
     if (pathname.startsWith('/auth/v1/token')) body = {access_token:'synthetic-test-session'};
     else if (pathname === '/auth/v1/user') body = {id:'test-user'};
     else if (pathname.startsWith('/storage/v1/object/')) return route.fulfill({contentType:'application/json',body:'{}'});
+    else if (pathname === '/rest/v1/kasi_usage_record_concerns') {
+      if (request.method() === 'GET') body = concerns.filter(row => !row.deleted_at && (!request.url().includes('status_code=neq.resolved') || row.status_code !== 'resolved'));
+      else if (request.method() === 'POST') {
+        const saved = {...request.postDataJSON(),id:`concern-${concerns.length + 1}`,row_version:1}; concerns.push(saved);
+        return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+      } else {
+        const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        const id = query.get('id')?.replace('eq.',''); const version = Number(query.get('row_version')?.replace('eq.',''));
+        const saved = concerns.find(row => row.id === id && row.row_version === version);
+        if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
+        Object.assign(saved,request.postDataJSON(),{row_version:saved.row_version+1});
+        return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+      }
+    }
     else if (pathname === '/rest/v1/kasi_personal_links') {
       if (request.method() === 'GET') body = personalLinks.filter(row => !row.deleted_at);
       else if (request.method() === 'POST') {
@@ -171,6 +189,8 @@ async (page) => {
   await page.locator('#record-help-dialog').getByRole('button',{name:'閉じる',exact:true}).click();
   assert(await page.locator('#record-picker').inputValue()==='record-2','Current-use orthosis was not preferred');
   assert(await page.locator('#record-detail').isVisible(),'Record photos did not open');
+  assert((await page.locator('#record-concern-list').textContent()).includes('右くるぶし付近が当たる'),'Dated concern is missing from the usage record');
+  assert(await page.getByLabel('気づいた日',{exact:true}).inputValue()==='2026-09-13','Concern date must be independent and default to the selected usage date');
   assert(await page.locator('.sidebar-secondary button[data-screen="orthosis"] svg').count()===1,'My Orthoses icon missing');
   assert(await page.locator('#record-form + .record-needs').isVisible(),'Needs section must follow the record save controls');
   assert(await page.locator('#orthosis-detail #needs-list').count()===0,'Needs section still appears in My Orthoses');
@@ -178,6 +198,10 @@ async (page) => {
   await page.locator('#record-orthosis-type').selectOption('afo');
   await needsResponse;
   assert(await page.locator('#record-orthosis').inputValue()==='orthosis-2','Needs must switch with the selected registered orthosis');
+  const restoredNeedsResponse = page.waitForResponse(r => r.url().includes('/kasi_user_needs') && r.url().includes('user_orthosis_id=eq.orthosis-1'));
+  await page.locator('#record-orthosis-type').selectOption('kafo');
+  await restoredNeedsResponse;
+  assert(await page.locator('#record-orthosis').inputValue()==='orthosis-1','Record fixture must be restored before later regression checks');
   await page.screenshot({path:'output/playwright/redesign-record-desktop.png',fullPage:true});
   await go('orthosis');
   assert(JSON.stringify(await page.locator('#orthosis-list .orthosis-step-heading h3').allTextContents()) === JSON.stringify(['過去に使用','現在使用中','試用中']),'Orthosis flow order is incorrect');
@@ -187,7 +211,7 @@ async (page) => {
   await page.getByRole('button',{name:'編集する',exact:true}).click();
   assert(await page.getByLabel('制度・支払いの区分',{exact:true}).inputValue() === 'medical_insurance','Funding-system value was not loaded into the form');
   assert(await page.getByLabel('自己負担分（原則1〜3割）',{exact:true}).inputValue() === '3','Self-payment rate was not loaded into the form');
-  await page.screenshot({path:'output/playwright/orthosis-flow-desktop.png',fullPage:true});
+  await page.screenshot({path:'output/playwright/orthosis-flow-desktop.png'});
   assert(errors.length===0,errors.join('\n'));
   return 'PASS: login, navigation across all screens, current-page indicator and current record form';
 }
