@@ -6,8 +6,10 @@ const recordCategories = [
 ];
 const resultLabels = {not_evaluated: '未評価', no_issue: '問題なし', issue: '気になる'};
 const assistanceLabels = {not_evaluated: '未評価', independent: '自立', partial_assistance: '一部介助', full_assistance: '全介助'};
+const concernCategoryLabels = {pain_pressure:'痛み・圧迫', fit:'フィット・ずれ', putting_on:'着け外し', walking_stability:'歩行・安定性', damage_wear:'破損・劣化', other:'その他'};
+const concernStatusLabels = {open:'未対応', planned:'相談予定', adjusted:'調整済み', resolved:'解決'};
 const F04 = (() => {
-  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false, saving = false, draftOrthosisId = '';
+  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false, saving = false, draftOrthosisId = '', editingConcern = null;
   const orthosisTypeLabels = {kafo:'長下肢装具',afo:'短下肢装具',other:'その他'};
   const orthosisGroup = code => code === 'kafo' || code === 'afo' ? code : 'other';
   const orthosisLabel = item => {
@@ -75,7 +77,7 @@ const F04 = (() => {
       const card = node('article', '', 'record-card');
       card.dataset.recordId = row.id;
       card.classList.toggle('selected', row.id === selected?.id);
-      card.append(node('h3', title(row)), node('p', `${value(row.usage_setting)} · ${row.duration_minutes == null ? '使用時間未記入' : `${row.duration_minutes}分`}`), node('p', row.overall_note || '感想・メモなし'));
+      card.append(node('h3', title(row)), node('p', `${value(row.usage_setting)} · ${row.duration_minutes == null ? '使用時間未記入' : `${row.duration_minutes}分`}`), node('p', row.overall_note || 'その日の感想なし'));
       const button = node('button', 'この記録を開く'); button.type = 'button'; button.setAttribute('aria-controls', 'record-detail'); button.setAttribute('aria-pressed', String(row.id === selected?.id)); button.addEventListener('click', () => open(row.id)); card.append(button);
       $('record-list').append(card);
     });
@@ -85,12 +87,15 @@ const F04 = (() => {
   function renderHomeRecords() {
     const box = $('record-summary'); box.replaceChildren();
     if (!records.length) box.append(node('p', '保存された記録はありません。'));
-    records.slice(0, 3).forEach(row => box.append(node('p', `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具'} · ${row.overall_note || 'メモなし'}`)));
+    records.slice(0, 3).forEach(row => box.append(node('p', `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具'} · ${row.overall_note || 'その日の感想なし'}`)));
   }
   async function load() {
     const rows = await select('kasi_usage_records', 'select=*&deleted_at=is.null&order=recorded_on.desc,created_at.desc');
-    const obs = await select('kasi_usage_record_observations', 'select=id,usage_record_id,category_code,result_code,rating,note,row_version&deleted_at=is.null');
-    records = rows.map(row => ({...row, observations: obs.filter(o => o.usage_record_id === row.id)}));
+    const [obs, concerns] = await Promise.all([
+      select('kasi_usage_record_observations', 'select=id,usage_record_id,category_code,result_code,rating,note,row_version&deleted_at=is.null'),
+      select('kasi_usage_record_concerns', 'select=id,usage_record_id,noted_on,category_code,description,occurred_timing,status_code,action_note,resolved_on,row_version&deleted_at=is.null&order=noted_on.desc,created_at.desc')
+    ]);
+    records = rows.map(row => ({...row, observations: obs.filter(o => o.usage_record_id === row.id), concerns: concerns.filter(item => item.usage_record_id === row.id)}));
     selected = records.find(row => row.id === selected?.id) || null;
     renderList(); renderHomeRecords();
     if (!$('compare-result').hidden) {
@@ -223,7 +228,7 @@ const F04 = (() => {
   }
   function leaveOrthosisRegistration() { registeringOrthosis = false; }
   function facts(row) {
-    const entries = [['使用日', row.recorded_on], ['装具', orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '未登録'], ['靴', value(row.footwear)], ['場所・訓練内容', value(row.usage_setting)], ['介助', assistanceLabels[row.assistance_level] || '未評価'], ['使用時間', row.duration_minutes == null ? '未記入' : `${row.duration_minutes}分`], ['感想・メモ', value(row.overall_note)]];
+    const entries = [['使用日', row.recorded_on], ['装具', orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '未登録'], ['靴', value(row.footwear)], ['場所・訓練内容', value(row.usage_setting)], ['介助', assistanceLabels[row.assistance_level] || '未評価'], ['使用時間', row.duration_minutes == null ? '未記入' : `${row.duration_minutes}分`], ['その日の感想', value(row.overall_note)]];
     $('record-facts').replaceChildren(); entries.forEach(([a,b]) => $('record-facts').append(node('dt',a),node('dd',b)));
   }
   function renderEvaluationDetails(row) {
@@ -232,6 +237,51 @@ const F04 = (() => {
       const obs = observation(row, code), result = resultLabels[obs?.result_code || 'not_evaluated'];
       $('record-detail-evaluations').append(node('p', `${label}：${result}${obs?.rating ? `（${obs.rating}/5）` : ''}${obs?.note ? `\n${obs.note}` : ''}`));
     });
+  }
+  function resetConcernForm() {
+    editingConcern = null; $('record-concern-form').reset();
+    $('record-concern-form-title').textContent = '気になったこと・変化を追加';
+    $('record-concern-date').value = selected?.recorded_on || new Date().toLocaleDateString('sv-SE');
+    updateConcernResolvedOn();
+    $('record-concern-cancel').hidden = true; message('record-concern-status', '');
+  }
+  function updateConcernResolvedOn() {
+    const input = $('record-concern-resolved-on'), resolved = $('record-concern-status-code').value === 'resolved';
+    input.disabled = !resolved; if (!resolved) input.value = '';
+  }
+  function renderConcerns(row) {
+    const list = $('record-concern-list'); list.replaceChildren();
+    if (!row.concerns?.length) list.append(node('p', '気になったこと・変化はまだありません。', 'empty-state'));
+    (row.concerns || []).forEach(item => {
+      const card = node('article', '', 'concern-card');
+      card.append(node('h4', `${item.noted_on} · ${concernCategoryLabels[item.category_code] || 'その他'}`), node('p', item.description), node('p', `対応状況：${concernStatusLabels[item.status_code] || '未対応'}`));
+      if (item.occurred_timing) card.append(node('p', `発生時期：${item.occurred_timing}`));
+      if (item.action_note) card.append(node('p', `対応内容：${item.action_note}`));
+      if (item.resolved_on) card.append(node('p', `解決日：${item.resolved_on}`));
+      const edit = node('button', '編集する'); edit.type = 'button'; edit.addEventListener('click', () => {
+        editingConcern = item; $('record-concern-form-title').textContent = '気になったこと・変化を編集';
+        $('record-concern-date').value = item.noted_on; $('record-concern-category').value = item.category_code;
+        $('record-concern-status-code').value = item.status_code; $('record-concern-timing').value = item.occurred_timing || '';
+        $('record-concern-description').value = item.description; $('record-concern-action').value = item.action_note || '';
+        $('record-concern-resolved-on').value = item.resolved_on || ''; updateConcernResolvedOn(); $('record-concern-cancel').hidden = false;
+        message('record-concern-status', ''); $('record-concern-description').focus();
+      });
+      card.append(edit); list.append(card);
+    });
+  }
+  async function saveConcern(event) {
+    event.preventDefault(); const recordId = selected?.id, button = event.submitter;
+    if (!recordId || !button) return;
+    const isEditing = Boolean(editingConcern); button.disabled = true;
+    try {
+      const statusCode = $('record-concern-status-code').value;
+      const data = {usage_record_id:recordId,noted_on:$('record-concern-date').value,category_code:$('record-concern-category').value,description:$('record-concern-description').value.trim(),occurred_timing:$('record-concern-timing').value.trim() || null,status_code:statusCode,action_note:$('record-concern-action').value.trim() || null,resolved_on:statusCode === 'resolved' ? ($('record-concern-resolved-on').value || null) : null};
+      const path = isEditing ? `/rest/v1/kasi_usage_record_concerns?id=eq.${editingConcern.id}&row_version=eq.${editingConcern.row_version}` : '/rest/v1/kasi_usage_record_concerns';
+      const rows = await request(path, {method:isEditing ? 'PATCH' : 'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(data)});
+      if (!rows.length) throw new Error('別の画面で更新されています。再読み込みしてください。');
+      await load(); await open(recordId); message('record-concern-status', isEditing ? '気になったこと・変化を更新しました。' : '気になったこと・変化を追加しました。');
+    } catch (error) { message('record-concern-status', `保存できませんでした：${error.message}`, true); }
+    finally { button.disabled = false; }
   }
   function clearUrls() { renderSerial++; urls.forEach(url => URL.revokeObjectURL(url)); urls = []; }
   async function renderMedia() {
@@ -260,6 +310,7 @@ const F04 = (() => {
   async function open(id) {
     selected = records.find(row => row.id === id) || null; if (!selected) return;
     showForm(selected); $('record-detail').hidden = false; facts(selected); renderEvaluationDetails(selected);
+    renderConcerns(selected); resetConcernForm();
     $('record-list').querySelectorAll('.record-card').forEach(card => {
       const active = card.dataset.recordId === id;
       card.classList.toggle('selected', active);
@@ -376,10 +427,11 @@ const F04 = (() => {
     message('compare-status', same ? '主要条件がそろっています。評価の違いを専門職と確認してください。' : '条件が異なる項目があります。装具の違いだけによる変化とは断定できません。',!same);
   }
   function reset() {
-    clearUrls(); records = []; selected = null; editing = null; media = []; registeringOrthosis = false; draftOrthosisId = '';
+    clearUrls(); records = []; selected = null; editing = null; media = []; registeringOrthosis = false; draftOrthosisId = ''; editingConcern = null;
     $('record-picker').replaceChildren(); $('record-current-state').textContent = ''; $('record-form').reset();
     $('record-list').replaceChildren(); $('record-detail').hidden = true; $('record-form').hidden = true;
     $('record-photo-list').replaceChildren(); $('compare-result').replaceChildren(); $('compare-result').hidden = true;
+    $('record-concern-list').replaceChildren(); $('record-concern-form').reset();
     $('record-summary').replaceChildren(node('p', '保存された記録はありません。'));
   }
   makeEvaluationInputs();
@@ -401,6 +453,9 @@ const F04 = (() => {
   $('record-cancel').addEventListener('click', closeForm);
   $('record-form').addEventListener('submit', save);
   $('record-photo-form').addEventListener('submit', uploadPhoto);
+  $('record-concern-form').addEventListener('submit', saveConcern);
+  $('record-concern-cancel').addEventListener('click', resetConcernForm);
+  $('record-concern-status-code').addEventListener('change', updateConcernResolvedOn);
   $('compare-run').addEventListener('click', compare);
   for (const id of ['compare-first', 'compare-second']) $(id).addEventListener('change', () => { $('compare-result').hidden = true; message('compare-status', ''); });
   return {init,load,open,renderHomeRecords,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,comparisonTable};

@@ -186,6 +186,32 @@ create table public.kasi_usage_record_observations (
       or (result_code <> 'not_evaluated'))
 );
 
+create table public.kasi_usage_record_concerns (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  usage_record_id uuid not null,
+  noted_on date not null,
+  category_code text not null check (category_code in (
+    'pain_pressure', 'fit', 'putting_on', 'walking_stability', 'damage_wear', 'other'
+  )),
+  description text not null check (char_length(description) between 1 and 2000),
+  occurred_timing text check (occurred_timing is null or char_length(occurred_timing) <= 200),
+  status_code text not null default 'open'
+    check (status_code in ('open', 'planned', 'adjusted', 'resolved')),
+  action_note text check (action_note is null or char_length(action_note) <= 2000),
+  resolved_on date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  row_version bigint not null default 1 check (row_version > 0),
+  deleted_at timestamptz,
+  unique (id, owner_id),
+  constraint kasi_record_concerns_record_owner_fk
+    foreign key (usage_record_id, owner_id)
+    references public.kasi_usage_records(id, owner_id)
+    on delete cascade,
+  check (resolved_on is null or status_code = 'resolved')
+);
+
 -- ---------------------------------------------------------------------------
 -- 図鑑・根拠・権利情報
 -- ---------------------------------------------------------------------------
@@ -446,6 +472,10 @@ create index kasi_usage_records_orthosis_date_idx
 
 create index kasi_observations_owner_idx on public.kasi_usage_record_observations(owner_id);
 create index kasi_observations_record_idx on public.kasi_usage_record_observations(usage_record_id);
+create index kasi_record_concerns_owner_status_idx
+  on public.kasi_usage_record_concerns(owner_id, status_code, noted_on desc) where deleted_at is null;
+create index kasi_record_concerns_record_idx
+  on public.kasi_usage_record_concerns(usage_record_id, noted_on desc) where deleted_at is null;
 
 create index kasi_catalog_items_status_updated_idx
   on public.kasi_catalog_items(publication_status, updated_at desc) where deleted_at is null;
@@ -483,7 +513,7 @@ declare
 begin
   foreach table_name in array array[
     'kasi_profiles', 'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
-    'kasi_usage_record_observations', 'kasi_catalog_items', 'kasi_catalog_terms',
+    'kasi_usage_record_observations', 'kasi_usage_record_concerns', 'kasi_catalog_items', 'kasi_catalog_terms',
     'kasi_catalog_sources', 'kasi_user_media', 'kasi_catalog_media', 'kasi_consultation_sheets'
   ]
   loop
@@ -524,7 +554,7 @@ declare
 begin
   foreach table_name in array array[
     'kasi_profiles', 'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
-    'kasi_usage_record_observations', 'kasi_user_media', 'kasi_consultation_sheets',
+    'kasi_usage_record_observations', 'kasi_usage_record_concerns', 'kasi_user_media', 'kasi_consultation_sheets',
     'kasi_consultation_sheet_orthoses', 'kasi_consultation_sheet_records',
     'kasi_consultation_sheet_needs', 'kasi_catalog_items', 'kasi_catalog_terms',
     'kasi_catalog_item_terms', 'kasi_catalog_sources', 'kasi_catalog_item_sources', 'kasi_catalog_media'
@@ -544,6 +574,7 @@ grant select, insert, update on table
   public.kasi_user_needs,
   public.kasi_usage_records,
   public.kasi_usage_record_observations,
+  public.kasi_usage_record_concerns,
   public.kasi_user_media,
   public.kasi_consultation_sheets,
   public.kasi_consultation_sheet_orthoses,
@@ -564,7 +595,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records', 'kasi_usage_record_observations',
+    'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records', 'kasi_usage_record_observations', 'kasi_usage_record_concerns',
     'kasi_user_media', 'kasi_consultation_sheets', 'kasi_consultation_sheet_orthoses',
     'kasi_consultation_sheet_records', 'kasi_consultation_sheet_needs'
   ]
