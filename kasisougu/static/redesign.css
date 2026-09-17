@@ -23,6 +23,7 @@ h1, h2, h3, h4, p, button, label { overflow-wrap: anywhere; }
 h1, .next-step h2 { text-wrap: balance; }
 .site-header { border-bottom: 0; }
 .brand-logo { display: block; width: min(300px,60vw); height: auto; object-fit: contain; }
+#login-title { font-size: clamp(30px,4vw,50px); overflow-wrap: normal; word-break: keep-all; }
 .login-panel { background: #fff; border-radius: 20px; border: 1px solid var(--line); }
 .is-authenticated { padding: 0 0 0 var(--sidebar-width); }
 .is-authenticated .site-header {
@@ -217,6 +218,7 @@ h1, .next-step h2 { text-wrap: balance; }
   .home-section { min-height: 0; }
 }
 @media (max-width:760px) {
+  #login-title { font-size: clamp(26px,8.3vw,35px); }
   body, .is-authenticated { padding: 0 18px; }
   .is-authenticated { padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 20px); }
   .is-authenticated .site-header { position: static; width: auto; height: auto; min-height: 88px; padding: 18px 0; border: 0; background: transparent; flex-direction: row; align-items: center; justify-content: space-between; }
