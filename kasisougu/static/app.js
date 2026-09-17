@@ -57,7 +57,7 @@ const ownershipLabels = {owned: '現在使用中', trial: '試用中', past: '�
 const categoryLabels = {heavy: '重さ', hard_to_put_on: '着脱', hard_to_wear_shoes: '靴の履きやすさ', pain_or_pressure: '痛み・圧迫', fatigue: '疲労', stability: '安定性', mobility: '移動', daily_activity: '日常生活', other: 'その他'};
 function node(tag, text, className) { const el = document.createElement(tag); el.textContent = text; if (className) el.className = className; return el; }
 async function loadOrthoses() {
-  orthoses = await select('kasi_user_orthoses', 'select=id,nickname,side_code,orthosis_type_code,ownership_status,manufactured_on,manufactured_year,manufacturer_name,price_yen,row_version&deleted_at=is.null&order=updated_at.desc');
+  orthoses = await select('kasi_user_orthoses', 'select=id,nickname,side_code,orthosis_type_code,ownership_status,manufactured_on,manufactured_year,manufacturer_name,price_yen,funding_system_code,self_payment_rate,row_version&deleted_at=is.null&order=updated_at.desc');
   orthosis = orthoses.find(item => item.id === orthosis?.id) || orthoses.find(item => item.ownership_status === 'owned') || orthoses[0] || null;
   renderOrthosisList(); renderHome();
 }
@@ -150,6 +150,8 @@ function populateOrthosis(item) {
   $('manufactured-year').value = item?.manufactured_year || '';
   $('orthosis-maker').value = item?.manufacturer_name || '';
   $('orthosis-price-yen').value = item?.price_yen ?? '';
+  $('orthosis-funding-system').value = item?.funding_system_code || '';
+  $('orthosis-self-payment-rate').value = item?.self_payment_rate ?? '';
 }
 function renderHome() {
   $('home-orthosis-flow').replaceChildren(createOrthosisFlow(true));
@@ -168,7 +170,9 @@ function showOrthosisForm(item = null) {
 }
 function renderFacts() {
   const price = orthosis.price_yen == null ? '未記入' : `${Number(orthosis.price_yen).toLocaleString('ja-JP')}円`;
-  const facts = [['使用状況', ownershipLabels[orthosis.ownership_status]], ['装具名', orthosis.nickname], ['左右', {left:'左',right:'右',bilateral:'両側',unknown:'不明',not_applicable:'該当なし'}[orthosis.side_code]], ['種類', {afo:'短下肢装具（AFO）',kafo:'長下肢装具（KAFO）',foot_orthosis:'足底装具',orthopedic_shoe:'靴型装具',other:'その他',unknown:'不明'}[orthosis.orthosis_type_code]], ['作製日・年', orthosis.manufactured_on || (orthosis.manufactured_year ? `${orthosis.manufactured_year}年` : '未記入')], ['製作所', orthosis.manufacturer_name || '未記入'], ['価格', price]];
+  const fundingLabels = {medical_insurance:'治療用（医療保険）', disability_support:'生活用（障害者総合支援法）', other:'その他'};
+  const selfPayment = orthosis.self_payment_rate == null ? '未記入' : `${orthosis.self_payment_rate}割`;
+  const facts = [['使用状況', ownershipLabels[orthosis.ownership_status]], ['装具名', orthosis.nickname], ['左右', {left:'左',right:'右',bilateral:'両側',unknown:'不明',not_applicable:'該当なし'}[orthosis.side_code]], ['種類', {afo:'短下肢装具（AFO）',kafo:'長下肢装具（KAFO）',foot_orthosis:'足底装具',orthopedic_shoe:'靴型装具',other:'その他',unknown:'不明'}[orthosis.orthosis_type_code]], ['作製日・年', orthosis.manufactured_on || (orthosis.manufactured_year ? `${orthosis.manufactured_year}年` : '未記入')], ['製作所', orthosis.manufacturer_name || '未記入'], ['価格', price], ['制度・支払いの区分', fundingLabels[orthosis.funding_system_code] || '未記入'], ['自己負担分（原則1〜3割）', selfPayment]];
   $('orthosis-facts').replaceChildren();
   facts.forEach(([label, value]) => $('orthosis-facts').append(node('dt', label), node('dd', value || '未記入')));
 }
@@ -331,7 +335,7 @@ $('orthosis-form').addEventListener('submit', async event => {
   const priceInput = $('orthosis-price-yen').value;
   const priceYen = priceInput === '' ? null : Number(priceInput);
   if (!Number.isSafeInteger(priceYen) && priceYen !== null) { message('orthosis-status', '価格は0円以上の整数で入力してください。', true); button.disabled = false; return; }
-  const data = {nickname: $('orthosis-name').value.trim() || '不明', ownership_status:$('orthosis-status-code').value, side_code: $('orthosis-side').value, orthosis_type_code: $('orthosis-type').value, manufactured_on: $('manufactured-date').value || null, manufactured_year: $('manufactured-year').value ? Number($('manufactured-year').value) : null, manufacturer_name: $('orthosis-maker').value.trim() || null, price_yen:priceYen};
+  const data = {nickname: $('orthosis-name').value.trim() || '不明', ownership_status:$('orthosis-status-code').value, side_code: $('orthosis-side').value, orthosis_type_code: $('orthosis-type').value, manufactured_on: $('manufactured-date').value || null, manufactured_year: $('manufactured-year').value ? Number($('manufactured-year').value) : null, manufacturer_name: $('orthosis-maker').value.trim() || null, price_yen:priceYen, funding_system_code:$('orthosis-funding-system').value || null, self_payment_rate:$('orthosis-self-payment-rate').value ? Number($('orthosis-self-payment-rate').value) : null};
   try {
     const item = editingOrthosis, path = item ? `/rest/v1/kasi_user_orthoses?id=eq.${item.id}&row_version=eq.${item.row_version}` : '/rest/v1/kasi_user_orthoses';
     const rows = await request(path, {method: item ? 'PATCH' : 'POST', headers: {'Content-Type': 'application/json', Prefer: 'return=representation'}, body: JSON.stringify(data)});
