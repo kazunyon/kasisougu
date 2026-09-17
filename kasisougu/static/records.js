@@ -266,8 +266,26 @@ const F04 = (() => {
         $('record-concern-resolved-on').value = item.resolved_on || ''; updateConcernResolvedOn(); $('record-concern-cancel').hidden = false;
         message('record-concern-status', ''); $('record-concern-description').focus();
       });
-      card.append(edit); list.append(card);
+      const remove = node('button', '削除する', 'danger-button'); remove.type = 'button';
+      remove.addEventListener('click', () => deleteConcern(item, remove));
+      const actions = node('div', '', 'item-actions'); actions.append(edit, remove);
+      card.append(actions); list.append(card);
     });
+  }
+  async function deleteConcern(item, button) {
+    const recordId = selected?.id;
+    if (!recordId || !confirm('この「気になったこと・変化」を削除しますか？')) return;
+    button.disabled = true;
+    try {
+      const rows = await request(`/rest/v1/kasi_usage_record_concerns?id=eq.${item.id}&row_version=eq.${item.row_version}&deleted_at=is.null`, {
+        method:'PATCH', headers:{'Content-Type':'application/json',Prefer:'return=representation'}, body:JSON.stringify({deleted_at:new Date().toISOString()})
+      });
+      if (!rows.length) throw new Error('別の画面で更新または削除されています。画面を再読み込みしてください。');
+      if (editingConcern?.id === item.id) resetConcernForm();
+      await load(); await open(recordId); message('record-concern-status', '気になったこと・変化を削除しました。');
+    } catch (error) {
+      message('record-concern-status', `削除できませんでした：${error.message}`, true); button.disabled = false;
+    }
   }
   async function saveConcern(event) {
     event.preventDefault(); const recordId = selected?.id, button = event.submitter;

@@ -201,8 +201,29 @@ function renderNeeds() {
       $('need-state').value = item.status_code; $('need-form-title').textContent = '困りごと・希望を編集';
       $('need-cancel').hidden = false; $('need-description').focus();
     });
-    card.append(edit); $('needs-list').append(card);
+    const remove = node('button', '削除する', 'danger-button'); remove.type = 'button';
+    remove.addEventListener('click', () => deleteNeed(item, remove));
+    const actions = node('div', '', 'item-actions'); actions.append(edit, remove);
+    card.append(actions); $('needs-list').append(card);
   });
+}
+async function deleteNeed(item, button) {
+  const id = needOrthosisId;
+  if (!id || !confirm('この「困りごと・希望」を削除しますか？')) return;
+  button.disabled = true;
+  try {
+    const rows = await request(`/rest/v1/kasi_user_needs?id=eq.${item.id}&row_version=eq.${item.row_version}&deleted_at=is.null`, {
+      method:'PATCH', headers:{'Content-Type':'application/json',Prefer:'return=representation'}, body:JSON.stringify({deleted_at:new Date().toISOString()})
+    });
+    if (!rows.length) throw new Error('別の画面で更新または削除されています。画面を再読み込みしてください。');
+    if (editingNeed?.id === item.id) resetNeedForm();
+    if (needOrthosisId === id) {
+      needs = await select('kasi_user_needs', `select=id,need_type,category_code,description,priority,status_code,row_version&user_orthosis_id=eq.${id}&deleted_at=is.null&order=created_at.asc`);
+      renderNeeds(); message('need-status', '困りごと・希望を削除しました。');
+    }
+  } catch (error) {
+    message('need-status', `削除できませんでした：${error.message}`, true); button.disabled = false;
+  }
 }
 async function loadNeedsForOrthosis(id) {
   needOrthosisId = id || ''; resetNeedForm(); $('needs-list').replaceChildren();

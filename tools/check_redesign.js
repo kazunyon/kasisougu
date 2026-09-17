@@ -36,6 +36,7 @@ async (page) => {
     kasi_usage_records:records,
     kasi_usage_record_observations:[{id:'obs-1',usage_record_id:'record-1',category_code:'ease_of_putting_on',result_code:'issue',rating:2,note:'ベルトが少し気になります',row_version:1}],
     kasi_usage_record_concerns:concerns,
+    kasi_user_needs:[{id:'need-1',user_orthosis_id:'orthosis-1',need_type:'problem',category_code:'weight',description:'長時間使うと重さが気になる',priority:2,status_code:'active',row_version:1}],
     kasi_profiles:[profile],
     kasi_personal_links:personalLinks,
     kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',selected:{orthoses:['orthosis-1'],needs:[],records:[],photos:['photo-1']},orthoses,records:[],photos}}],
@@ -72,6 +73,25 @@ async (page) => {
         const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
         const id = query.get('id')?.replace('eq.',''); const version = Number(query.get('row_version')?.replace('eq.',''));
         const saved = concerns.find(row => row.id === id && row.row_version === version);
+        if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
+        Object.assign(saved,request.postDataJSON(),{row_version:saved.row_version+1});
+        return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+      }
+    }
+    else if (pathname === '/rest/v1/kasi_user_needs') {
+      const userNeeds = tables.kasi_user_needs;
+      if (request.method() === 'GET') {
+        const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        body = userNeeds.filter(row => !row.deleted_at);
+        const orthosisId = query.get('user_orthosis_id')?.replace('eq.','');
+        if (orthosisId) body = body.filter(row => row.user_orthosis_id === orthosisId);
+      } else if (request.method() === 'POST') {
+        const saved = {...request.postDataJSON(),id:`need-${userNeeds.length + 1}`,row_version:1}; userNeeds.push(saved);
+        return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+      } else {
+        const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        const id = query.get('id')?.replace('eq.',''); const version = Number(query.get('row_version')?.replace('eq.',''));
+        const saved = userNeeds.find(row => row.id === id && row.row_version === version && !row.deleted_at);
         if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
         Object.assign(saved,request.postDataJSON(),{row_version:saved.row_version+1});
         return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
@@ -202,6 +222,7 @@ async (page) => {
   await page.locator('#record-orthosis-type').selectOption('kafo');
   await restoredNeedsResponse;
   assert(await page.locator('#record-orthosis').inputValue()==='orthosis-1','Record fixture must be restored before later regression checks');
+  assert((await page.locator('#needs-list').textContent()).includes('長時間使うと重さが気になる'),'Need fixture is missing');
   await page.screenshot({path:'output/playwright/redesign-record-desktop.png',fullPage:true});
   await go('orthosis');
   assert(JSON.stringify(await page.locator('#orthosis-list .orthosis-step-heading h3').allTextContents()) === JSON.stringify(['過去に使用','現在使用中','試用中']),'Orthosis flow order is incorrect');
