@@ -125,7 +125,7 @@ npx --yes --package @playwright/cli playwright-cli -s=green-redesign run-code --
 npx --yes --package @playwright/cli playwright-cli -s=green-redesign run-code --filename tools/check_current_records.js
 ```
 
-ほかに `check_redesign_flows.js`、`check_redesign_layout.js`、`check_unrecorded_orthoses.js`、`check_record_deletion.js`、`check_consultation_editable.js`、`check_consultation_delete.js` があります。各テストの前提データをそろえるため、個別確認では `check_redesign.js` を先に実行します。これらは実DBのRLS、SQL適用、Storage、復元の試験を代替しません。
+ほかに `check_redesign_flows.js`、`check_redesign_layout.js`、`check_unrecorded_orthoses.js`、`check_record_deletion.js`、`check_consultation_editable.js`、`check_consultation_delete.js`、`check_expired_session.js` があります。各テストの前提データをそろえるため、個別確認では `check_redesign.js` を先に実行します。これらは実DBのRLS、SQL適用、Storage、復元の試験を代替しません。
 
 ## ファイル構成
 
