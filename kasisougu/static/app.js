@@ -7,6 +7,10 @@ let profile = null, profileLoaded = false;
 let personalLinks = [], editingPersonalLink = null, personalLinksLoaded = false;
 function message(id, text, error = false) { $(id).textContent = text; $(id).classList.toggle('error', error); }
 function apiHeaders(extra = {}) { return {apikey: config.publishableKey, ...(token ? {Authorization: `Bearer ${token}`} : {}), ...extra}; }
+function resetSession(statusMessage = '') {
+  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
+  if (statusMessage) { message('auth-status', statusMessage, true); $('email').focus(); }
+}
 function setAuthenticatedView(ok) {
   document.body.classList.toggle('is-authenticated', ok);
   $('app-navigation').hidden = !ok;
@@ -18,7 +22,7 @@ function setAuthenticatedView(ok) {
   else { currentScreen = 'home'; screenLoads.clear(); document.title = '下肢装具サポート'; }
 }
 function assertConfig() { if (!config.url || !config.publishableKey) throw new Error('公開設定を確認してください。'); }
-async function request(path, options = {}) { const {headers: extraHeaders = {}, ...rest} = options; assertConfig(); const response = await fetch(`${config.url}${path}`, {...rest, headers: apiHeaders(extraHeaders)}); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || body.msg || '処理できませんでした。'); } const body = await response.text(); return body ? JSON.parse(body) : null; }
+async function request(path, options = {}) { const {headers: extraHeaders = {}, ...rest} = options; assertConfig(); const response = await fetch(`${config.url}${path}`, {...rest, headers: apiHeaders(extraHeaders)}); if (!response.ok) { const body = await response.json().catch(() => ({})); const detail = body.message || body.msg || ''; if (response.status === 401 && /jwt expired/i.test(detail)) { resetSession('ログインの有効期限が切れました。もう一度ログインしてください'); throw new Error('ログインの有効期限が切れました。もう一度ログインしてください'); } throw new Error(detail || '処理できませんでした。'); } const body = await response.text(); return body ? JSON.parse(body) : null; }
 async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
 function profileDisplayName() { return profile?.display_name || ''; }
 function applyTextScale(value) {
@@ -331,7 +335,7 @@ function setScreen(name) {
   window.scrollTo({top:0, behavior:'instant'});
 }
 $('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: $('email').value, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
-$('logout').addEventListener('click', () => { clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false); message('auth-status', 'ログアウトしました。'); $('email').focus(); });
+$('logout').addEventListener('click', () => resetSession('ログアウトしました。'));
 $('personal-link-add').addEventListener('click', () => showPersonalLinkForm());
 $('personal-link-cancel').addEventListener('click', resetPersonalLinkForm);
 $('personal-link-form').addEventListener('submit', async event => {
