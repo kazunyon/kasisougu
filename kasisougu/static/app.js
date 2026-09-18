@@ -11,7 +11,11 @@ function prepareNeedsPage() {
   document.querySelector('.record-needs')?.setAttribute('hidden', '');
   const sheetNeedsLegend = document.querySelector('#sheet-needs')?.parentElement.querySelector('legend');
   if (sheetNeedsLegend) sheetNeedsLegend.textContent = '掲載する相談したいこと';
-  const button = node('button', '相談したいこと', 'screen-link');
+  const button = node('button', '', 'screen-link');
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true'); icon.setAttribute('focusable', 'false');
+  icon.innerHTML = '<path d="M20 11a7 7 0 0 1-7 7H8l-4 3v-5a7 7 0 1 1 16-5z"/><path d="M8 10h8M8 14h5"/>';
+  button.append(icon, node('span', '相談したいこと', 'nav-long'), node('span', '相談', 'nav-short'));
   button.type = 'button'; button.dataset.screen = 'needs'; button.classList.add('desktop-needs-link');
   document.querySelector('.primary-nav').insertBefore(button, document.querySelector('[data-screen="consultation"]'));
   const menu = document.createElement('dialog'); menu.id = 'mobile-consult-menu'; menu.className = 'home-guide-dialog';
