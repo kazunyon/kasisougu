@@ -32,10 +32,21 @@ function nearbyLoadMaps() {
   const key = nearbyMapsKey();
   if (!key) return Promise.reject(new Error('地図検索の設定が未完了です。管理者は GOOGLE_MAPS_API_KEY を公開設定に追加してください。'));
   nearbyMapsPromise = new Promise((resolve, reject) => {
+    const callbackName = '__kasiNearbyMapsReady';
+    const fail = message => {
+      delete window[callbackName];
+      nearbyMapsPromise = null;
+      reject(new Error(message));
+    };
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&language=ja&region=JP&loading=async`;
-    script.async = true; script.onerror = () => reject(new Error('Google Maps を読み込めませんでした。接続とAPIキーの設定を確認してください。'));
-    script.onload = () => window.google?.maps?.importLibrary ? resolve(window.google.maps) : reject(new Error('Google Maps の初期化に失敗しました。'));
+    window[callbackName] = () => {
+      delete window[callbackName];
+      if (window.google?.maps?.importLibrary) resolve(window.google.maps);
+      else fail('Google Maps の初期化に失敗しました。');
+    };
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&language=ja&region=JP&loading=async&callback=${callbackName}`;
+    script.async = true;
+    script.onerror = () => fail('Google Maps を読み込めませんでした。接続とAPIキーの設定を確認してください。');
     document.head.append(script);
   });
   return nearbyMapsPromise;
