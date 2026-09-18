@@ -356,7 +356,7 @@ async function deletePhoto(item) {
     if (orthosis?.id === id) { await refreshPhotos(); message('photo-status', '写真を削除しました。'); }
   } catch (error) { message('photo-status', `削除を完了できませんでした：${error.message}`, true); }
 }
-const screenNames = {home:'ホーム', orthosis:'自分の装具', catalog:'装具図鑑', record:'使用記録', needs:'相談したいこと', consultation:'相談シート', links:'リンク集', settings:'設定'};
+const screenNames = {home:'ホーム', orthosis:'自分の装具', catalog:'装具図鑑', record:'使用記録', needs:'相談したいこと', consultation:'相談シート', nearby:'近くで探す', links:'リンク集', settings:'設定'};
 let currentScreen = 'home';
 const screenLoads = new Map();
 function setScreen(name) {
@@ -494,6 +494,7 @@ async function navigateTo(screen, action = '') {
       if (screen === 'record') { await loadOrthoses(); await KASI_F04.init(); }
       if (screen === 'needs') { await loadOrthoses(); await loadNeeds(); }
       if (screen === 'consultation') await KASI_F05.init();
+      if (screen === 'nearby' && window.KASI_NEARBY) KASI_NEARBY.init();
       if (screen === 'settings' && !profileLoaded) await loadProfile();
       if (screen === 'links' && !personalLinksLoaded) await loadPersonalLinks();
     };
@@ -503,7 +504,7 @@ async function navigateTo(screen, action = '') {
     await screenLoads.get(screen);
     if (currentScreen === screen && action === 'new-record' && $('record-form').hidden) $('record-add').click();
   } catch (error) {
-    const status = {home:'home-status',orthosis:'orthosis-list-status',catalog:'catalog-status',record:'record-list-status',needs:'need-status',consultation:'sheet-list-status',settings:'profile-status'};
+    const status = {home:'home-status',orthosis:'orthosis-list-status',catalog:'catalog-status',record:'record-list-status',needs:'need-status',consultation:'sheet-list-status',nearby:'nearby-status',settings:'profile-status'};
     message(status[screen], error.message, true);
   }
 }
