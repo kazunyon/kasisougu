@@ -84,10 +84,10 @@ const F03 = (() => {
     for (const item of found) {
       const card = node('article', '', 'catalog-card');
       if (item.media.length) card.append(imageNode(item.media[0]));
-      card.append(node('p', valuesOf(item, 'support_scope'), 'catalog-card-category'), node('h3', nameOf(item)), node('p', item.summary, 'catalog-card-summary'));
+      card.append(node('p', valuesOf(item, 'support_scope'), 'catalog-card-category'), formattedNode('h3', nameOf(item)), formattedNode('p', item.summary, 'catalog-card-summary'));
       const facts = node('dl', '', 'catalog-card-facts');
       for (const [label, value] of [['素材', valuesOf(item, 'material')], ['足元', valuesOf(item, 'foot_structure')]]) {
-        const pair = node('div', '', 'catalog-card-fact'); pair.append(node('dt', label), node('dd', value)); facts.append(pair);
+        const pair = node('div', '', 'catalog-card-fact'); pair.append(node('dt', label), formattedNode('dd', value)); facts.append(pair);
       }
       card.append(facts);
       const actions = node('div', '', 'catalog-card-actions'), detail = node('button', '詳細を見る');
@@ -98,13 +98,13 @@ const F03 = (() => {
   }
   function fact(list, label, value) {
     const pair = node('div', '', 'catalog-detail-fact');
-    pair.append(node('dt', label), node('dd', value || unknown)); list.append(pair);
+    pair.append(node('dt', label), formattedNode('dd', value || unknown)); list.append(pair);
   }
   function renderDetail(item) {
-    $('catalog-detail-title').textContent = nameOf(item); $('catalog-detail-body').replaceChildren();
+    $('catalog-detail-title').replaceChildren(); appendFormattedText($('catalog-detail-title'), nameOf(item)); $('catalog-detail-body').replaceChildren();
     const body = $('catalog-detail-body');
     const status = node('p', '', 'catalog-detail-status'); status.id = 'catalog-detail-status'; body.append(status);
-    if (item.title !== nameOf(item)) body.append(node('p', item.title, 'catalog-detail-subtitle'));
+    if (item.title !== nameOf(item)) body.append(formattedNode('p', item.title, 'catalog-detail-subtitle'));
     const gallery = node('div', '', 'catalog-gallery');
     if (item.media.length) item.media.forEach(photo => gallery.append(imageNode(photo)));
     else gallery.append(node('p', '写真は未確認です。', 'catalog-image-fallback'));
@@ -119,11 +119,11 @@ const F03 = (() => {
     ]) fact(facts, label, value);
     body.append(facts);
     const summary = node('section', '', 'catalog-detail-section');
-    summary.append(node('h3', '概要'), node('p', item.summary)); body.append(summary);
+    summary.append(node('h3', '概要'), formattedNode('p', item.summary)); body.append(summary);
     const questions = node('section', '', 'catalog-detail-section'), list = node('ul', '', 'catalog-question-list');
     questions.append(node('h3', '専門家に確認したいこと（一般的な例）'));
     const questionsToShow = Array.isArray(item.expert_questions) && item.expert_questions.length ? item.expert_questions : ['左手だけで着け外しできるか', '車椅子に座ったまま着けられるか', '普段の靴に合うか', '圧迫や痛みがないか'];
-    for (const question of questionsToShow) list.append(node('li', question));
+    for (const question of questionsToShow) list.append(formattedNode('li', question));
     questions.append(list); body.append(questions);
     const sources = node('section', '', 'catalog-detail-section'), sourceList = node('ul', '', 'catalog-source-list');
     sources.append(node('h3', '出典'));
@@ -210,7 +210,7 @@ const F03 = (() => {
     ];
     for (const [label, getValue] of rows) {
       const tr = node('tr', ''); tr.append(node('th', label));
-      selected.forEach(item => tr.append(node('td', getValue(item)))); tbody.append(tr);
+      selected.forEach(item => tr.append(formattedNode('td', getValue(item)))); tbody.append(tr);
     }
     const sourceRow = node('tr', ''); sourceRow.append(node('th', '出典'));
     selected.forEach(item => { const cell = node('td', '');

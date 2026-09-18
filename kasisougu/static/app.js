@@ -7,6 +7,17 @@ let profile = null, profileLoaded = false;
 let personalLinks = [], editingPersonalLink = null, personalLinksLoaded = false;
 function message(id, text, error = false) { $(id).textContent = text; $(id).classList.toggle('error', error); }
 function apiHeaders(extra = {}) { return {apikey: config.publishableKey, ...(token ? {Authorization: `Bearer ${token}`} : {}), ...extra}; }
+function appendFormattedText(element, value) {
+  const source = String(value ?? ''); let index = 0;
+  for (const match of source.matchAll(/~~(.+?)~~/gs)) {
+    element.append(document.createTextNode(source.slice(index, match.index)));
+    const deleted = document.createElement('del'); deleted.textContent = match[1]; element.append(deleted);
+    index = match.index + match[0].length;
+  }
+  element.append(document.createTextNode(source.slice(index)));
+  return element;
+}
+function formattedNode(tag, text, className) { const element = node(tag, '', className); return appendFormattedText(element, text); }
 function resetSession(statusMessage = '') {
   clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
   if (statusMessage) { message('auth-status', statusMessage, true); $('email').focus(); }
@@ -117,7 +128,7 @@ function renderPersonalLinks() {
   if (!personalLinks.length) { list.append(node('p', 'まだ自分用リンクはありません。「リンクを追加」から保存できます。', 'personal-links-empty')); return; }
   personalLinks.forEach(item => {
     const card = node('article', '', 'personal-link-card'); card.append(node('h3', item.title));
-    if (item.note) card.append(node('p', item.note));
+    if (item.note) card.append(formattedNode('p', item.note));
     card.append(externalLinkNode(item.url));
     const actions = node('div', '', 'personal-link-actions');
     const edit = node('button', '編集する'); edit.type = 'button'; edit.addEventListener('click', () => showPersonalLinkForm(item));
@@ -198,7 +209,7 @@ function renderNeeds() {
   if (!needs.length) $('needs-list').append(node('p', '困りごと・希望はまだ登録されていません。'));
   needs.forEach(item => {
     const card = node('article', '', 'need-card');
-    card.append(node('h4', `${item.need_type === 'problem' ? '困りごと' : '希望'} · ${categoryLabels[item.category_code] || 'その他'}`), node('p', item.description || '説明なし'), node('p', `${{active:'対応中',resolved:'解決済み',archived:'保管'}[item.status_code]} · 優先度 ${item.priority || '未設定'}`));
+    card.append(node('h4', `${item.need_type === 'problem' ? '困りごと' : '希望'} · ${categoryLabels[item.category_code] || 'その他'}`), formattedNode('p', item.description || '説明なし'), node('p', `${{active:'対応中',resolved:'解決済み',archived:'保管'}[item.status_code]} · 優先度 ${item.priority || '未設定'}`));
     const edit = node('button', '編集する'); edit.type = 'button'; edit.addEventListener('click', () => {
       editingNeed = item; $('need-type').value = item.need_type; $('need-category').value = item.category_code;
       $('need-description').value = item.description || ''; $('need-priority').value = item.priority || '';

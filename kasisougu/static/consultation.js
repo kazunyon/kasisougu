@@ -43,7 +43,7 @@ const F05 = (() => {
       const state = row.snapshot_json?.revised_from
         ? row.status_code === 'finalized' ? '追記版・確定済み' : '追記の下書き'
         : row.status_code === 'finalized' ? '確定済み' : '下書き';
-      card.append(node('h3', row.title), node('p', `${row.consultation_on || '相談日未記入'} · ${state}`));
+      card.append(formattedNode('h3', row.title), node('p', `${row.consultation_on || '相談日未記入'} · ${state}`));
       const button = node('button', row.status_code === 'finalized' ? '内容を見る・編集' : '開いて編集');
       const remove = node('button', '削除', 'danger-button');
       button.type = 'button'; button.addEventListener('click', () => open(row.id));
@@ -268,20 +268,20 @@ const F05 = (() => {
     } finally { button.disabled = false; }
   }
   function section(body, heading) { const area = node('section', '', 'sheet-section'); area.append(node('h3', heading)); body.append(area); return area; }
-  function paragraph(parent, label, value) { parent.append(node('p', `${label}：${text(value)}`)); }
+  function paragraph(parent, label, value) { const line = node('p', `${label}：`); appendFormattedText(line, text(value)); parent.append(line); }
   function comparisonForSnapshot(rows) {
     const table = node('table','','comparison-table'), head = node('thead',''), header = node('tr','');
     ['比較項目', ...rows.map(row => `${row.recorded_on} · ${row.orthosis_name}`)].forEach(x => header.append(node('th',x)));
     head.append(header); table.append(head); const tbody = node('tbody','');
     const fields = [['靴',r => r.footwear],['場所・訓練内容',r => r.usage_setting],['介助',r => assistanceLabels[r.assistance_level] || '未評価'],['使用時間',r => r.duration_minutes == null ? null : `${r.duration_minutes}分`],
       ...recordCategories.map(([code,label]) => [label, r => { const obs = r.observations?.find(item => item.category_code === code); return `${resultLabels[obs?.result_code || 'not_evaluated']}${obs?.rating ? `（${obs.rating}/5）` : ''}${obs?.note ? `：${obs.note}` : ''}`; }])];
-    fields.forEach(([label,get]) => { const tr = node('tr',''); tr.append(node('th',label)); rows.forEach(row => tr.append(node('td',text(get(row))))); tbody.append(tr); });
+    fields.forEach(([label,get]) => { const tr = node('tr',''); tr.append(node('th',label)); rows.forEach(row => tr.append(formattedNode('td',text(get(row))))); tbody.append(tr); });
     table.append(tbody); return table;
   }
   async function showPreview(snapshot) {
     clearUrls(); const serial = previewSerial, body = $('consultation-preview-body'); body.replaceChildren();
     $('sheet-revise').hidden = selected?.status_code !== 'finalized';
-    $('sheet-preview-title').textContent = snapshot.title || '相談シート';
+    $('sheet-preview-title').replaceChildren(); appendFormattedText($('sheet-preview-title'), snapshot.title || '相談シート');
     const meta = section(body,'相談の概要');
     paragraph(meta,'本人名',snapshot.display_name); paragraph(meta,'相談日',snapshot.consultation_on); paragraph(meta,'相談先',snapshot.recipient);
     paragraph(meta,'作成日',snapshot.captured_at ? snapshot.captured_at.slice(0,10) : new Date().toLocaleDateString('sv-SE'));
@@ -295,7 +295,7 @@ const F05 = (() => {
         catch(error) { image.replaceWith(node('p',`写真を表示できません：${error.message}`,'error')); }
       }
     }
-    const questions=section(body,'聞きたいこと'); questions.append(node('p',text(snapshot.question_text)));
+    const questions=section(body,'聞きたいこと'); questions.append(formattedNode('p',text(snapshot.question_text)));
     const answers=section(body,'専門家の記入欄'); answers.append(node('div','','expert-writing-space'));
     $('consultation-preview').hidden=false;
   }

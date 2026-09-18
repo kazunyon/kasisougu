@@ -77,7 +77,7 @@ const F04 = (() => {
       const card = node('article', '', 'record-card');
       card.dataset.recordId = row.id;
       card.classList.toggle('selected', row.id === selected?.id);
-      card.append(node('h3', title(row)), node('p', `${value(row.usage_setting)} · ${row.duration_minutes == null ? '使用時間未記入' : `${row.duration_minutes}分`}`), node('p', row.overall_note || 'その日の感想なし'));
+      card.append(node('h3', title(row)), node('p', `${value(row.usage_setting)} · ${row.duration_minutes == null ? '使用時間未記入' : `${row.duration_minutes}分`}`), formattedNode('p', row.overall_note || 'その日の感想なし'));
       const button = node('button', 'この記録を開く'); button.type = 'button'; button.setAttribute('aria-controls', 'record-detail'); button.setAttribute('aria-pressed', String(row.id === selected?.id)); button.addEventListener('click', () => open(row.id)); card.append(button);
       $('record-list').append(card);
     });
@@ -87,7 +87,7 @@ const F04 = (() => {
   function renderHomeRecords() {
     const box = $('record-summary'); box.replaceChildren();
     if (!records.length) box.append(node('p', '保存された記録はありません。'));
-    records.slice(0, 3).forEach(row => box.append(node('p', `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具'} · ${row.overall_note || 'その日の感想なし'}`)));
+    records.slice(0, 3).forEach(row => box.append(formattedNode('p', `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具'} · ${row.overall_note || 'その日の感想なし'}`)));
   }
   async function load() {
     const rows = await select('kasi_usage_records', 'select=*&deleted_at=is.null&order=recorded_on.desc,created_at.desc');
@@ -229,13 +229,13 @@ const F04 = (() => {
   function leaveOrthosisRegistration() { registeringOrthosis = false; }
   function facts(row) {
     const entries = [['使用日', row.recorded_on], ['装具', orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '未登録'], ['靴', value(row.footwear)], ['場所・訓練内容', value(row.usage_setting)], ['介助', assistanceLabels[row.assistance_level] || '未評価'], ['使用時間', row.duration_minutes == null ? '未記入' : `${row.duration_minutes}分`], ['その日の感想', value(row.overall_note)]];
-    $('record-facts').replaceChildren(); entries.forEach(([a,b]) => $('record-facts').append(node('dt',a),node('dd',b)));
+    $('record-facts').replaceChildren(); entries.forEach(([a,b]) => $('record-facts').append(node('dt',a),formattedNode('dd',b)));
   }
   function renderEvaluationDetails(row) {
     $('record-detail-evaluations').replaceChildren();
     recordCategories.forEach(([code, label]) => {
       const obs = observation(row, code), result = resultLabels[obs?.result_code || 'not_evaluated'];
-      $('record-detail-evaluations').append(node('p', `${label}：${result}${obs?.rating ? `（${obs.rating}/5）` : ''}${obs?.note ? `\n${obs.note}` : ''}`));
+      $('record-detail-evaluations').append(formattedNode('p', `${label}：${result}${obs?.rating ? `（${obs.rating}/5）` : ''}${obs?.note ? `\n${obs.note}` : ''}`));
     });
   }
   function resetConcernForm() {
@@ -254,9 +254,9 @@ const F04 = (() => {
     if (!row.concerns?.length) list.append(node('p', '気になったこと・変化はまだありません。', 'empty-state'));
     (row.concerns || []).forEach(item => {
       const card = node('article', '', 'concern-card');
-      card.append(node('h4', `${item.noted_on} · ${concernCategoryLabels[item.category_code] || 'その他'}`), node('p', item.description), node('p', `対応状況：${concernStatusLabels[item.status_code] || '未対応'}`));
-      if (item.occurred_timing) card.append(node('p', `発生時期：${item.occurred_timing}`));
-      if (item.action_note) card.append(node('p', `対応内容：${item.action_note}`));
+      card.append(node('h4', `${item.noted_on} · ${concernCategoryLabels[item.category_code] || 'その他'}`), formattedNode('p', item.description), node('p', `対応状況：${concernStatusLabels[item.status_code] || '未対応'}`));
+      if (item.occurred_timing) card.append(formattedNode('p', `発生時期：${item.occurred_timing}`));
+      if (item.action_note) card.append(formattedNode('p', `対応内容：${item.action_note}`));
       if (item.resolved_on) card.append(node('p', `解決日：${item.resolved_on}`));
       const edit = node('button', '編集する'); edit.type = 'button'; edit.addEventListener('click', () => {
         editingConcern = item; $('record-concern-form-title').textContent = '気になったこと・変化を編集';
