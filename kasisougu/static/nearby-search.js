@@ -15,14 +15,15 @@ const KASI_NEARBY_TRANSPORT = {
   welfare_taxi:{label:'福祉タクシー',mode:'DRIVING',note:'車の経路を参考表示'},
   electric_wheelchair:{label:'電動車いす',mode:'WALKING',note:'徒歩経路を参考表示'}
 };
-const KASI_NEARBY_ADDRESS_API = 'https://japanese-addresses-v2.geoloniamaps.com/api/ja/';
+// This endpoint permits browser cross-origin requests. It contains the nationwide
+// prefecture-to-municipality list but no facility records.
+const KASI_NEARBY_ADDRESS_API = 'https://geolonia.github.io/japanese-addresses/api/ja.json';
 const nearby$ = id => document.getElementById(id);
 let nearbyReady = false;
 let nearbyMapsPromise = null;
 const nearbyMunicipalities = new Map();
 
 function nearbyOption(value, text) { const option = document.createElement('option'); option.value = value; option.textContent = text; return option; }
-function nearbyCityName(city) { return `${city.city || ''}${city.ward || ''}`; }
 function nearbySetStatus(text, error = false) { const status = nearby$('nearby-status'); status.textContent = text; status.classList.toggle('error', error); }
 function nearbyMapsKey() { return window.KASISOUGU_SUPABASE_CONFIG?.googleMapsApiKey || ''; }
 function nearbyLoadMaps() {
@@ -48,11 +49,10 @@ async function nearbyLoadMunicipalities() {
   try {
     let cities = nearbyMunicipalities.get(prefecture);
     if (!cities) {
-      const response = await fetch(`${KASI_NEARBY_ADDRESS_API}${encodeURIComponent(prefecture)}.json`);
+      const response = await fetch(KASI_NEARBY_ADDRESS_API);
       if (!response.ok) throw new Error('市区町村データを取得できませんでした。');
       const payload = await response.json();
-      const record = payload.data?.find(item => item.pref === prefecture) || payload;
-      cities = (record.cities || []).map(city => ({name:nearbyCityName(city), point:city.point})).filter(city => city.name && Array.isArray(city.point)).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+      cities = (payload[prefecture] || []).map(name => ({name})).filter(city => city.name).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
       if (!cities.length) throw new Error('市区町村データが見つかりませんでした。');
       nearbyMunicipalities.set(prefecture, cities);
     }
@@ -70,12 +70,11 @@ function nearbySelectedCity() {
   return nearbyMunicipalities.get(prefecture)?.find(city => city.name === name) || null;
 }
 function nearbySearchText(condition) { return `${KASI_NEARBY_PURPOSES[condition.purpose].query} ${condition.prefecture}${condition.municipality}`; }
-async function nearbyFindPlaces(maps, condition, city) {
+async function nearbyFindPlaces(maps, condition) {
   const {Place} = await maps.importLibrary('places');
   const {places = []} = await Place.searchByText({
     textQuery: nearbySearchText(condition),
     fields:['displayName','formattedAddress','location','googleMapsURI','websiteURI','nationalPhoneNumber','businessStatus'],
-    locationBias:{center:{lat:Number(city.point[1]), lng:Number(city.point[0])}, radius:30000},
     maxResultCount:8,
     language:'ja', region:'JP'
   });
@@ -86,14 +85,14 @@ async function nearbyFindPlaces(maps, condition, city) {
     mapsUrl:place.googleMapsURI || '', website:place.websiteURI || '', phone:place.nationalPhoneNumber || ''
   }));
 }
-function nearbyRoute(maps, origin, destination, transport) {
-  const service = new maps.DirectionsService();
-  return new Promise(resolve => {
-    service.route({origin, destination, travelMode:maps.TravelMode[transport.mode]}, (result, status) => {
-      if (status !== 'OK' || !result?.routes?.[0]?.legs?.[0]) return resolve(null);
-      const leg = result.routes[0].legs[0]; resolve({seconds:leg.duration.value, duration:leg.duration.text, distance:leg.distance?.text || ''});
-    });
-  });
+function nearbyDuration(seconds) { const minutes = Math.max(1, Math.round(seconds / 60)); return minutes >= 60 ? `${Math.floor(minutes / 60)}時間${minutes % 60 ? `${minutes % 60}分` : ''}` : `${minutes}分`; }
+function nearbyDistance(meters) { return meters >= 1000 ? `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km` : `${Math.round(meters)} m`; }
+async function nearbyRoute(maps, origin, destination, transport) {
+  const {Route} = await maps.importLibrary('routes');
+  const {routes = []} = await Route.computeRoutes({origin, destination, travelMode:transport.mode, fields:['durationMillis','distanceMeters'], region:'jp'});
+  const route = routes[0];
+  if (!route || !Number.isFinite(route.durationMillis)) return null;
+  return {seconds:Math.round(route.durationMillis / 1000), duration:nearbyDuration(route.durationMillis / 1000), distance:Number.isFinite(route.distanceMeters) ? nearbyDistance(route.distanceMeters) : ''};
 }
 function nearbyRenderResults(items, condition) {
   const container = nearby$('nearby-results'); container.replaceChildren();
@@ -123,8 +122,8 @@ async function nearbySearch() {
   const button = nearby$('nearby-search'); button.disabled = true; nearby$('nearby-results').replaceChildren(); nearbySetStatus('施設と経路を検索しています…');
   try {
     const maps = await nearbyLoadMaps();
-    const places = await nearbyFindPlaces(maps, condition, city);
-    const origin = {lat:Number(city.point[1]), lng:Number(city.point[0])};
+    const places = await nearbyFindPlaces(maps, condition);
+    const origin = `${condition.prefecture}${condition.municipality}`;
     const transport = KASI_NEARBY_TRANSPORT[condition.transport];
     const routed = (await Promise.all(places.map(async place => ({...place, route:await nearbyRoute(maps, origin, place.location, transport)})))).filter(item => item.route && item.route.seconds <= condition.duration * 60).sort((a, b) => a.route.seconds - b.route.seconds).slice(0, 5);
     nearbyRenderResults(routed, condition);
