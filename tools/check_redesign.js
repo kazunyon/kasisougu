@@ -46,7 +46,7 @@ async (page) => {
   };
   let mutations = 0;
   await page.route('**/pages-config.js', route => route.fulfill({contentType:'application/javascript',body:'window.KASISOUGU_SUPABASE_CONFIG={url:"https://redesign-test.invalid",publishableKey:"sb_publishable_fixture",googleMapsApiKey:"browser-restricted-fixture"};'}));
-  await page.route('https://japanese-addresses-v2.geoloniamaps.com/**', route => route.fulfill({contentType:'application/json',body:JSON.stringify({pref:'埼玉県',cities:[{city:'さいたま市',point:[139.6489,35.8617]},{city:'川口市',point:[139.7242,35.8078]}]})}));
+  await page.route('https://geolonia.github.io/japanese-addresses/**', route => route.fulfill({contentType:'application/json',body:JSON.stringify({'埼玉県':['さいたま市','川口市']})}));
   await page.route('**/sw.js', route => route.fulfill({contentType:'application/javascript',body:'// Disabled only in the isolated browser smoke check.'}));
   await page.route('https://redesign-test.invalid/**', async route => {
     const request = route.request(), pathname = request.url().split('.invalid')[1].split('?')[0];
@@ -167,9 +167,7 @@ async (page) => {
   await page.evaluate(() => {
     const places = Array.from({length:6}, (_, index) => ({displayName:`制度相談テスト施設 ${index + 1}`,formattedAddress:`埼玉県さいたま市テスト${index + 1}`,location:{lat:() => 35.86 + index / 1000,lng:() => 139.64 + index / 1000},googleMapsURI:`https://maps.google.com/?q=test-${index + 1}`,websiteURI:`https://example.invalid/facility-${index + 1}`,nationalPhoneNumber:'048-000-0000'}));
     window.google = {maps:{
-      importLibrary:async () => ({Place:{searchByText:async () => ({places})}}),
-      TravelMode:{DRIVING:'DRIVING',TRANSIT:'TRANSIT',WALKING:'WALKING'},
-      DirectionsService:class { route(request, callback) { callback({routes:[{legs:[{duration:{value:1200,text:'20 分'},distance:{text:'8 km'}}]}]},'OK'); } }
+      importLibrary:async name => name === 'places' ? ({Place:{searchByText:async () => ({places})}}) : ({Route:{computeRoutes:async () => ({routes:[{durationMillis:1200000,distanceMeters:8000}]})}})
     }};
   });
   assert(await page.getByText('装具のこと、使って感じたことを少しずつ残しましょう。',{exact:true}).count()===0,'Removed home lead remains');
