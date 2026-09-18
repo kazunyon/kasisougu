@@ -79,7 +79,7 @@
     <section id="consultation-preview" class="print-preview" hidden aria-labelledby="sheet-preview-title"><h2 id="sheet-preview-title">相談シート</h2><div id="consultation-preview-body"></div><div class="form-actions print-controls"><button type="button" id="sheet-revise" hidden>内容を編集する</button><button type="button" id="print-consultation">A4で印刷する</button></div></section>
   </section>
   <section id="nearby-page" class="app-page" hidden aria-labelledby="nearby-title">
-    <div class="page-title"><p class="screen-id">近くで探す</p><h1 id="nearby-title">相談先を、近くから探す。</h1><p class="lead">選んだ地域・移動手段・目的に合う確認済みの相談先を、最大5件表示します。</p></div>
+    <div class="page-title"><p class="screen-id">近くで探す</p><h1 id="nearby-title">相談先を、近くから探す。</h1><p class="lead">選んだ地域・移動手段・目的に合う相談先を、地図検索から最大5件表示します。</p></div>
     <section class="form-panel nearby-search-panel" aria-labelledby="nearby-search-title">
       <h2 id="nearby-search-title">条件を選ぶ</h2>
       <div class="form-grid"><label>都道府県<select id="nearby-prefecture" required></select></label><label>市区町村<select id="nearby-municipality" required disabled></select></label><label>移動手段<select id="nearby-transport"><option value="car">車</option><option value="public_transport">公共交通</option><option value="welfare_taxi">福祉タクシー</option><option value="electric_wheelchair">電動車いす</option></select></label><label>移動可能時間<select id="nearby-duration"><option value="30">30分</option><option value="60" selected>60分</option><option value="90">90分</option></select></label><label class="nearby-purpose">探す目的<select id="nearby-purpose"><option value="manufacture">装具の製作</option><option value="repair">修理</option><option value="fitting">適合確認</option><option value="rehabilitation">リハビリ</option><option value="consultation">制度相談</option></select></label></div>
@@ -87,7 +87,7 @@
     </section>
     <p id="nearby-status" class="nearby-status" role="status" aria-live="polite">地域と条件を選んでください。</p>
     <section class="nearby-results-section" aria-labelledby="nearby-results-title"><div class="section-heading"><div><p class="section-kicker">検索結果</p><h2 id="nearby-results-title">相談先候補</h2></div><p class="nearby-results-limit">表示は最大5件</p></div><div id="nearby-results" class="nearby-results"></div></section>
-    <aside class="nearby-caution"><h2>利用上の注意</h2><p>表示する所要時間は確認済み情報または一般的な移動時間を基にした目安です。道路状況、運行状況、予約の要否、車いすでの通行可否や設備は反映していません。受診・製作・修理の可否は、必ず各施設へ事前に確認してください。</p></aside>
+    <aside class="nearby-caution"><h2>利用上の注意</h2><p>施設候補は検索時にGoogle Mapsから取得します。経路は選んだ市区町村の代表地点からの計算です。福祉タクシーは車の経路、電動車いすは徒歩経路を参考表示します。道路・運行・車いすでの通行可否、予約、製作・修理・受診の可否は反映していないため、必ず施設へ事前に確認してください。</p></aside>
   </section>
   <section id="links-page" class="app-page" hidden aria-labelledby="links-title">
     <div class="page-title"><p class="screen-id">お役立ち情報</p><h1 id="links-title">リンク集</h1><p class="lead">装具について調べたいときに役立つサイトを紹介します。</p></div>
