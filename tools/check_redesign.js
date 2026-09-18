@@ -179,7 +179,15 @@ async (page) => {
     assert(await page.locator(selector).getAttribute('aria-current') === 'page', `Current page is not marked: ${screen}`);
   };
   await page.screenshot({path:'output/playwright/redesign-home-desktop.png',fullPage:true});
-  for (const screen of ['catalog','record','consultation','links','settings','orthosis','home']) await go(screen);
+  for (const screen of ['catalog','record','consultation','nearby','links','settings','orthosis','home']) await go(screen);
+  await go('nearby');
+  await page.getByLabel('都道府県',{exact:true}).selectOption('埼玉県');
+  await page.getByLabel('市区町村',{exact:true}).selectOption('さいたま市');
+  await page.getByLabel('探す目的',{exact:true}).selectOption('consultation');
+  await page.getByRole('button',{name:'条件に合う相談先を探す',exact:true}).click();
+  assert(await page.locator('#nearby-results .nearby-card').count() === 4,'Nearby search must return the confirmed Saitama candidates');
+  assert((await page.locator('#nearby-results').textContent()).includes('さいたま市 障害者生活支援センター'),'Nearby consultation candidate is missing');
+  assert(await page.locator('#nearby-results a[target="_blank"]').count() === 4,'Nearby official links must open in a new tab');
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
   await go('links');
   const priceGuide = page.locator('a[href="https://sogulabblog.com/price/"]');

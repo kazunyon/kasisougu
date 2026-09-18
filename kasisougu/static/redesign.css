@@ -304,10 +304,25 @@ h1, .next-step h2 { text-wrap: balance; }
 
 .resource-link-featured { border-top: 4px solid #b73636; }
 .resource-featured-label { display: inline-block; margin-right: 8px; padding: 3px 9px; border-radius: 6px; background: #fbeeee; color: #a32d2d; font-weight: 700; }
+.nearby-search-panel { max-width: 900px; }
+.nearby-search-panel .form-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.nearby-purpose { grid-column: 1 / -1; }
+.nearby-status { min-height: 1.5em; margin: 18px 0; color: var(--muted); }
+.nearby-results { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.nearby-card, .nearby-empty, .nearby-caution { border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+.nearby-card { position: relative; padding: 22px; }
+.nearby-card h3 { margin: 10px 36px 8px 0; font-size: 1.1rem; line-height: 1.5; }
+.nearby-card p { margin: 9px 0; }
+.nearby-category { display: inline-block; margin: 0; padding: 4px 9px; border-radius: 999px; background: #e7f4eb; color: var(--dark-green); font-size: .78rem; font-weight: 700; }
+.nearby-details, .nearby-source { color: var(--muted); font-size: .88rem; }
+.nearby-rank { position: absolute; top: 18px; right: 18px; display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: var(--green); color: #fff; font-weight: 700; font-size: .85rem; }
+.nearby-empty { padding: 22px; color: var(--muted); }
+.nearby-caution { margin-top: 22px; padding: 18px 22px; color: var(--muted); font-size: .9rem; }
+.nearby-caution p { margin: 0; }
 @media (min-width:1100px) {
   .resource-links { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; }
 }
-@media (max-width:760px) { .resource-section-heading { display: block; } .resource-section-heading > p { margin-top: 8px; } .resource-section-heading .primary { width: 100%; margin-top: 16px; } }
+@media (max-width:760px) { .resource-section-heading { display: block; } .resource-section-heading > p { margin-top: 8px; } .resource-section-heading .primary { width: 100%; margin-top: 16px; } .primary-nav:has(.nearby-nav-link) { grid-template-columns:repeat(4,minmax(0,1fr)); } .nearby-search-panel .form-grid, .nearby-results { grid-template-columns:1fr; } .nearby-purpose { grid-column:auto; } }
 
 .record-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
 .record-selection select { padding: 12px; max-width: 100%; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
