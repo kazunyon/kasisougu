@@ -22,7 +22,7 @@ index = index.replace('href="/static/', 'href="./').replace('src="/static/', 'sr
 index = index.replace('href="/"', 'href="./"')
 index = index.replace('<script defer src="./app.js"></script>', '<script src="./pages-config.js"></script><script defer src="./app.js"></script>')
 (target / 'index.html').write_text(index, encoding='utf-8')
-(target / 'pages-config.js').write_text('window.KASISOUGU_SUPABASE_CONFIG = ' + json.dumps({'url': api_url, 'publishableKey': publishable_key}) + ';\n', encoding='utf-8')
+(target / 'pages-config.js').write_text('window.KASISOUGU_SUPABASE_CONFIG = ' + json.dumps({'url': api_url, 'publishableKey': publishable_key, 'googleMapsApiKey': os.environ.get('GOOGLE_MAPS_API_KEY', '')}) + ';\n', encoding='utf-8')
 
 manifest = json.loads((target / 'manifest.webmanifest').read_text(encoding='utf-8'))
 manifest['id'] = './'

@@ -45,7 +45,8 @@ async (page) => {
     kasi_catalog_item_terms:[0,1,2,3].map(i=>({catalog_item_id:`catalog-${i}`,kasi_catalog_terms:{id:`term-${i}`,code:i===2?'afo':'kafo',term_group:'support_scope',label_ja:i===2?'短下肢装具（AFO）':'長下肢装具（KAFO）',is_active:true}}))
   };
   let mutations = 0;
-  await page.route('**/pages-config.js', route => route.fulfill({contentType:'application/javascript',body:'window.KASISOUGU_SUPABASE_CONFIG={url:"https://redesign-test.invalid",publishableKey:"sb_publishable_fixture"};'}));
+  await page.route('**/pages-config.js', route => route.fulfill({contentType:'application/javascript',body:'window.KASISOUGU_SUPABASE_CONFIG={url:"https://redesign-test.invalid",publishableKey:"sb_publishable_fixture",googleMapsApiKey:"browser-restricted-fixture"};'}));
+  await page.route('https://japanese-addresses-v2.geoloniamaps.com/**', route => route.fulfill({contentType:'application/json',body:JSON.stringify({pref:'埼玉県',cities:[{city:'さいたま市',point:[139.6489,35.8617]},{city:'川口市',point:[139.7242,35.8078]}]})}));
   await page.route('**/sw.js', route => route.fulfill({contentType:'application/javascript',body:'// Disabled only in the isolated browser smoke check.'}));
   await page.route('https://redesign-test.invalid/**', async route => {
     const request = route.request(), pathname = request.url().split('.invalid')[1].split('?')[0];
@@ -163,6 +164,14 @@ async (page) => {
   await page.getByRole('button',{name:'ログインする',exact:true}).click();
   await page.locator('#home-page').waitFor({state:'visible'});
   await page.waitForFunction(() => document.getElementById('saved-at').textContent === '保存済み');
+  await page.evaluate(() => {
+    const places = Array.from({length:6}, (_, index) => ({displayName:`制度相談テスト施設 ${index + 1}`,formattedAddress:`埼玉県さいたま市テスト${index + 1}`,location:{lat:() => 35.86 + index / 1000,lng:() => 139.64 + index / 1000},googleMapsURI:`https://maps.google.com/?q=test-${index + 1}`,websiteURI:`https://example.invalid/facility-${index + 1}`,nationalPhoneNumber:'048-000-0000'}));
+    window.google = {maps:{
+      importLibrary:async () => ({Place:{searchByText:async () => ({places})}}),
+      TravelMode:{DRIVING:'DRIVING',TRANSIT:'TRANSIT',WALKING:'WALKING'},
+      DirectionsService:class { route(request, callback) { callback({routes:[{legs:[{duration:{value:1200,text:'20 分'},distance:{text:'8 km'}}]}]},'OK'); } }
+    }};
+  });
   assert(await page.getByText('装具のこと、使って感じたことを少しずつ残しましょう。',{exact:true}).count()===0,'Removed home lead remains');
   await page.getByRole('button',{name:'最初に読んでほしいこと',exact:true}).click();
   assert(await page.locator('#home-guide-dialog').isVisible(),'Home guide dialog did not open');
@@ -185,9 +194,9 @@ async (page) => {
   await page.getByLabel('市区町村',{exact:true}).selectOption('さいたま市');
   await page.getByLabel('探す目的',{exact:true}).selectOption('consultation');
   await page.getByRole('button',{name:'条件に合う相談先を探す',exact:true}).click();
-  assert(await page.locator('#nearby-results .nearby-card').count() === 4,'Nearby search must return the confirmed Saitama candidates');
-  assert((await page.locator('#nearby-results').textContent()).includes('さいたま市 障害者生活支援センター'),'Nearby consultation candidate is missing');
-  assert(await page.locator('#nearby-results a[target="_blank"]').count() === 4,'Nearby official links must open in a new tab');
+  assert(await page.locator('#nearby-results .nearby-card').count() === 5,'Nearby search must keep dynamic results to five candidates');
+  assert((await page.locator('#nearby-results').textContent()).includes('制度相談テスト施設 1'),'Nearby dynamic facility search result is missing');
+  assert(await page.locator('#nearby-results a[target="_blank"]').count() === 10,'Nearby facility and map links must open in a new tab');
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
   await go('links');
   const priceGuide = page.locator('a[href="https://sogulabblog.com/price/"]');
