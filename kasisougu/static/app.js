@@ -61,16 +61,19 @@ async function authRequest(path, options = {}, accessToken = token) {
   const {headers: extraHeaders = {}, ...rest} = options;
   assertConfig();
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  let timeout;
+  const timeoutError = new Error('認証サーバーから応答がありません。通信を確認して、もう一度お試しください。');
   try {
-    const response = await fetch(`${config.url}${path}`, {...rest, signal:controller.signal, headers:{apikey:config.publishableKey,...(accessToken ? {Authorization:`Bearer ${accessToken}`} : {}),...extraHeaders}});
+    const request = fetch(`${config.url}${path}`, {...rest, signal:controller.signal, headers:{apikey:config.publishableKey,...(accessToken ? {Authorization:`Bearer ${accessToken}`} : {}),...extraHeaders}});
+    const deadline = new Promise((_, reject) => { timeout = window.setTimeout(() => { controller.abort(); reject(timeoutError); }, 5000); });
+    const response = await Promise.race([request, deadline]);
     if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || body.msg || '認証処理に失敗しました。'); }
     const body = await response.text();
     return body ? JSON.parse(body) : null;
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('認証サーバーから応答がありません。通信を確認して、もう一度お試しください。');
+    if (error.name === 'AbortError') throw timeoutError;
     throw error;
-  } finally { window.clearTimeout(timeout); }
+  } finally { if (timeout) window.clearTimeout(timeout); controller.abort(); }
 }
 async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
 function profileDisplayName() { return profile?.display_name || ''; }
