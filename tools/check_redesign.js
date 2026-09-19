@@ -209,7 +209,7 @@ async (page) => {
   await page.getByLabel('新しいパスワード',{exact:true}).fill('synthetic-new-password');
   await page.getByLabel('新しいパスワード（確認）',{exact:true}).fill('synthetic-new-password');
   await page.getByRole('button',{name:'パスワードを変更する',exact:true}).click();
-  assert(passwordUpdates.length === 1 && passwordUpdates[0].password === 'synthetic-new-password','Password change must update Supabase Auth after current-password verification');
+  assert(passwordUpdates.length === 1 && passwordUpdates[0].password === 'synthetic-new-password' && passwordUpdates[0].current_password === 'synthetic-current-password','Password change must update Supabase Auth with current-password verification');
   assert((await page.locator('#password-change-status').textContent()).includes('パスワードを変更しました。'),'Password change success message is missing');
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
   await go('links');

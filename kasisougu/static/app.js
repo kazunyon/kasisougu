@@ -1,7 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const config = window.KASISOUGU_SUPABASE_CONFIG || {};
-let token = '', userId = '', accountEmail = '', orthosis = null, orthoses = [], editingOrthosis = null;
+let token = '', userId = '', orthosis = null, orthoses = [], editingOrthosis = null;
 let needs = [], editingNeed = null, needOrthosisId = '', photos = [], photoUrls = [], photoRenderId = 0;
 function prepareNeedsPage() {
   ['needs-list','need-form','need-form-title','need-type','need-category','need-priority','need-state','need-description','need-status','need-cancel'].forEach(id => {
@@ -42,7 +42,7 @@ function appendFormattedText(element, value) {
 }
 function formattedNode(tag, text, className) { const element = node(tag, '', className); return appendFormattedText(element, text); }
 function resetSession(statusMessage = '') {
-  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; accountEmail = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); $('password-change-form').reset(); message('password-change-status', ''); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
+  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); $('password-change-form').reset(); message('password-change-status', ''); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
   if (statusMessage) { message('auth-status', statusMessage, true); $('email').focus(); }
 }
 function setAuthenticatedView(ok) {
@@ -57,7 +57,21 @@ function setAuthenticatedView(ok) {
 }
 function assertConfig() { if (!config.url || !config.publishableKey) throw new Error('公開設定を確認してください。'); }
 async function request(path, options = {}) { const {headers: extraHeaders = {}, ...rest} = options; assertConfig(); const response = await fetch(`${config.url}${path}`, {...rest, headers: apiHeaders(extraHeaders)}); if (!response.ok) { const body = await response.json().catch(() => ({})); const detail = body.message || body.msg || ''; if (response.status === 401 && /jwt expired/i.test(detail)) { resetSession('ログインの有効期限が切れました。もう一度ログインしてください'); throw new Error('ログインの有効期限が切れました。もう一度ログインしてください'); } throw new Error(detail || '処理できませんでした。'); } const body = await response.text(); return body ? JSON.parse(body) : null; }
-async function authRequest(path, options = {}, accessToken = '') { const {headers: extraHeaders = {}, ...rest} = options; assertConfig(); const response = await fetch(`${config.url}${path}`, {...rest, headers:{apikey:config.publishableKey,...(accessToken ? {Authorization:`Bearer ${accessToken}`} : {}),...extraHeaders}}); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || body.msg || '認証処理に失敗しました。'); } const body = await response.text(); return body ? JSON.parse(body) : null; }
+async function authRequest(path, options = {}, accessToken = token) {
+  const {headers: extraHeaders = {}, ...rest} = options;
+  assertConfig();
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${config.url}${path}`, {...rest, signal:controller.signal, headers:{apikey:config.publishableKey,...(accessToken ? {Authorization:`Bearer ${accessToken}`} : {}),...extraHeaders}});
+    if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || body.msg || '認証処理に失敗しました。'); }
+    const body = await response.text();
+    return body ? JSON.parse(body) : null;
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('認証サーバーから応答がありません。通信を確認して、もう一度お試しください。');
+    throw error;
+  } finally { window.clearTimeout(timeout); }
+}
 async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
 function profileDisplayName() { return profile?.display_name || ''; }
 function applyTextScale(value) {
@@ -401,7 +415,7 @@ function setScreen(name) {
   if (title) { title.setAttribute('tabindex', '-1'); title.focus({preventScroll:true}); }
   window.scrollTo({top:0, behavior:'instant'});
 }
-$('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; const email = $('email').value.trim(); button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: $('password').value})}); token = data.access_token; const user = await request('/auth/v1/user'); userId = user.id; accountEmail = user.email || email; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; accountEmail = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
+$('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; const email = $('email').value.trim(); button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
 $('logout').addEventListener('click', () => resetSession('ログアウトしました。'));
 $('personal-link-add').addEventListener('click', () => showPersonalLinkForm());
 $('personal-link-cancel').addEventListener('click', resetPersonalLinkForm);
@@ -509,14 +523,11 @@ $('password-change-form').addEventListener('submit', async event => {
   const confirmation = $('new-password-confirmation').value;
   if (newPassword !== confirmation) { message('password-change-status', '新しいパスワードが一致しません。', true); $('new-password-confirmation').focus(); return; }
   if (newPassword.length < 8) { message('password-change-status', '新しいパスワードは8文字以上で入力してください。', true); $('new-password').focus(); return; }
-  if (!accountEmail || !token) { message('password-change-status', 'ログイン状態を確認できません。もう一度ログインしてください。', true); return; }
+  if (!token) { message('password-change-status', 'ログイン状態を確認できません。もう一度ログインしてください。', true); return; }
   button.disabled = true;
-  message('password-change-status', '現在のパスワードを確認して変更しています…');
+  message('password-change-status', 'パスワードを変更しています…');
   try {
-    const verified = await authRequest('/auth/v1/token?grant_type=password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:accountEmail,password:currentPassword})});
-    if (!verified?.access_token) throw new Error('現在のパスワードを確認できませんでした。');
-    const user = await authRequest('/auth/v1/user', {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:newPassword})}, verified.access_token);
-    token = verified.access_token;
+    const user = await authRequest('/auth/v1/user', {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:currentPassword,password:newPassword})});
     userId = user?.id || userId;
     event.currentTarget.reset();
     message('password-change-status', 'パスワードを変更しました。次回から新しいパスワードでログインしてください。');
