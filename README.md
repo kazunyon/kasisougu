@@ -87,7 +87,7 @@ Flask・Google Cloud VM・独自の業務APIサーバーは現行構成に含み
 
 各候補の「Google Mapsで経路を確認」は、出発地と施設の座標を指定したMaps URLを開きます。道路距離・所要時間・交通手段・道順はGoogle Maps側で確認します。Maps URLにはAPIキーは不要です。Google Maps Platform の Places API・Routes API・Maps JavaScript API は使用しません。道路・運行・バリアフリー・予約・製作や修理の可否は判定しないため、必ず施設へ事前に確認してください。
 
-施設マスタには、施設名、住所、都道府県、市区町村、緯度、経度、対応目的、任意の電話番号・公式サイトを登録します。新規環境では [施設マスタ用マイグレーション](supabase/migrations/20260919100000_nearby_facilities.sql) を適用後、運営者が確認済みの施設だけを登録してください。利用者は閲覧のみで、アプリ画面からの施設登録・編集は行いません。
+施設マスタには、施設名、住所、都道府県、市区町村、緯度、経度、対応目的、任意の電話番号・公式サイトを登録します。新規環境では [施設マスタ用マイグレーション](supabase/migrations/20260919100000_nearby_facilities.sql) と [既存リハビリ候補の登録SQL](supabase/migrations/20260919103000_seed_nearby_facilities.sql) を適用後、運営者が確認済みの施設だけを登録してください。既存の3候補は、施設マスタが未適用・未登録の場合にも画面上で確認できるようにしています。利用者は閲覧のみで、アプリ画面からの施設登録・編集は行いません。
 ### パスワードを忘れた場合
 
 ログイン画面の「パスワードを忘れた方・ログインできない方」から再設定メールを送信します。メールのリンクで対象アカウントを確認し、新しいパスワードを設定した後、ログイン画面から入り直します。アカウントや本人データは削除しません。
@@ -113,6 +113,7 @@ Flask・Google Cloud VM・独自の業務APIサーバーは現行構成に含み
 | 7 | [20260917100000_usage_record_concerns.sql](supabase/migrations/20260917100000_usage_record_concerns.sql) | 使用記録ごとの「気になったこと・変化」と対応履歴を追加 |
 | 8 | [20260919010000_nearby_address.sql](supabase/migrations/20260919010000_nearby_address.sql) | 近くで探すの出発地として使う本人住所（任意）を追加 |
 | 9 | [20260919100000_nearby_facilities.sql](supabase/migrations/20260919100000_nearby_facilities.sql) | 近くで探す用の施設マスタ、閲覧専用RLS |
+| 10 | [20260919103000_seed_nearby_facilities.sql](supabase/migrations/20260919103000_seed_nearby_facilities.sql) | 既存の確認済みリハビリ候補3件を施設マスタへ登録 |
 
 F03の追加列がない場合は従来列で閲覧を試みます。F04のRPC未適用では現行の記録保存はできません。初期SQLの図鑑データは代表分類だけで、公開記事本文は別途登録が必要です。
 

@@ -5,6 +5,13 @@ const KASI_NEARBY_PREFECTURES = ['北海道','青森県','岩手県','宮城県'
 const KASI_NEARBY_PURPOSES = {
   manufacture:{label:'装具の製作',category:'義肢装具製作所・装具店'}, repair:{label:'修理',category:'義肢装具製作所・装具店'}, fitting:{label:'適合確認',category:'装具外来のある医療機関'}, rehabilitation:{label:'リハビリ',category:'理学療法・リハビリ施設'}, consultation:{label:'制度相談',category:'自治体の相談窓口・障害者支援施設'}
 };
+// These previously shown, official-source facilities remain available while the
+// database master is being populated. Database records are merged with them.
+const KASI_NEARBY_VERIFIED_FACILITIES = [
+  {id:'verified-saitama-rehab-center',name:'埼玉県総合リハビリテーションセンター',address:'埼玉県上尾市西貝塚148-1',prefecture:'埼玉県',municipality:'上尾市',latitude:35.938351,longitude:139.553391,purpose_codes:['manufacture','repair','fitting','rehabilitation','consultation'],phone:'048-781-2222',website_url:'https://www.pref.saitama.lg.jp/rihasen/'},
+  {id:'verified-national-rehab-center',name:'国立障害者リハビリテーションセンター病院',address:'埼玉県所沢市並木4丁目1番地',prefecture:'埼玉県',municipality:'所沢市',latitude:35.807959,longitude:139.463485,purpose_codes:['manufacture','fitting','rehabilitation'],phone:'04-2995-3100',website_url:'https://www.rehab.go.jp/hospital/'},
+  {id:'verified-saitama-support-center',name:'さいたま市障害者総合支援センター',address:'埼玉県さいたま市中央区鈴谷7丁目5番7号',prefecture:'埼玉県',municipality:'さいたま市中央区',latitude:35.874199,longitude:139.624756,purpose_codes:['consultation','rehabilitation'],phone:'048-859-7255',website_url:'https://www.city.saitama.lg.jp/006/015/050/003/p054196.html'}
+];
 const KASI_NEARBY_ADDRESS_API = 'https://geolonia.github.io/japanese-addresses/api/ja.json';
 const KASI_NEARBY_GEOCODER = 'https://msearch.gsi.go.jp/address-search/AddressSearch';
 const nearby$ = id => document.getElementById(id);
@@ -25,7 +32,13 @@ async function nearbyLoadMunicipalities() {
 function nearbyCurrentPosition() { if (!navigator.geolocation) return Promise.reject(new Error('この端末では現在地を取得できません。登録した住所を選んでください。')); return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(position => resolve({lat:position.coords.latitude, lng:position.coords.longitude, label:'現在地'}), () => reject(new Error('現在地を取得できませんでした。位置情報の利用を許可するか、登録した住所を選んでください。')), {enableHighAccuracy:false, timeout:10000, maximumAge:300000})); }
 async function nearbyGeocodeAddress(address) { const response = await fetch(`${KASI_NEARBY_GEOCODER}?q=${encodeURIComponent(address)}`); if (!response.ok) throw new Error('登録した住所の位置を取得できませんでした。住所を見直すか、現在地を選んでください。'); const entries = await response.json(), coordinates = nearbyCoordinates(entries?.[0]?.geometry?.coordinates?.[1], entries?.[0]?.geometry?.coordinates?.[0]); if (!coordinates) throw new Error('登録した住所の位置を確認できませんでした。住所を見直すか、現在地を選んでください。'); return {...coordinates, label:address}; }
 async function nearbyOrigin(condition) { if (condition.origin === 'current') return nearbyCurrentPosition(); if (!condition.address) throw new Error('登録した住所を入力してから「登録した住所」を選んでください。'); return nearbyGeocodeAddress(condition.address); }
-async function nearbyFindFacilities(condition) { const filters = ['select=id,name,address,latitude,longitude,phone,website_url,purpose_codes,prefecture,municipality','is_active=eq.true',`purpose_codes=cs.{${condition.purpose}}`,`prefecture=eq.${encodeURIComponent(condition.prefecture)}`,`municipality=eq.${encodeURIComponent(condition.municipality)}`,'order=name.asc','limit=100']; const rows = await window.KASI_API.select('kasi_nearby_facilities', filters.join('&')); return rows.map(row => ({...row, location:nearbyCoordinates(row.latitude, row.longitude)})).filter(row => row.location); }
+async function nearbyFindFacilities(condition) {
+  const filters = ['select=id,name,address,latitude,longitude,phone,website_url,purpose_codes,prefecture,municipality','is_active=eq.true',`purpose_codes=cs.{${condition.purpose}}`,`prefecture=eq.${encodeURIComponent(condition.prefecture)}`,'order=name.asc','limit=100'];
+  let registered = [];
+  try { registered = await window.KASI_API.select('kasi_nearby_facilities', filters.join('&')); } catch (_) { /* Use verified fallback while the master migration is not yet applied. */ }
+  const verified = KASI_NEARBY_VERIFIED_FACILITIES.filter(item => item.prefecture === condition.prefecture && item.purpose_codes.includes(condition.purpose));
+  return [...registered, ...verified].filter((item, index, rows) => rows.findIndex(row => row.name === item.name && row.address === item.address) === index).map(row => ({...row, location:nearbyCoordinates(row.latitude, row.longitude)})).filter(row => row.location);
+}
 function nearbyDirectionsUrl(origin, item) { return `https://www.google.com/maps/dir/?${new URLSearchParams({api:'1', origin:`${origin.lat},${origin.lng}`, destination:`${item.location.lat},${item.location.lng}`}).toString()}`; }
 function nearbyRenderResults(items, condition, origin) {
   const container = nearby$('nearby-results'); container.replaceChildren();
@@ -41,7 +54,7 @@ async function nearbySearch() {
   const condition = {prefecture:nearby$('nearby-prefecture').value, municipality:nearby$('nearby-municipality').value, address:nearby$('nearby-address').value.trim(), purpose:nearby$('nearby-purpose').value, origin:document.querySelector('input[name="nearby-origin"]:checked')?.value};
   if (!condition.prefecture || !condition.municipality) { nearbySetStatus('探す地域の都道府県と市区町村を選んでください。', true); return; }
   const button = nearby$('nearby-search'); button.disabled = true; nearby$('nearby-results').replaceChildren(); nearbySetStatus('施設と直線距離を確認しています…');
-  try { await nearbySaveAddress(condition.address); const [origin, facilities] = await Promise.all([nearbyOrigin(condition), nearbyFindFacilities(condition)]); const nearby = facilities.map(item => ({...item, distanceMeters:nearbyStraightLineMeters(origin, item.location)})).sort((a, b) => a.distanceMeters - b.distanceMeters); nearbyRenderResults(nearby, condition, origin); nearbySetStatus(`${origin.label}から、${KASI_NEARBY_PURPOSES[condition.purpose].label}の登録施設を近い順に${nearby.length}件表示しています。距離は直線距離です。`); }
+  try { await nearbySaveAddress(condition.address); const [origin, facilities] = await Promise.all([nearbyOrigin(condition), nearbyFindFacilities(condition)]); const nearby = facilities.map(item => ({...item, distanceMeters:nearbyStraightLineMeters(origin, item.location)})).sort((a, b) => a.distanceMeters - b.distanceMeters).slice(0, 5); nearbyRenderResults(nearby, condition, origin); nearbySetStatus(`${origin.label}から、${KASI_NEARBY_PURPOSES[condition.purpose].label}の候補を近い順に${nearby.length}件表示しています（最大5件）。距離は直線距離です。`); }
   catch (error) { nearbyRenderResults([], condition); nearbySetStatus(error.message || '検索できませんでした。', true); }
   finally { button.disabled = false; }
 }
