@@ -39,6 +39,7 @@ const run = expression => vm.runInContext(expression,context);
   assert.equal(searchUrl.searchParams.get('api'),'1');
   assert.equal(searchUrl.searchParams.get('query'),'リハビリテーション科 さいたま市見沼区堀崎町1592');
   assert.equal(run('KASI_MAP_SEARCHES.length'),10);
+  assert.match(run("nearbyCandidateError(new Error(\"Could not find the table 'public.kasi_candidate_facilities' in the schema cache\"))"),/保存先が準備されていません/);
   context.window.KASI_API.select = async () => { throw Error('offline'); };
   await assert.rejects(run('nearbyFindFacilities({lat:0,lng:0},{purpose:"",radius:10000})'),/取得できません/);
   context.window.KASI_API.select = async () => [];
