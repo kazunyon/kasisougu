@@ -45,6 +45,7 @@ async (page) => {
     kasi_catalog_item_terms:[0,1,2,3].map(i=>({catalog_item_id:`catalog-${i}`,kasi_catalog_terms:{id:`term-${i}`,code:i===2?'afo':'kafo',term_group:'support_scope',label_ja:i===2?'短下肢装具（AFO）':'長下肢装具（KAFO）',is_active:true}}))
   };
   let mutations = 0;
+  const passwordUpdates = [];
   await page.route('**/pages-config.js', route => route.fulfill({contentType:'application/javascript',body:'window.KASISOUGU_SUPABASE_CONFIG={url:"https://redesign-test.invalid",publishableKey:"sb_publishable_fixture",googleMapsApiKey:"browser-restricted-fixture"};'}));
   await page.route('https://geolonia.github.io/japanese-addresses/**', route => route.fulfill({contentType:'application/json',body:JSON.stringify({'埼玉県':['さいたま市','川口市']})}));
   await page.route('**/sw.js', route => route.fulfill({contentType:'application/javascript',body:'// Disabled only in the isolated browser smoke check.'}));
@@ -63,7 +64,10 @@ async (page) => {
       return route.fulfill({contentType:'application/json',body:JSON.stringify({id:saved.id,row_version:saved.row_version})});
     }
     if (pathname.startsWith('/auth/v1/token')) body = {access_token:'synthetic-test-session'};
-    else if (pathname === '/auth/v1/user') body = {id:'test-user'};
+    else if (pathname === '/auth/v1/user') {
+      if (request.method() === 'PUT') passwordUpdates.push(request.postDataJSON());
+      body = {id:'test-user',email:'test@example.invalid'};
+    }
     else if (pathname.startsWith('/storage/v1/object/')) return route.fulfill({contentType:'application/json',body:'{}'});
     else if (pathname === '/rest/v1/kasi_usage_record_concerns') {
       if (request.method() === 'GET') body = concerns.filter(row => !row.deleted_at && (!request.url().includes('status_code=neq.resolved') || row.status_code !== 'resolved'));
@@ -200,6 +204,13 @@ async (page) => {
   assert(await page.evaluate(() => window.__nearbyRouteOrigins.every(origin => origin === '埼玉県さいたま市テスト住所')),'Nearby routes must use the optional address as their origin');
   assert(profile.nearby_address === '埼玉県さいたま市テスト住所','Nearby address must be saved in the user profile');
   assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=%E5%9F%BC%E7%8E%89%E7%9C%8C%E3%81%95%E3%81%84%E3%81%9F%E3%81%BE%E5%B8%82%E3%83%86%E3%82%B9%E3%83%88%E4%BD%8F%E6%89%80'),'Google Maps link must use the saved address as its origin');
+  await go('settings');
+  await page.getByLabel('現在のパスワード',{exact:true}).fill('synthetic-current-password');
+  await page.getByLabel('新しいパスワード',{exact:true}).fill('synthetic-new-password');
+  await page.getByLabel('新しいパスワード（確認）',{exact:true}).fill('synthetic-new-password');
+  await page.getByRole('button',{name:'パスワードを変更する',exact:true}).click();
+  assert(passwordUpdates.length === 1 && passwordUpdates[0].password === 'synthetic-new-password','Password change must update Supabase Auth after current-password verification');
+  assert((await page.locator('#password-change-status').textContent()).includes('パスワードを変更しました。'),'Password change success message is missing');
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
   await go('links');
   const priceGuide = page.locator('a[href="https://sogulabblog.com/price/"]');

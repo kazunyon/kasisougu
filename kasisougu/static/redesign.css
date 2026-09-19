@@ -140,6 +140,9 @@ h1, .next-step h2 { text-wrap: balance; }
 .settings-panel { max-width: 760px; }
 .settings-fields label { font-size: .95rem; }
 .settings-help, .settings-data p { font-size: .8rem; }
+.password-change-panel { margin-top: 20px; }
+.password-change-panel form { display: grid; gap: 10px; }
+.password-change-panel input { width: min(100%, 440px); border: 1px solid #b9cdbf; border-radius: 10px; font-size: 1rem; }
 .catalog-search { background: #fff; padding: 20px; border-radius: 16px; border: 1px solid var(--line); }
 .catalog-search label { font-size: .85rem; }
 .catalog-search-controls button { font-size: .8rem; }
