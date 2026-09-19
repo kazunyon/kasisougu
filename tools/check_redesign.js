@@ -29,7 +29,7 @@ async (page) => {
     {id:'photo-1',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-1.jpg',original_filename:'装具の写真.jpg',mime_type:'image/jpeg',caption:'装具の写真',sort_order:1},
     {id:'photo-2',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-2.jpg',original_filename:'追加する写真.jpg',mime_type:'image/jpeg',caption:'追加する写真',sort_order:2}
   ];
-  const profile = {user_id:'test-user',display_name:'テスト利用者',text_scale:100,device_storage_enabled:false,row_version:1};
+  const profile = {user_id:'test-user',display_name:'テスト利用者',nearby_address:null,text_scale:100,device_storage_enabled:false,row_version:1};
   const personalLinks = [];
   const tables = {
     kasi_user_orthoses:orthoses,
@@ -198,6 +198,8 @@ async (page) => {
   assert((await page.locator('#nearby-results').textContent()).includes('制度相談テスト施設 1'),'Nearby dynamic facility search result is missing');
   assert(await page.locator('#nearby-results a[target="_blank"]').count() === 10,'Nearby facility and map links must open in a new tab');
   assert(await page.evaluate(() => window.__nearbyRouteOrigins.every(origin => origin === '埼玉県さいたま市テスト住所')),'Nearby routes must use the optional address as their origin');
+  assert(profile.nearby_address === '埼玉県さいたま市テスト住所','Nearby address must be saved in the user profile');
+  assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=%E5%9F%BC%E7%8E%89%E7%9C%8C%E3%81%95%E3%81%84%E3%81%9F%E3%81%BE%E5%B8%82%E3%83%86%E3%82%B9%E3%83%88%E4%BD%8F%E6%89%80'),'Google Maps link must use the saved address as its origin');
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
   await go('links');
   const priceGuide = page.locator('a[href="https://sogulabblog.com/price/"]');

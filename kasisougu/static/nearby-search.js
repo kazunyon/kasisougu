@@ -10,10 +10,10 @@ const KASI_NEARBY_PURPOSES = {
   consultation:{label:'制度相談',query:'障害者 相談支援',category:'自治体の相談窓口・障害者支援施設'}
 };
 const KASI_NEARBY_TRANSPORT = {
-  car:{label:'車',mode:'DRIVING',note:''},
-  public_transport:{label:'公共交通',mode:'TRANSIT',note:''},
-  welfare_taxi:{label:'福祉タクシー',mode:'DRIVING',note:'車の経路を参考表示'},
-  electric_wheelchair:{label:'電動車いす',mode:'WALKING',note:'徒歩経路を参考表示'}
+  car:{label:'車',mode:'DRIVING',mapsMode:'driving',note:''},
+  public_transport:{label:'公共交通',mode:'TRANSIT',mapsMode:'transit',note:''},
+  welfare_taxi:{label:'福祉タクシー',mode:'DRIVING',mapsMode:'driving',note:'車の経路を参考表示'},
+  electric_wheelchair:{label:'電動車いす',mode:'WALKING',mapsMode:'walking',note:'徒歩経路を参考表示'}
 };
 // This endpoint permits browser cross-origin requests. It contains the nationwide
 // prefecture-to-municipality list but no facility records.
@@ -21,6 +21,7 @@ const KASI_NEARBY_ADDRESS_API = 'https://geolonia.github.io/japanese-addresses/a
 const nearby$ = id => document.getElementById(id);
 let nearbyReady = false;
 let nearbyMapsPromise = null;
+let nearbySavedAddress = '';
 const nearbyMunicipalities = new Map();
 
 function nearbyOption(value, text) { const option = document.createElement('option'); option.value = value; option.textContent = text; return option; }
@@ -105,6 +106,11 @@ async function nearbyRoute(maps, origin, destination, transport) {
   if (!route || !Number.isFinite(route.durationMillis)) return null;
   return {seconds:Math.round(route.durationMillis / 1000), duration:nearbyDuration(route.durationMillis / 1000), distance:Number.isFinite(route.distanceMeters) ? nearbyDistance(route.distanceMeters) : ''};
 }
+function nearbyDirectionsUrl(origin, item, transport) {
+  const destination = item.address || `${item.location.lat},${item.location.lng}`;
+  const query = new URLSearchParams({api:'1',origin,destination,travelmode:transport.mapsMode});
+  return `https://www.google.com/maps/dir/?${query.toString()}`;
+}
 function nearbyRenderResults(items, condition) {
   const container = nearby$('nearby-results'); container.replaceChildren();
   if (!items.length) {
@@ -121,7 +127,7 @@ function nearbyRenderResults(items, condition) {
     const source = document.createElement('p'); source.className = 'nearby-source'; source.textContent = item.phone ? `電話：${item.phone}` : '電話番号はGoogle Mapsまたは施設サイトで確認してください。';
     const links = document.createElement('div'); links.className = 'nearby-links';
     if (item.website) { const website = document.createElement('a'); website.className = 'resource-link'; website.href = item.website; website.target = '_blank'; website.rel = 'noopener noreferrer'; website.textContent = '施設サイトを開く'; links.append(website); }
-    if (item.mapsUrl) { const mapsLink = document.createElement('a'); mapsLink.className = 'resource-link'; mapsLink.href = item.mapsUrl; mapsLink.target = '_blank'; mapsLink.rel = 'noopener noreferrer'; mapsLink.textContent = 'Google Mapsで確認する'; links.append(mapsLink); }
+    const mapsLink = document.createElement('a'); mapsLink.className = 'resource-link nearby-map-link'; mapsLink.href = nearbyDirectionsUrl(nearbyAddressOrigin(condition), item, transport); mapsLink.target = '_blank'; mapsLink.rel = 'noopener noreferrer'; mapsLink.textContent = 'Google Mapsで経路を確認する'; links.append(mapsLink);
     const rank = document.createElement('span'); rank.className = 'nearby-rank'; rank.textContent = `${index + 1}`;
     article.append(rank, meta, heading, details, address, source, links); container.append(article);
   });
@@ -138,12 +144,35 @@ function nearbyToggleAddressField() {
   button.textContent = opening ? '住所入力を閉じる' : '住所を入力（任意）';
   if (opening) nearby$('nearby-address').focus();
 }
+function nearbyShowAddressField() {
+  const field = nearby$('nearby-address-field');
+  if (!field.hidden) return;
+  field.hidden = false;
+  const button = nearby$('nearby-address-toggle');
+  button.setAttribute('aria-expanded', 'true');
+  button.textContent = '住所入力を閉じる';
+}
+async function nearbyLoadSavedAddress() {
+  if (!window.KASI_PROFILE?.loadNearbyAddress) return;
+  const address = await window.KASI_PROFILE.loadNearbyAddress();
+  nearbySavedAddress = address || '';
+  if (!nearbySavedAddress) return;
+  nearby$('nearby-address').value = nearbySavedAddress;
+  nearbyShowAddressField();
+}
+async function nearbySaveAddress(address) {
+  if (address === nearbySavedAddress) return;
+  if (!window.KASI_PROFILE?.saveNearbyAddress) throw new Error('住所を保存する準備ができていません。画面を再読み込みしてください。');
+  await window.KASI_PROFILE.saveNearbyAddress(address);
+  nearbySavedAddress = address;
+}
 async function nearbySearch() {
   const condition = {prefecture:nearby$('nearby-prefecture').value, municipality:nearby$('nearby-municipality').value, address:nearby$('nearby-address').value.trim(), transport:nearby$('nearby-transport').value, duration:Number(nearby$('nearby-duration').value), purpose:nearby$('nearby-purpose').value};
   const city = nearbySelectedCity();
   if (!condition.prefecture || !condition.municipality || !city) { nearbySetStatus('都道府県と市区町村を選んでください。', true); return; }
   const button = nearby$('nearby-search'); button.disabled = true; nearby$('nearby-results').replaceChildren(); nearbySetStatus('施設と経路を検索しています…');
   try {
+    await nearbySaveAddress(condition.address);
     const maps = await nearbyLoadMaps();
     const places = await nearbyFindPlaces(maps, condition);
     const origin = nearbyAddressOrigin(condition);
@@ -162,10 +191,11 @@ function nearbyAddNavigation() {
   button.addEventListener('click', () => navigateTo('nearby'));
   document.querySelector('.primary-nav').insertBefore(button, document.querySelector('[data-screen="links"]'));
 }
-function nearbyInit() {
+async function nearbyInit() {
   if (nearbyReady) return; nearbyReady = true; nearbyAddNavigation();
   const prefecture = nearby$('nearby-prefecture'); prefecture.replaceChildren(nearbyOption('', '都道府県を選択'), ...KASI_NEARBY_PREFECTURES.map(name => nearbyOption(name, name)));
   prefecture.addEventListener('change', nearbyLoadMunicipalities); nearby$('nearby-address-toggle').addEventListener('click', nearbyToggleAddressField); nearby$('nearby-search').addEventListener('click', nearbySearch);
+  try { await nearbyLoadSavedAddress(); } catch (error) { nearbySetStatus(`保存した住所を読み込めませんでした：${error.message}`, true); }
 }
 window.KASI_NEARBY = {init:nearbyInit};
 nearbyAddNavigation();

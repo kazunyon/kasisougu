@@ -82,7 +82,7 @@ async function loadProfile() {
   $('profile-save').disabled = true;
   message('profile-status', '本人設定を読み込み中…');
   try {
-    const rows = await select('kasi_profiles', `select=user_id,display_name,text_scale,device_storage_enabled,row_version,deleted_at&user_id=eq.${currentUser}&limit=1`);
+    const rows = await select('kasi_profiles', `select=user_id,display_name,nearby_address,text_scale,device_storage_enabled,row_version,deleted_at&user_id=eq.${currentUser}&limit=1`);
     if (currentUser !== userId || currentToken !== token) return;
     if (rows[0]?.deleted_at) throw new Error('本人設定を利用できません。管理者に確認してください。');
     showProfile(rows[0] || null);
@@ -131,6 +131,29 @@ function createOrthosisFlow(compact = false) {
   });
   return flow;
 }
+async function loadNearbyAddress() {
+  if (!token || !userId) return '';
+  if (!profileLoaded) await loadProfile();
+  return profile?.nearby_address || '';
+}
+async function saveNearbyAddress(value) {
+  const nearbyAddress = value.trim();
+  if (nearbyAddress.length > 200) throw new Error('住所は200文字以内で入力してください。');
+  if (!token || !userId) throw new Error('ログインを確認できません。');
+  if (!profileLoaded) await loadProfile();
+  if (!profileLoaded) throw new Error('本人設定を読み込めませんでした。');
+  const currentUser = userId, currentToken = token, currentProfile = profile;
+  const path = currentProfile
+    ? `/rest/v1/kasi_profiles?user_id=eq.${currentUser}&row_version=eq.${currentProfile.row_version}`
+    : '/rest/v1/kasi_profiles';
+  const body = currentProfile ? {nearby_address:nearbyAddress || null} : {user_id:currentUser,nearby_address:nearbyAddress || null};
+  const rows = await request(path, {method:currentProfile?'PATCH':'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(body)});
+  if (!rows.length) throw new Error('別の画面で更新されています。画面を再読み込みしてください。');
+  if (currentUser !== userId || currentToken !== token) throw new Error('ログイン状態が変わりました。もう一度お試しください。');
+  showProfile(rows[0]);
+  return rows[0].nearby_address || '';
+}
+window.KASI_PROFILE = {loadNearbyAddress, saveNearbyAddress};
 function externalLinkNode(url, label = 'リンクを開く') {
   const link = document.createElement('a'); link.className = 'resource-link'; link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
   link.append(label, node('span', '（新しいタブで開く）'));
