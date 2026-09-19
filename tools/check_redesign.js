@@ -31,7 +31,7 @@ async (page) => {
   ];
   const profile = {user_id:'test-user',display_name:'テスト利用者',nearby_address:null,text_scale:100,device_storage_enabled:false,row_version:1};
   const personalLinks = [];
-  const nearbyFacilities = Array.from({length:6}, (_, index) => ({id:`facility-${index + 1}`,name:`制度相談テスト施設 ${index + 1}`,address:`埼玉県さいたま市テスト${index + 1}`,prefecture:'埼玉県',municipality:'さいたま市',latitude:35.86 + index / 1000,longitude:139.64 + index / 1000,purpose_codes:['consultation'],phone:'048-000-0000',website_url:`https://example.invalid/facility-${index + 1}`,is_active:true}));
+  const nearbyFacilities = Array.from({length:6}, (_, index) => ({id:`facility-${index + 1}`,name:`制度相談テスト施設 ${index + 1}`,address:`埼玉県さいたま市テスト${index + 1}`,prefecture:'埼玉県',municipality:'さいたま市',latitude:35.94 + index / 1000,longitude:139.75 + index / 1000,purpose_codes:['consultation'],phone:'048-000-0000',website_url:`https://example.invalid/facility-${index + 1}`,is_active:true}));
   const tables = {
     kasi_user_orthoses:orthoses,
     kasi_usage_records:records,
@@ -196,9 +196,10 @@ async (page) => {
   await page.getByLabel('登録する住所',{exact:true}).fill('埼玉県さいたま市テスト住所');
   await page.getByLabel('登録した住所を使う',{exact:true}).check();
   await page.getByRole('button',{name:'直線距離を調べる',exact:true}).click();
-  assert(await page.locator('#nearby-results .nearby-card').count() === 6,'Nearby search must render every matching registered facility');
+  assert(await page.locator('#nearby-results .nearby-card').count() === 5,'Nearby search must show the nearest five merged facilities');
   assert((await page.locator('#nearby-results').textContent()).includes('直線距離：'),'Nearby straight-line distance is missing');
   assert((await page.locator('#nearby-results').textContent()).includes('制度相談テスト施設 1'),'Nearby registered facility is missing');
+  assert((await page.locator('#nearby-results').textContent()).includes('さいたま市障害者総合支援センター'),'Nearby verified rehabilitation fallback is missing');
   assert(await page.locator('#nearby-results a[target="_blank"]').count() === 10,'Nearby facility and map links must open in a new tab');
   assert(profile.nearby_address === '埼玉県さいたま市テスト住所','Nearby address must be saved in the user profile');
   assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=35.865%2C139.645'),'Google Maps link must use the resolved address coordinates as its origin');
