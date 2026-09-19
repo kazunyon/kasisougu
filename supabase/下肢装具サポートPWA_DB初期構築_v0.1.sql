@@ -62,6 +62,7 @@ grant execute on function private.kasi_set_updated_at_and_version() to authentic
 create table public.kasi_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
+  nearby_address text,
   text_scale smallint not null default 100 check (text_scale between 100 and 200),
   device_storage_enabled boolean not null default false,
   timezone_name text not null default 'Asia/Tokyo',
@@ -69,7 +70,8 @@ create table public.kasi_profiles (
   updated_at timestamptz not null default now(),
   row_version bigint not null default 1 check (row_version > 0),
   deleted_at timestamptz,
-  check (display_name is null or char_length(display_name) between 1 and 80)
+  check (display_name is null or char_length(display_name) between 1 and 80),
+  check (nearby_address is null or char_length(nearby_address) between 1 and 200)
 );
 
 create table public.kasi_personal_links (
