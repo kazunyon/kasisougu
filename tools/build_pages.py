@@ -2,6 +2,7 @@
 import json
 import os
 import shutil
+import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -32,10 +33,17 @@ for icon in manifest['icons']:
     icon['src'] = './' + Path(icon['src']).name
 (target / 'manifest.webmanifest').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
 
-(target / 'sw.js').write_text('''const CACHE = 'kasisougu-pages-shell-v20';
+cache_files = ['index.html', 'style.css', 's03-s04.css', 'f04-f05.css', 'redesign.css', 'pages-config.js', 'app.js', 'catalog.js', 'records.js', 'consultation.js', 'nearby-search.js', 'manifest.webmanifest', 'brand-logo.png', 'icon-192.png', 'icon-512.png']
+cache_fingerprint = hashlib.sha256()
+for filename in cache_files:
+    cache_fingerprint.update(filename.encode('utf-8'))
+    cache_fingerprint.update((target / filename).read_bytes())
+cache_name = f'kasisougu-pages-shell-{cache_fingerprint.hexdigest()[:12]}'
+
+service_worker = '''const CACHE = '__CACHE_NAME__';
 const FILES = ['./', './index.html', './style.css', './s03-s04.css', './f04-f05.css', './redesign.css', './pages-config.js', './app.js', './catalog.js', './records.js', './consultation.js', './nearby-search.js', './manifest.webmanifest', './brand-logo.png', './icon-192.png', './icon-512.png'];
-self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))));
-self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('kasisougu-pages-shell-') && key !== CACHE).map(key => caches.delete(key))))));
+self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())));
+self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('kasisougu-pages-shell-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin || !FILES.some(file => new URL(file, self.registration.scope).pathname === url.pathname)) return;
@@ -44,6 +52,7 @@ self.addEventListener('fetch', event => {
     return response;
   }).catch(() => caches.match(event.request)));
 });
-''', encoding='utf-8')
+'''
+(target / 'sw.js').write_text(service_worker.replace('__CACHE_NAME__', cache_name), encoding='utf-8')
 (target / '.nojekyll').touch()
 print(target)
