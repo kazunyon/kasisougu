@@ -204,8 +204,6 @@ async (page) => {
   for (const screen of ['catalog','record','consultation','nearby','links','settings','orthosis','home']) await go(screen);
   await go('nearby');
   assert(await page.locator('#nearby-maps-panel').isVisible(),'Maps search setup must be shown when no address is saved');
-  assert(await page.locator('#nearby-mode-registered').count() === 0,'Registered-facility search tab must be removed');
-  assert(await page.locator('#nearby-search').count() === 0,'Registered-facility distance search must be removed');
   assert(await page.locator('#nearby-map-buttons button').count() === 10,'Ten purpose-specific Google Maps buttons must be shown');
   assert(await page.getByRole('button',{name:'現在地を使用',exact:true}).count() === 1,'Current-location setup button must be shown');
   await page.getByLabel('検索する住所',{exact:true}).fill('埼玉県さいたま市テスト住所');
@@ -220,6 +218,15 @@ async (page) => {
   await page.locator('#nearby-candidate-form').getByRole('button',{name:'候補施設を保存',exact:true}).click();
   await page.waitForFunction(() => document.getElementById('candidate-status').textContent.includes('保存しました'));
   assert(tables.kasi_candidate_facilities.length === 1,'Candidate facility must be saved');
+  await page.getByRole('tab',{name:'登録施設から探す',exact:true}).click();
+  await page.locator('#nearby-purpose').selectOption('consultation');
+  await page.locator('input[name="nearby-origin"][value="address"]').check();
+  await page.getByRole('button',{name:'直線距離を調べる',exact:true}).click();
+  await page.waitForFunction(() => !document.getElementById('nearby-search').disabled);
+  assert(await page.locator('#nearby-results .nearby-card').count() === 6,'All registered facilities within range must be shown');
+  assert((await page.locator('#nearby-results').textContent()).includes('直線距離：'),'Nearby straight-line distance is missing');
+  assert(await page.locator('#nearby-results a[target="_blank"]').count() === 12,'Nearby facility and map links must open in a new tab');
+  assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=35.865%2C139.645'),'Google Maps link must use the resolved address coordinates as its origin');
   await go('settings');
   await page.getByLabel('現在のパスワード',{exact:true}).fill('synthetic-current-password');
   await page.getByLabel('新しいパスワード',{exact:true}).fill('synthetic-new-password');
