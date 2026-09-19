@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>パスワードの再設定 | 装具びより</title>
+<link rel="stylesheet" href="./style.css">
+<style>main{max-width:640px;margin:2rem auto;padding:1rem}h1{font-size:clamp(1.5rem,5vw,2rem)}input{display:block;width:100%;box-sizing:border-box;margin:.5rem 0 1rem;min-height:48px;border:1px solid #adc8ba;border-radius:8px;padding:.5rem}button{margin:.5rem 0} [hidden]{display:none!important}</style>
+<script src="./pages-config.js"></script><script defer src="./recovery.js"></script>
+</head>
+<body><main>
+<h1>パスワードの再設定</h1>
+<p>装具びよりのアカウントや保存済みの記録は、そのまま残ります。</p>
+<section id="request-section">
+<h2>再設定メールを受け取る</h2>
+<p>登録済みのメールアドレスを入力してください。届いたメールのリンクから、新しいパスワードを設定できます。</p>
+<form id="recovery-request-form">
+<label for="recovery-email">メールアドレス</label>
+<input id="recovery-email" type="email" autocomplete="email" required maxlength="254">
+<button id="recovery-send" class="primary" type="submit">再設定メールを送信する</button>
+</form></section>
+<section id="reset-section" hidden>
+<h2>新しいパスワードを設定する</h2>
+<p id="recovery-account"></p>
+<p>現在のパスワードは不要です。8文字以上で設定してください。</p>
+<form id="recovery-reset-form">
+<label for="recovery-password">新しいパスワード</label>
+<input id="recovery-password" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+<label for="recovery-confirm">新しいパスワード（確認）</label>
+<input id="recovery-confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+<button id="recovery-update" class="primary" type="submit">パスワードを再設定する</button>
+</form></section>
+<p id="recovery-status" role="status" aria-live="polite"></p>
+<p><a href="./">ログイン画面へ戻る</a></p>
+<p>メールのリンクは他の人に共有しないでください。画面を閉じたり再読み込みした場合は、再設定メールをもう一度送信してください。</p>
+</main></body></html>
