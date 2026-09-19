@@ -15,6 +15,7 @@ const run = expression => vm.runInContext(expression,context);
   assert.ok(Math.abs(run('nearbyStraightLineMeters({lat:0,lng:0},{lat:0,lng:1})') - 111195) < 1);
   let calls = 0;
   context.window.KASI_API = {select:async (table, query) => {
+    if (table === 'kasi_candidate_facilities') return Number(new URLSearchParams(query).get('offset')) === 0 ? [{id:'candidate',name:'候補',facility_type:'リハビリ',address:null,latitude:null,longitude:null}] : [];
     assert.equal(table,'kasi_nearby_facilities');
     const params = new URLSearchParams(query);
     assert.equal(params.get('purpose_codes'),'cs.{rehabilitation}');
@@ -26,16 +27,22 @@ const run = expression => vm.runInContext(expression,context);
   }};
   const rows = await run('nearbyFindFacilities({lat:0,lng:0},{purpose:"rehabilitation",radius:10000})');
   assert.equal(calls,3);
-  assert.equal(rows.length,1); // Applies radius to every DB record.
+  assert.equal(rows.length,2); // Includes a manually registered candidate, even before its location is known.
   assert.equal(rows[0].name,'近く'); // Nearest record is beyond the first page.
+  assert.equal(rows[1].name,'候補');
+  assert.equal(rows[1].distanceMeters,null);
   const url = new URL(run('nearbyDirectionsUrl({lat:35,lng:139},{location:{lat:36,lng:140}})'));
   assert.equal(url.searchParams.get('api'),'1');
   assert.equal(url.searchParams.get('origin'),'35,139');
   assert.equal(url.searchParams.get('destination'),'36,140');
+  const searchUrl = new URL(run("nearbyMapsSearchUrl('リハビリテーション科',{address:'さいたま市見沼区堀崎町1592'})"));
+  assert.equal(searchUrl.searchParams.get('api'),'1');
+  assert.equal(searchUrl.searchParams.get('query'),'リハビリテーション科 さいたま市見沼区堀崎町1592');
+  assert.equal(run('KASI_MAP_SEARCHES.length'),10);
   context.window.KASI_API.select = async () => { throw Error('offline'); };
   await assert.rejects(run('nearbyFindFacilities({lat:0,lng:0},{purpose:"",radius:10000})'),/取得できません/);
   context.window.KASI_API.select = async () => [];
   assert.equal((await run('nearbyFindFacilities({lat:0,lng:0},{purpose:"",radius:Infinity})')).length,0);
   assert.doesNotMatch(source,/overpass|openstreetmap|VERIFIED_FACILITIES|maps\.googleapis/i);
-  console.log('PASS: distance, coordinate validation, pagination, radius, Maps URL, empty and error states, no fixed fallback or paid Maps API.');
+  console.log('PASS: distance, pagination, candidate merge, 10 URL searches, encoding, empty/error states, and no paid Maps API.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
