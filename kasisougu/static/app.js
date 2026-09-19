@@ -76,6 +76,7 @@ async function authRequest(path, options = {}, accessToken = token) {
   } finally { if (timeout) window.clearTimeout(timeout); controller.abort(); }
 }
 async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
+window.KASI_API = {select};
 function profileDisplayName() { return profile?.display_name || ''; }
 function applyTextScale(value) {
   const scale = Number(value);
