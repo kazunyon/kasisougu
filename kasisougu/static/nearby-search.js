@@ -126,19 +126,31 @@ function nearbyRenderResults(items, condition) {
     article.append(rank, meta, heading, details, address, source, links); container.append(article);
   });
 }
+function nearbyAddressOrigin(condition) {
+  return condition.address || `${condition.prefecture}${condition.municipality}`;
+}
+function nearbyToggleAddressField() {
+  const field = nearby$('nearby-address-field');
+  const button = nearby$('nearby-address-toggle');
+  const opening = field.hidden;
+  field.hidden = !opening;
+  button.setAttribute('aria-expanded', String(opening));
+  button.textContent = opening ? '住所入力を閉じる' : '住所を入力（任意）';
+  if (opening) nearby$('nearby-address').focus();
+}
 async function nearbySearch() {
-  const condition = {prefecture:nearby$('nearby-prefecture').value, municipality:nearby$('nearby-municipality').value, transport:nearby$('nearby-transport').value, duration:Number(nearby$('nearby-duration').value), purpose:nearby$('nearby-purpose').value};
+  const condition = {prefecture:nearby$('nearby-prefecture').value, municipality:nearby$('nearby-municipality').value, address:nearby$('nearby-address').value.trim(), transport:nearby$('nearby-transport').value, duration:Number(nearby$('nearby-duration').value), purpose:nearby$('nearby-purpose').value};
   const city = nearbySelectedCity();
   if (!condition.prefecture || !condition.municipality || !city) { nearbySetStatus('都道府県と市区町村を選んでください。', true); return; }
   const button = nearby$('nearby-search'); button.disabled = true; nearby$('nearby-results').replaceChildren(); nearbySetStatus('施設と経路を検索しています…');
   try {
     const maps = await nearbyLoadMaps();
     const places = await nearbyFindPlaces(maps, condition);
-    const origin = `${condition.prefecture}${condition.municipality}`;
+    const origin = nearbyAddressOrigin(condition);
     const transport = KASI_NEARBY_TRANSPORT[condition.transport];
     const routed = (await Promise.all(places.map(async place => ({...place, route:await nearbyRoute(maps, origin, place.location, transport)})))).filter(item => item.route && item.route.seconds <= condition.duration * 60).sort((a, b) => a.route.seconds - b.route.seconds).slice(0, 5);
     nearbyRenderResults(routed, condition);
-    nearbySetStatus(`${condition.prefecture}${condition.municipality}・${KASI_NEARBY_PURPOSES[condition.purpose].label}の候補を${routed.length}件表示しています（最大5件）。`);
+    nearbySetStatus(`${condition.address ? '入力した住所' : `${condition.prefecture}${condition.municipality}`}を出発地として、${KASI_NEARBY_PURPOSES[condition.purpose].label}の候補を${routed.length}件表示しています（最大5件）。`);
   } catch (error) {
     nearbyRenderResults([], condition); nearbySetStatus(error.message || '検索できませんでした。', true);
   } finally { button.disabled = false; }
@@ -153,7 +165,7 @@ function nearbyAddNavigation() {
 function nearbyInit() {
   if (nearbyReady) return; nearbyReady = true; nearbyAddNavigation();
   const prefecture = nearby$('nearby-prefecture'); prefecture.replaceChildren(nearbyOption('', '都道府県を選択'), ...KASI_NEARBY_PREFECTURES.map(name => nearbyOption(name, name)));
-  prefecture.addEventListener('change', nearbyLoadMunicipalities); nearby$('nearby-search').addEventListener('click', nearbySearch);
+  prefecture.addEventListener('change', nearbyLoadMunicipalities); nearby$('nearby-address-toggle').addEventListener('click', nearbyToggleAddressField); nearby$('nearby-search').addEventListener('click', nearbySearch);
 }
 window.KASI_NEARBY = {init:nearbyInit};
 nearbyAddNavigation();

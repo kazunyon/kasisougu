@@ -307,6 +307,12 @@ h1, .next-step h2 { text-wrap: balance; }
 .nearby-search-panel { max-width: 900px; }
 .nearby-search-panel .form-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 .nearby-purpose { grid-column: 1 / -1; }
+.nearby-address-control { margin-top: 16px; }
+.nearby-address-toggle { min-height: 44px; padding: 9px 15px; border: 1px solid var(--green); border-radius: 8px; background: #fff; color: var(--dark-green); font-weight: 700; }
+.nearby-address-toggle:hover { background: #edf8f1; }
+.nearby-address-field { max-width: 560px; margin-top: 12px; }
+.nearby-address-field label { display: grid; gap: 8px; color: var(--dark-green); font-weight: 700; }
+.nearby-address-field p { margin: 8px 0 0; color: var(--muted); font-size: .88rem; }
 .nearby-status { min-height: 1.5em; margin: 18px 0; color: var(--muted); }
 .nearby-results { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
 .nearby-card, .nearby-empty, .nearby-caution { border: 1px solid var(--line); border-radius: 16px; background: #fff; }
