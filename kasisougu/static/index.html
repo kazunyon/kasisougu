@@ -16,6 +16,7 @@
   <section id="login-page" class="login-page" aria-labelledby="login-title">
     <div class="login-intro"><p class="screen-id">ログイン</p><h1 id="login-title">相談の準備を、<br>ここから始めましょう</h1><p>今の装具や困りごとを整理して、専門職へ相談するときに役立てる個人用の記録です。</p><ul><li>装具の適合や処方は、医療・リハビリの専門職が判断します。</li><li>入力した内容は、ログイン後に保存できます。</li></ul></div>
     <section class="login-panel" aria-label="ログインフォーム"><h2>ログイン</h2><p>登録済みのメールアドレスとパスワードを入力してください。</p><form id="login-form"><label for="email">メールアドレス</label><input id="email" type="email" autocomplete="email" required maxlength="254"><label for="password">パスワード</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button type="submit" class="primary">ログインする</button></form><p id="auth-status" role="status" aria-live="polite"></p><details><summary>ログイン方法について</summary><p>Supabaseに登録済みのメールアドレスとパスワードを使用します。</p></details></section>
+    <p style="grid-column:1 / -1;text-align:center"><a href="/static/recovery.html">パスワードを忘れた方・ログインできない方</a></p>
   </section>
   <section id="home-page" hidden aria-label="ホーム">
     <div class="home-heading"><div><p class="screen-id">ホーム</p><button id="home-guide-open" class="home-guide-open" type="button" aria-haspopup="dialog">最初に読んでほしいこと</button></div><div class="save-state"><span>保存状態</span><strong id="saved-at">読み込み中</strong></div></div>
