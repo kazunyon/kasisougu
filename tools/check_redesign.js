@@ -167,7 +167,7 @@ async (page) => {
   await page.evaluate(() => {
     const places = Array.from({length:6}, (_, index) => ({displayName:`制度相談テスト施設 ${index + 1}`,formattedAddress:`埼玉県さいたま市テスト${index + 1}`,location:{lat:() => 35.86 + index / 1000,lng:() => 139.64 + index / 1000},googleMapsURI:`https://maps.google.com/?q=test-${index + 1}`,websiteURI:`https://example.invalid/facility-${index + 1}`,nationalPhoneNumber:'048-000-0000'}));
     window.google = {maps:{
-      importLibrary:async name => name === 'places' ? ({Place:{searchByText:async () => ({places})}}) : ({Route:{computeRoutes:async () => ({routes:[{durationMillis:1200000,distanceMeters:8000}]})}})
+      importLibrary:async name => name === 'places' ? ({Place:{searchByText:async () => ({places})}}) : ({Route:{computeRoutes:async request => { window.__nearbyRouteOrigins = [...(window.__nearbyRouteOrigins || []), request.origin]; return {routes:[{durationMillis:1200000,distanceMeters:8000}]}; }}})
     }};
   });
   assert(await page.getByText('装具のこと、使って感じたことを少しずつ残しましょう。',{exact:true}).count()===0,'Removed home lead remains');
@@ -191,10 +191,13 @@ async (page) => {
   await page.getByLabel('都道府県',{exact:true}).selectOption('埼玉県');
   await page.getByLabel('市区町村',{exact:true}).selectOption('さいたま市');
   await page.getByLabel('探す目的',{exact:true}).selectOption('consultation');
+  await page.getByRole('button',{name:'住所を入力（任意）',exact:true}).click();
+  await page.getByLabel('住所（任意）',{exact:true}).fill('埼玉県さいたま市テスト住所');
   await page.getByRole('button',{name:'条件に合う相談先を探す',exact:true}).click();
   assert(await page.locator('#nearby-results .nearby-card').count() === 5,'Nearby search must keep dynamic results to five candidates');
   assert((await page.locator('#nearby-results').textContent()).includes('制度相談テスト施設 1'),'Nearby dynamic facility search result is missing');
   assert(await page.locator('#nearby-results a[target="_blank"]').count() === 10,'Nearby facility and map links must open in a new tab');
+  assert(await page.evaluate(() => window.__nearbyRouteOrigins.every(origin => origin === '埼玉県さいたま市テスト住所')),'Nearby routes must use the optional address as their origin');
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
   await go('links');
   const priceGuide = page.locator('a[href="https://sogulabblog.com/price/"]');
