@@ -42,7 +42,7 @@ function appendFormattedText(element, value) {
 }
 function formattedNode(tag, text, className) { const element = node(tag, '', className); return appendFormattedText(element, text); }
 function resetSession(statusMessage = '') {
-  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); $('password-change-form').reset(); message('password-change-status', ''); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
+  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); window.KASI_NEARBY?.reset?.(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); $('password-change-form').reset(); message('password-change-status', ''); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
   if (statusMessage) { message('auth-status', statusMessage, true); $('email').focus(); }
 }
 function setAuthenticatedView(ok) {
@@ -76,7 +76,8 @@ async function authRequest(path, options = {}, accessToken = token) {
   } finally { if (timeout) window.clearTimeout(timeout); controller.abort(); }
 }
 async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
-window.KASI_API = {select};
+async function insert(table, body) { return request(`/rest/v1/${table}`, {method:'POST', headers:{'Content-Type':'application/json',Prefer:'return=representation'}, body:JSON.stringify(body)}); }
+window.KASI_API = {select,insert};
 function profileDisplayName() { return profile?.display_name || ''; }
 function applyTextScale(value) {
   const scale = Number(value);

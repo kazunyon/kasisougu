@@ -41,6 +41,7 @@ async (page) => {
     kasi_profiles:[profile],
     kasi_personal_links:personalLinks,
     kasi_nearby_facilities:nearbyFacilities,
+    kasi_candidate_facilities:[],
     kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',selected:{orthoses:['orthosis-1'],needs:[],records:[],photos:['photo-1']},orthoses,records:[],photos}}],
     kasi_user_media:photos,
     kasi_catalog_items:['長下肢装具（スペックス）','長下肢装具（リングロック）','短下肢装具','長下肢装具（CBブレース付）'].map((name,i)=>({id:`catalog-${i}`,title:name,product_name:name,summary:'装具の構造や使い方を確認し、専門職との相談に役立てます。',publication_status:'published',row_version:1})),
@@ -122,9 +123,18 @@ async (page) => {
       const table = pathname.split('/').at(-1);
       body = tables[table] || [];
       if (table === 'kasi_nearby_facilities') {
-        const params = new URL(request.url()).searchParams;
+        const params = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
         const offset = Number(params.get('offset') || 0);
         body = body.slice(offset, offset + Number(params.get('limit') || 100));
+      }
+      if (table === 'kasi_candidate_facilities') {
+        if (request.method() === 'POST') {
+          const saved = {...request.postDataJSON(),id:`candidate-${tables[table].length + 1}`,row_version:1};
+          tables[table].push(saved);
+          return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+        }
+        const params = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        body = body.filter(row => !row.deleted_at).slice(Number(params.get('offset') || 0), Number(params.get('offset') || 0) + Number(params.get('limit') || 100));
       }
       if (table === 'kasi_consultation_sheets') {
         body = body.filter(row => !row.deleted_at);
@@ -193,22 +203,36 @@ async (page) => {
   await page.screenshot({path:'output/playwright/redesign-home-desktop.png',fullPage:true});
   for (const screen of ['catalog','record','consultation','nearby','links','settings','orthosis','home']) await go(screen);
   await go('nearby');
-  await page.getByLabel('探す目的',{exact:true}).selectOption('consultation');
-  await page.getByRole('button',{name:'住所を入力（任意）',exact:true}).click();
-  await page.getByLabel('登録する住所',{exact:true}).fill('埼玉県さいたま市テスト住所');
-  await page.getByLabel('登録した住所を使う',{exact:true}).check();
+  assert(await page.locator('#nearby-maps-panel').isVisible(),'Maps search setup must be shown when no address is saved');
+  assert(await page.locator('#nearby-map-buttons button').count() === 10,'Ten purpose-specific Google Maps buttons must be shown');
+  assert(await page.getByRole('button',{name:'現在地を使用',exact:true}).count() === 1,'Current-location setup button must be shown');
+  await page.getByLabel('検索する住所',{exact:true}).fill('埼玉県さいたま市テスト住所');
+  await page.getByRole('button',{name:'この住所を保存',exact:true}).click();
+  await page.waitForFunction(() => !document.getElementById('nearby-address-save').disabled);
+  assert(profile.nearby_address === '埼玉県さいたま市テスト住所','Nearby address must be saved in the user profile');
+  await page.getByRole('button',{name:'候補施設を登録',exact:true}).click();
+  await page.getByLabel('施設名（必須）',{exact:true}).fill('あすはゆリハビリクリニック');
+  await page.locator('#candidate-type').selectOption({label:'リハビリ'});
+  await page.locator('#candidate-address').fill('埼玉県さいたま市候補住所');
+  await page.locator('#candidate-checked-on').fill('2026-09-20');
+  await page.locator('#nearby-candidate-form').getByRole('button',{name:'候補施設を保存',exact:true}).click();
+  await page.waitForFunction(() => document.getElementById('candidate-status').textContent.includes('保存しました'));
+  assert(tables.kasi_candidate_facilities.length === 1,'Candidate facility must be saved');
+  await page.getByRole('tab',{name:'登録施設から探す',exact:true}).click();
+  await page.locator('#nearby-purpose').selectOption('consultation');
+  await page.locator('input[name="nearby-origin"][value="address"]').check();
   await page.getByRole('button',{name:'直線距離を調べる',exact:true}).click();
   await page.waitForFunction(() => !document.getElementById('nearby-search').disabled);
   assert(await page.locator('#nearby-results .nearby-card').count() === 6,'All registered facilities within range must be shown');
   assert((await page.locator('#nearby-results').textContent()).includes('直線距離：'),'Nearby straight-line distance is missing');
   assert(await page.locator('#nearby-results a[target="_blank"]').count() === 12,'Nearby facility and map links must open in a new tab');
-  assert(profile.nearby_address === '埼玉県さいたま市テスト住所','Nearby address must be saved in the user profile');
   assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=35.865%2C139.645'),'Google Maps link must use the resolved address coordinates as its origin');
   await go('settings');
   await page.getByLabel('現在のパスワード',{exact:true}).fill('synthetic-current-password');
   await page.getByLabel('新しいパスワード',{exact:true}).fill('synthetic-new-password');
   await page.getByLabel('新しいパスワード（確認）',{exact:true}).fill('synthetic-new-password');
   await page.getByRole('button',{name:'パスワードを変更する',exact:true}).click();
+  await page.waitForFunction(() => document.getElementById('password-change-status').textContent.includes('パスワードを変更しました。'));
   assert(passwordUpdates.length === 1 && passwordUpdates[0].password === 'synthetic-new-password' && passwordUpdates[0].current_password === 'synthetic-current-password','Password change must update Supabase Auth with current-password verification');
   assert((await page.locator('#password-change-status').textContent()).includes('パスワードを変更しました。'),'Password change success message is missing');
   assert(await page.getByText('ホームへ戻る',{exact:true}).count()===0,'Home-back links remain');
