@@ -31,6 +31,7 @@ async (page) => {
   ];
   const profile = {user_id:'test-user',display_name:'テスト利用者',nearby_address:null,text_scale:100,device_storage_enabled:false,row_version:1};
   const personalLinks = [];
+  const nearbyFacilities = Array.from({length:6}, (_, index) => ({id:`facility-${index + 1}`,name:`制度相談テスト施設 ${index + 1}`,address:`埼玉県さいたま市テスト${index + 1}`,prefecture:'埼玉県',municipality:'さいたま市',latitude:35.86 + index / 1000,longitude:139.64 + index / 1000,purpose_codes:['consultation'],phone:'048-000-0000',website_url:`https://example.invalid/facility-${index + 1}`,is_active:true}));
   const tables = {
     kasi_user_orthoses:orthoses,
     kasi_usage_records:records,
@@ -39,6 +40,7 @@ async (page) => {
     kasi_user_needs:[{id:'need-1',user_orthosis_id:'orthosis-1',need_type:'problem',category_code:'weight',description:'長時間使うと重さが気になる',priority:2,status_code:'active',row_version:1}],
     kasi_profiles:[profile],
     kasi_personal_links:personalLinks,
+    kasi_nearby_facilities:nearbyFacilities,
     kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',selected:{orthoses:['orthosis-1'],needs:[],records:[],photos:['photo-1']},orthoses,records:[],photos}}],
     kasi_user_media:photos,
     kasi_catalog_items:['長下肢装具（スペックス）','長下肢装具（リングロック）','短下肢装具','長下肢装具（CBブレース付）'].map((name,i)=>({id:`catalog-${i}`,title:name,product_name:name,summary:'装具の構造や使い方を確認し、専門職との相談に役立てます。',publication_status:'published',row_version:1})),
@@ -46,8 +48,9 @@ async (page) => {
   };
   let mutations = 0;
   const passwordUpdates = [];
-  await page.route('**/pages-config.js', route => route.fulfill({contentType:'application/javascript',body:'window.KASISOUGU_SUPABASE_CONFIG={url:"https://redesign-test.invalid",publishableKey:"sb_publishable_fixture",googleMapsApiKey:"browser-restricted-fixture"};'}));
+  await page.route('**/pages-config.js', route => route.fulfill({contentType:'application/javascript',body:'window.KASISOUGU_SUPABASE_CONFIG={url:"https://redesign-test.invalid",publishableKey:"sb_publishable_fixture"};'}));
   await page.route('https://geolonia.github.io/japanese-addresses/**', route => route.fulfill({contentType:'application/json',body:JSON.stringify({'埼玉県':['さいたま市','川口市']})}));
+  await page.route('https://msearch.gsi.go.jp/address-search/**', route => route.fulfill({contentType:'application/json',body:JSON.stringify([{geometry:{coordinates:[139.645,35.865]}}])}));
   await page.route('**/sw.js', route => route.fulfill({contentType:'application/javascript',body:'// Disabled only in the isolated browser smoke check.'}));
   await page.route('https://redesign-test.invalid/**', async route => {
     const request = route.request(), pathname = request.url().split('.invalid')[1].split('?')[0];
@@ -168,12 +171,6 @@ async (page) => {
   await page.getByRole('button',{name:'ログインする',exact:true}).click();
   await page.locator('#home-page').waitFor({state:'visible'});
   await page.waitForFunction(() => document.getElementById('saved-at').textContent === '保存済み');
-  await page.evaluate(() => {
-    const places = Array.from({length:6}, (_, index) => ({displayName:`制度相談テスト施設 ${index + 1}`,formattedAddress:`埼玉県さいたま市テスト${index + 1}`,location:{lat:() => 35.86 + index / 1000,lng:() => 139.64 + index / 1000},googleMapsURI:`https://maps.google.com/?q=test-${index + 1}`,websiteURI:`https://example.invalid/facility-${index + 1}`,nationalPhoneNumber:'048-000-0000'}));
-    window.google = {maps:{
-      importLibrary:async name => name === 'places' ? ({Place:{searchByText:async () => ({places})}}) : ({Route:{computeRoutes:async request => { window.__nearbyRouteOrigins = [...(window.__nearbyRouteOrigins || []), request.origin]; return {routes:[{durationMillis:1200000,distanceMeters:8000}]}; }}})
-    }};
-  });
   assert(await page.getByText('装具のこと、使って感じたことを少しずつ残しましょう。',{exact:true}).count()===0,'Removed home lead remains');
   await page.getByRole('button',{name:'最初に読んでほしいこと',exact:true}).click();
   assert(await page.locator('#home-guide-dialog').isVisible(),'Home guide dialog did not open');
@@ -192,18 +189,19 @@ async (page) => {
   await page.screenshot({path:'output/playwright/redesign-home-desktop.png',fullPage:true});
   for (const screen of ['catalog','record','consultation','nearby','links','settings','orthosis','home']) await go(screen);
   await go('nearby');
-  await page.getByLabel('都道府県',{exact:true}).selectOption('埼玉県');
-  await page.getByLabel('市区町村',{exact:true}).selectOption('さいたま市');
+  await page.getByLabel('探す都道府県',{exact:true}).selectOption('埼玉県');
+  await page.getByLabel('探す市区町村',{exact:true}).selectOption('さいたま市');
   await page.getByLabel('探す目的',{exact:true}).selectOption('consultation');
   await page.getByRole('button',{name:'住所を入力（任意）',exact:true}).click();
-  await page.getByLabel('住所（任意）',{exact:true}).fill('埼玉県さいたま市テスト住所');
-  await page.getByRole('button',{name:'条件に合う相談先を探す',exact:true}).click();
-  assert(await page.locator('#nearby-results .nearby-card').count() === 5,'Nearby search must keep dynamic results to five candidates');
-  assert((await page.locator('#nearby-results').textContent()).includes('制度相談テスト施設 1'),'Nearby dynamic facility search result is missing');
+  await page.getByLabel('登録する住所',{exact:true}).fill('埼玉県さいたま市テスト住所');
+  await page.getByLabel('登録した住所を使う',{exact:true}).check();
+  await page.getByRole('button',{name:'直線距離を調べる',exact:true}).click();
+  assert(await page.locator('#nearby-results .nearby-card').count() === 6,'Nearby search must render every matching registered facility');
+  assert((await page.locator('#nearby-results').textContent()).includes('直線距離：'),'Nearby straight-line distance is missing');
+  assert((await page.locator('#nearby-results').textContent()).includes('制度相談テスト施設 1'),'Nearby registered facility is missing');
   assert(await page.locator('#nearby-results a[target="_blank"]').count() === 10,'Nearby facility and map links must open in a new tab');
-  assert(await page.evaluate(() => window.__nearbyRouteOrigins.every(origin => origin === '埼玉県さいたま市テスト住所')),'Nearby routes must use the optional address as their origin');
   assert(profile.nearby_address === '埼玉県さいたま市テスト住所','Nearby address must be saved in the user profile');
-  assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=%E5%9F%BC%E7%8E%89%E7%9C%8C%E3%81%95%E3%81%84%E3%81%9F%E3%81%BE%E5%B8%82%E3%83%86%E3%82%B9%E3%83%88%E4%BD%8F%E6%89%80'),'Google Maps link must use the saved address as its origin');
+  assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=35.865%2C139.645'),'Google Maps link must use the resolved address coordinates as its origin');
   await go('settings');
   await page.getByLabel('現在のパスワード',{exact:true}).fill('synthetic-current-password');
   await page.getByLabel('新しいパスワード',{exact:true}).fill('synthetic-new-password');
