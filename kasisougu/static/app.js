@@ -520,6 +520,8 @@ $('profile-form').addEventListener('input', event => { if (event.target.id === '
 $('profile-form').addEventListener('change', () => message('profile-status', '未保存の変更があります。'));
 $('password-change-form').addEventListener('submit', async event => {
   event.preventDefault();
+  // Event.currentTarget is cleared after dispatch, before the await resumes.
+  const form = event.currentTarget;
   const button = event.submitter;
   const currentPassword = $('current-password').value;
   const newPassword = $('new-password').value;
@@ -532,10 +534,10 @@ $('password-change-form').addEventListener('submit', async event => {
   try {
     const user = await authRequest('/auth/v1/user', {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:currentPassword,password:newPassword})});
     userId = user?.id || userId;
-    event.currentTarget.reset();
+    form.reset();
     message('password-change-status', 'パスワードを変更しました。次回から新しいパスワードでログインしてください。');
   } catch (error) {
-    event.currentTarget.reset();
+    form.reset();
     message('password-change-status', error.message || 'パスワードを変更できませんでした。', true);
   } finally { button.disabled = false; }
 });
