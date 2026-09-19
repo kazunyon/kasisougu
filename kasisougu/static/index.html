@@ -80,17 +80,17 @@
     <section id="consultation-preview" class="print-preview" hidden aria-labelledby="sheet-preview-title"><h2 id="sheet-preview-title">相談シート</h2><div id="consultation-preview-body"></div><div class="form-actions print-controls"><button type="button" id="sheet-revise" hidden>内容を編集する</button><button type="button" id="print-consultation">A4で印刷する</button></div></section>
   </section>
   <section id="nearby-page" class="app-page" hidden aria-labelledby="nearby-title">
-    <div class="page-title"><p class="screen-id">近くで探す</p><h1 id="nearby-title">相談先を、近くから探す。</h1><p class="lead">登録済みの施設を、出発地からの直線距離が近い順に表示します。</p></div>
+    <div class="page-title"><p class="screen-id">近くで探す</p><h1 id="nearby-title">相談先を、近くから探す。</h1><p class="lead">現在地または登録住所の周囲にある候補を、直線距離が近い順に表示します。</p></div>
     <section class="form-panel nearby-search-panel" aria-labelledby="nearby-search-title">
-      <h2 id="nearby-search-title">出発地と地域を選ぶ</h2>
+      <h2 id="nearby-search-title">出発地と条件を選ぶ</h2>
       <fieldset class="nearby-origin"><legend>FROM</legend><label><input type="radio" name="nearby-origin" value="current" checked> 現在地を使う</label><label><input type="radio" name="nearby-origin" value="address"> 登録した住所を使う</label></fieldset>
-      <div class="form-grid"><label>探す都道府県<select id="nearby-prefecture" required></select></label><label>探す市区町村<select id="nearby-municipality" required disabled></select></label><label class="nearby-purpose">探す目的<select id="nearby-purpose"><option value="manufacture">装具の製作</option><option value="repair">修理</option><option value="fitting">適合確認</option><option value="rehabilitation">リハビリ</option><option value="consultation">制度相談</option></select></label></div>
+      <div class="form-grid"><label>探す目的<select id="nearby-purpose"><option value="manufacture">装具の製作</option><option value="repair">修理</option><option value="fitting">適合確認</option><option value="rehabilitation">リハビリ</option><option value="consultation">制度相談</option></select></label><label>検索範囲<select id="nearby-radius"><option value="10000">10km以内</option><option value="30000" selected>30km以内</option><option value="50000">50km以内</option></select></label></div>
       <div class="nearby-address-control"><button id="nearby-address-toggle" class="nearby-address-toggle" type="button" aria-expanded="false" aria-controls="nearby-address-field">住所を入力（任意）</button><div id="nearby-address-field" class="nearby-address-field" hidden><label for="nearby-address">登録する住所<input id="nearby-address" type="text" maxlength="200" autocomplete="street-address" placeholder="例：岩手県九戸郡九戸村○○"></label><p>住所は本人設定として保存します。「登録した住所を使う」を選ぶと、この住所から直線距離を計算します。空欄で検索すると保存した住所を削除できます。</p></div></div>
       <div class="form-actions"><button id="nearby-search" class="primary" type="button">直線距離を調べる</button></div>
     </section>
-    <p id="nearby-status" class="nearby-status" role="status" aria-live="polite">地域と条件を選んでください。</p>
+    <p id="nearby-status" class="nearby-status" role="status" aria-live="polite">出発地と条件を選んでください。</p>
     <section class="nearby-results-section" aria-labelledby="nearby-results-title"><div class="section-heading"><div><p class="section-kicker">検索結果</p><h2 id="nearby-results-title">相談先候補</h2></div><p class="nearby-results-limit">表示は最大5件</p></div><div id="nearby-results" class="nearby-results"></div></section>
-    <aside class="nearby-caution"><h2>利用上の注意</h2><p>アプリ内の距離は、現在地または登録した住所と施設の緯度経度から計算する直線距離です。道路距離・所要時間・経路は「Google Mapsで経路を確認」で確認してください。現在地の取得には端末の位置情報許可が必要です。登録住所の位置確認には国土地理院の住所検索を利用します。施設の対応内容、予約、バリアフリーや車いすでの通行可否は反映していないため、必ず施設へ事前に確認してください。</p></aside>
+    <aside class="nearby-caution"><h2>利用上の注意</h2><p>検索ボタンを押した時点の OpenStreetMap 公開データから、周囲の障害者支援・義肢装具・補装具・リハビリ・病院の候補を探します。アプリ内の距離は、現在地または登録した住所と施設の緯度経度から計算する直線距離です。道路距離・所要時間・経路は「地図で経路を確認」で確認してください。現在地の取得には端末の位置情報許可が必要です。登録住所の位置確認には国土地理院の住所検索を利用します。施設の対応内容、予約、バリアフリーや車いすでの通行可否は反映していないため、必ず施設へ事前に確認してください。</p><p>地図データ：<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>（ODbL）</p></aside>
   </section>
   <section id="links-page" class="app-page" hidden aria-labelledby="links-title">
     <div class="page-title"><p class="screen-id">お役立ち情報</p><h1 id="links-title">リンク集</h1><p class="lead">装具について調べたいときに役立つサイトを紹介します。</p></div>

@@ -51,6 +51,7 @@ async (page) => {
   await page.route('**/pages-config.js', route => route.fulfill({contentType:'application/javascript',body:'window.KASISOUGU_SUPABASE_CONFIG={url:"https://redesign-test.invalid",publishableKey:"sb_publishable_fixture"};'}));
   await page.route('https://geolonia.github.io/japanese-addresses/**', route => route.fulfill({contentType:'application/json',body:JSON.stringify({'埼玉県':['さいたま市','川口市']})}));
   await page.route('https://msearch.gsi.go.jp/address-search/**', route => route.fulfill({contentType:'application/json',body:JSON.stringify([{geometry:{coordinates:[139.645,35.865]}}])}));
+  await page.route('https://overpass-api.de/api/interpreter**', route => route.fulfill({contentType:'application/json',body:JSON.stringify({elements:[{type:'node',id:1,lat:35.866,lon:139.646,tags:{name:'近くの障害者相談支援センター',amenity:'social_facility','addr:city':'さいたま市','addr:street':'テスト町1-1'}}]})}));
   await page.route('**/sw.js', route => route.fulfill({contentType:'application/javascript',body:'// Disabled only in the isolated browser smoke check.'}));
   await page.route('https://redesign-test.invalid/**', async route => {
     const request = route.request(), pathname = request.url().split('.invalid')[1].split('?')[0];
@@ -189,8 +190,6 @@ async (page) => {
   await page.screenshot({path:'output/playwright/redesign-home-desktop.png',fullPage:true});
   for (const screen of ['catalog','record','consultation','nearby','links','settings','orthosis','home']) await go(screen);
   await go('nearby');
-  await page.getByLabel('探す都道府県',{exact:true}).selectOption('埼玉県');
-  await page.getByLabel('探す市区町村',{exact:true}).selectOption('さいたま市');
   await page.getByLabel('探す目的',{exact:true}).selectOption('consultation');
   await page.getByRole('button',{name:'住所を入力（任意）',exact:true}).click();
   await page.getByLabel('登録する住所',{exact:true}).fill('埼玉県さいたま市テスト住所');
@@ -198,8 +197,8 @@ async (page) => {
   await page.getByRole('button',{name:'直線距離を調べる',exact:true}).click();
   assert(await page.locator('#nearby-results .nearby-card').count() === 5,'Nearby search must show the nearest five merged facilities');
   assert((await page.locator('#nearby-results').textContent()).includes('直線距離：'),'Nearby straight-line distance is missing');
-  assert((await page.locator('#nearby-results').textContent()).includes('制度相談テスト施設 1'),'Nearby registered facility is missing');
-  assert((await page.locator('#nearby-results').textContent()).includes('さいたま市障害者総合支援センター'),'Nearby verified rehabilitation fallback is missing');
+  assert((await page.locator('#nearby-results').textContent()).includes('近くの障害者相談支援センター'),'Nearby live facility search result is missing');
+  assert((await page.locator('#nearby-results').textContent()).includes('さいたま市障害者総合支援センター'),'Nearby verified fallback is missing');
   assert(await page.locator('#nearby-results a[target="_blank"]').count() === 10,'Nearby facility and map links must open in a new tab');
   assert(profile.nearby_address === '埼玉県さいたま市テスト住所','Nearby address must be saved in the user profile');
   assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=35.865%2C139.645'),'Google Maps link must use the resolved address coordinates as its origin');
