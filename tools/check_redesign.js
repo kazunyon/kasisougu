@@ -221,6 +221,7 @@ async (page) => {
   await page.getByLabel('施設名（必須）',{exact:true}).fill('あすはゆリハビリクリニック');
   await page.locator('#candidate-type').selectOption({label:'リハビリ'});
   await page.locator('#candidate-address').fill('埼玉県さいたま市候補住所');
+  await page.getByLabel('Google Maps URL',{exact:true}).fill('https://www.google.com/maps/dir/?api=1&origin=現在地&destination=埼玉県さいたま市候補住所');
   await page.locator('#candidate-checked-on').fill('2026-09-20');
   await page.locator('#nearby-candidate-form').getByRole('button',{name:'候補施設を保存',exact:true}).click();
   await page.waitForFunction(() => document.getElementById('candidate-status').textContent.includes('保存しました'));
@@ -235,6 +236,8 @@ async (page) => {
   assert.equal(directionsUrl.searchParams.get('origin'),profile.nearby_address,'Google Maps link must use the saved address as its origin');
   assert.equal(directionsUrl.searchParams.get('travelmode'),'walking','Google Maps directions must default to walking');
   let candidateCard=page.locator('#nearby-results .nearby-card').filter({hasText:'あすはゆリハビリクリニック'});
+  assert(await candidateCard.getByText('登録したGoogle Maps URLを開く',{exact:true}).count()===0,'Candidate cards must not open a saved directions URL with an old origin');
+  assert(await candidateCard.getByRole('link',{name:'Google Mapsで経路を確認',exact:true}).count()===1,'Candidate cards must provide the address-based directions link');
   assert(await candidateCard.getByRole('button',{name:'編集',exact:true}).count()===1,'Candidate edit button is missing');
   assert(await candidateCard.getByRole('button',{name:'削除',exact:true}).count()===1,'Candidate delete button is missing');
   await candidateCard.getByRole('button',{name:'編集',exact:true}).click();
