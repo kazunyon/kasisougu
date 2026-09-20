@@ -211,7 +211,7 @@ async (page) => {
   for (const screen of ['catalog','record','consultation','nearby','links','settings','orthosis','home']) await go(screen);
   await go('nearby');
   assert(await page.locator('#nearby-maps-panel').isVisible(),'Maps search setup must be shown when no address is saved');
-  assert(await page.getByRole('button',{name:'Google Mapsで目的地を選ぶ',exact:true}).count() === 1,'Google Maps destination chooser must be shown');
+  assert(await page.locator('#nearby-map-buttons button').count() === 10,'Ten purpose-specific Google Maps buttons must be shown');
   assert(await page.getByRole('button',{name:'現在地を使用',exact:true}).count() === 1,'Current-location setup button must be shown');
   await page.getByLabel('検索する住所',{exact:true}).fill('埼玉県さいたま市テスト住所');
   await page.getByRole('button',{name:'この住所を保存',exact:true}).click();

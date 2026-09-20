@@ -1,6 +1,11 @@
 'use strict';
 // User-triggered URL searches only. No Google Maps Platform API or API key is used.
 const KASI_NEARBY_PURPOSES = {manufacture:'装具の製作',repair:'修理',fitting:'適合確認',rehabilitation:'リハビリ',consultation:'制度相談'};
+const KASI_MAP_SEARCHES = [
+  ['リハビリを探す','リハビリ'],['リハビリ科を探す','リハビリテーション科'],['整形外科を探す','整形外科 リハビリ'],
+  ['義肢装具店を探す','義肢装具'],['補装具店を探す','補装具'],['障害者支援を探す','障害者支援施設'],
+  ['通所リハビリを探す','通所リハビリ'],['訪問リハビリを探す','訪問リハビリ'],['装具外来を探す','装具外来'],['脳卒中リハビリを探す','脳卒中リハビリ']
+];
 const KASI_NEARBY_GEOCODER = 'https://msearch.gsi.go.jp/address-search/AddressSearch';
 const nearby$ = id => document.getElementById(id);
 let nearbyReady = false, nearbySavedAddress = '', nearbyCurrentCenter = null, nearbyEditingCandidate = null, nearbyLastOrigin = null, nearbyLastCondition = null;
@@ -50,7 +55,7 @@ async function nearbyFindFacilities(origin, condition) {
   return facilities.sort((a,b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity) || a.name.localeCompare(b.name,'ja'));
 }
 function nearbyDirectionsUrl(origin, item) { const destination = item.address || (item.location ? `${item.location.lat},${item.location.lng}` : ''); return `https://www.google.com/maps/dir/?${new URLSearchParams({api:'1',origin:origin.routeOrigin || `${origin.lat},${origin.lng}`,destination,travelmode:'walking'}).toString()}`; }
-function nearbyMapsSearchUrl(center) { const location = center.address || `${center.lat},${center.lng}`; return `https://www.google.com/maps/dir/?${new URLSearchParams({api:'1',origin:center.routeOrigin || location,travelmode:'walking'}).toString()}`; }
+function nearbyMapsSearchUrl(keyword, center) { const location = center.address || `${center.lat},${center.lng}`; return `https://www.google.com/maps/dir/?${new URLSearchParams({api:'1',origin:center.routeOrigin || location,destination:`${keyword} ${location}`,travelmode:'walking'}).toString()}`; }
 function nearbyRenderResults(items, origin) {
   const container = nearby$('nearby-results'); container.replaceChildren();
   if (!items.length) { const empty = document.createElement('div'); empty.className = 'nearby-empty'; empty.textContent = '条件に合う登録施設がありません。範囲・目的を変えてください。'; container.append(empty); return; }
@@ -72,11 +77,11 @@ async function nearbySearch(originType = 'address') {
 }
 function nearbySetMode(mode) { const maps=mode==='maps'; nearby$('nearby-registered-panel').hidden=maps; nearby$('nearby-maps-panel').hidden=!maps; for(const name of ['registered','maps']){ const active=name===mode,button=nearby$(`nearby-mode-${name}`); button.classList.toggle('active',active); button.setAttribute('aria-selected',String(active)); } }
 function nearbyToggleMapsAddress() { nearby$('nearby-maps-address-field').hidden=document.querySelector('input[name="nearby-maps-origin"]:checked')?.value==='current'; }
-async function nearbyOpenMaps() {
+async function nearbyOpenMaps(keyword) {
   const mode=document.querySelector('input[name="nearby-maps-origin"]:checked')?.value, address=nearby$('nearby-address').value.trim(); nearbySetStatus('Google Mapsを開く準備をしています…',false,'nearby-maps-status');
-  try { const center=mode==='current' ? (nearbyCurrentCenter || await nearbyCurrentPosition()) : {address:address || nearbySavedAddress}; if(!center.address && center.lat==null) throw new Error('検索する住所を入力してください。'); const url=nearbyMapsSearchUrl(center); const opened=window.open(url,'_blank'); if(opened) opened.opener=null; const fallback=nearby$('nearby-map-fallback'); fallback.href=url; fallback.hidden=Boolean(opened); nearbySetStatus(opened ? 'Google Mapsを新しい画面で開きました。目的地を選んでください。' : 'Google Mapsを開けませんでした。下のリンクからブラウザで開いてください。',!opened,'nearby-maps-status'); } catch(error){ nearbySetStatus(error.message||'Google Mapsを開けませんでした。',true,'nearby-maps-status'); }
+  try { const center=mode==='current' ? (nearbyCurrentCenter || await nearbyCurrentPosition()) : {address:address || nearbySavedAddress}; if(!center.address && center.lat==null) throw new Error('検索する住所を入力してください。'); const url=nearbyMapsSearchUrl(keyword,center); const opened=window.open(url,'_blank'); if(opened) opened.opener=null; const fallback=nearby$('nearby-map-fallback'); fallback.href=url; fallback.hidden=Boolean(opened); nearbySetStatus(opened ? 'Google Mapsを新しい画面で開きました。' : 'Google Mapsを開けませんでした。下のリンクからブラウザで開いてください。',!opened,'nearby-maps-status'); } catch(error){ nearbySetStatus(error.message||'Google Mapsを開けませんでした。',true,'nearby-maps-status'); }
 }
-function nearbyBuildMapButtons() { const container=nearby$('nearby-map-buttons'),button=document.createElement('button'); button.type='button'; button.className='nearby-map-search-button primary'; button.textContent='Google Mapsで目的地を選ぶ'; button.addEventListener('click',nearbyOpenMaps); container.append(button); }
+function nearbyBuildMapButtons() { const container=nearby$('nearby-map-buttons'); for(const [label,keyword] of KASI_MAP_SEARCHES){ const button=document.createElement('button'); button.type='button'; button.className='nearby-map-search-button'; button.textContent=label; button.dataset.keyword=keyword; button.addEventListener('click',()=>nearbyOpenMaps(keyword)); container.append(button); } }
 function nearbyToday() { const now=new Date(), local=new Date(now.getTime()-now.getTimezoneOffset()*60000); return local.toISOString().slice(0,10); }
 function nearbyToggleCandidate(open) { const form=nearby$('nearby-candidate-form'),button=nearby$('nearby-candidate-toggle'); form.hidden=!open; button.setAttribute('aria-expanded',String(open)); button.textContent=open?'入力欄を閉じる':'候補施設を登録'; if(open){ nearby$('candidate-checked-on').value ||= nearbyToday(); nearby$('candidate-name').focus(); } }
 function nearbyCandidateError(error) { const message=error?.message||''; return /schema cache|could not find.*kasi_candidate_facilities/i.test(message) ? '候補施設の保存先が準備されていません。管理者に候補施設用データベース設定の適用を依頼してください。' : (message||'候補施設を保存できませんでした。'); }
