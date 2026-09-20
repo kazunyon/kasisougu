@@ -55,7 +55,7 @@ async function nearbyFindFacilities(origin, condition) {
   return facilities.sort((a,b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity) || a.name.localeCompare(b.name,'ja'));
 }
 function nearbyDirectionsUrl(origin, item) { const destination = item.address || (item.location ? `${item.location.lat},${item.location.lng}` : ''); return `https://www.google.com/maps/dir/?${new URLSearchParams({api:'1',origin:origin.routeOrigin || `${origin.lat},${origin.lng}`,destination,travelmode:'walking'}).toString()}`; }
-function nearbyMapsSearchUrl(keyword, center) { const location = center.address || `${center.lat},${center.lng}`; return `https://www.google.com/maps/search/?${new URLSearchParams({api:'1',query:`${keyword} ${location}`}).toString()}`; }
+function nearbyMapsSearchUrl(keyword, center) { const location = center.address || `${center.lat},${center.lng}`; return `https://www.google.com/maps/dir/?${new URLSearchParams({api:'1',origin:center.routeOrigin || location,destination:`${keyword} ${location}`,travelmode:'walking'}).toString()}`; }
 function nearbyRenderResults(items, origin) {
   const container = nearby$('nearby-results'); container.replaceChildren();
   if (!items.length) { const empty = document.createElement('div'); empty.className = 'nearby-empty'; empty.textContent = '条件に合う登録施設がありません。範囲・目的を変えてください。'; container.append(empty); return; }
