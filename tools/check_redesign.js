@@ -217,6 +217,12 @@ async (page) => {
   await page.getByRole('button',{name:'この住所を保存',exact:true}).click();
   await page.waitForFunction(() => !document.getElementById('nearby-address-save').disabled);
   assert(profile.nearby_address === '埼玉県さいたま市テスト住所','Nearby address must be saved in the user profile');
+  await page.evaluate(() => { window.__lastOpenedMapsUrl = ''; window.open = url => { window.__lastOpenedMapsUrl = url; return {opener:null}; }; });
+  await page.getByRole('button',{name:'リハビリ科を探す',exact:true}).click();
+  const openedRoute = await page.evaluate(() => { const url=new URL(window.__lastOpenedMapsUrl); return {origin:url.searchParams.get('origin'),destination:url.searchParams.get('destination'),travelmode:url.searchParams.get('travelmode')}; });
+  assert(openedRoute.origin === profile.nearby_address,'Google Maps search must use the saved address as its origin');
+  assert(openedRoute.destination === `リハビリテーション科 ${profile.nearby_address}`,'Google Maps search must keep the selected facility type as its destination');
+  assert(openedRoute.travelmode === 'walking','Google Maps search must default to walking');
   await page.getByRole('button',{name:'候補施設を登録',exact:true}).click();
   await page.getByLabel('施設名（必須）',{exact:true}).fill('あすはゆリハビリクリニック');
   await page.locator('#candidate-type').selectOption({label:'リハビリ'});
@@ -232,9 +238,10 @@ async (page) => {
   await page.waitForFunction(() => !document.getElementById('nearby-search').disabled);
   assert(await page.locator('#nearby-results .nearby-card').count() === 7,'Registered and candidate facilities within range must be shown');
   assert((await page.locator('#nearby-results').textContent()).includes('直線距離：'),'Nearby straight-line distance is missing');
-  const directionsUrl = new URL(await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href'));
-  assert.equal(directionsUrl.searchParams.get('origin'),profile.nearby_address,'Google Maps link must use the saved address as its origin');
-  assert.equal(directionsUrl.searchParams.get('travelmode'),'walking','Google Maps directions must default to walking');
+  const directionsHref = await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href');
+  const directionsRoute = await page.evaluate(href => { const url=new URL(href); return {origin:url.searchParams.get('origin'),travelmode:url.searchParams.get('travelmode')}; },directionsHref);
+  assert(directionsRoute.origin === profile.nearby_address,'Google Maps link must use the saved address as its origin');
+  assert(directionsRoute.travelmode === 'walking','Google Maps directions must default to walking');
   let candidateCard=page.locator('#nearby-results .nearby-card').filter({hasText:'あすはゆリハビリクリニック'});
   assert(await candidateCard.getByText('登録したGoogle Maps URLを開く',{exact:true}).count()===0,'Candidate cards must not open a saved directions URL with an old origin');
   assert(await candidateCard.getByRole('link',{name:'Google Mapsで経路を確認',exact:true}).count()===1,'Candidate cards must provide the address-based directions link');
