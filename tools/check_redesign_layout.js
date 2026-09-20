@@ -10,6 +10,13 @@ async (page) => {
   };
   for (const width of [1024,768,390,320]) {
     await page.setViewportSize({width,height:900});
+    if (width > 760) {
+      assert(await page.locator('.sidebar-session > #logout').isVisible(), `Sidebar logout is missing at ${width}px`);
+      assert(await page.locator('#logout-mobile').isHidden(), `Mobile logout is visible at ${width}px`);
+    } else {
+      assert(await page.locator('#logout').isHidden(), `Desktop logout is visible at ${width}px`);
+      assert(await page.locator('.site-footer > #logout-mobile').isVisible(), `Mobile logout is missing at ${width}px`);
+    }
     for (const screen of ['home','catalog','record','consultation','links','settings']) {
       await go(screen);
       assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1), `Horizontal overflow: ${screen} at ${width}px`);
@@ -38,7 +45,7 @@ async (page) => {
   await page.locator('#orthosis-add').click();
   await page.locator('#orthosis-name').fill('ログアウトで破棄する下書き');
   await go('settings');
-  await page.locator('#logout').click();
+  await page.locator('#logout-mobile').click();
   assert(await page.locator('#app-navigation').isHidden(),'Navigation remains after logout');
   assert(await page.locator('#login-page').isVisible(),'Login missing after logout');
   assert(await page.locator('#orthosis-name').inputValue()==='', 'Orthosis draft remains after logout');
