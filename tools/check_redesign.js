@@ -227,12 +227,13 @@ async (page) => {
   assert(tables.kasi_candidate_facilities.length === 1,'Candidate facility must be saved');
   await page.getByRole('tab',{name:'登録施設から探す',exact:true}).click();
   await page.locator('#nearby-purpose').selectOption('');
-  await page.locator('input[name="nearby-origin"][value="address"]').check();
-  await page.getByRole('button',{name:'直線距離を調べる',exact:true}).click();
+  await page.getByRole('button',{name:'登録住所から検索',exact:true}).click();
   await page.waitForFunction(() => !document.getElementById('nearby-search').disabled);
   assert(await page.locator('#nearby-results .nearby-card').count() === 7,'Registered and candidate facilities within range must be shown');
   assert((await page.locator('#nearby-results').textContent()).includes('直線距離：'),'Nearby straight-line distance is missing');
-  assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=35.865%2C139.645'),'Google Maps link must use the resolved address coordinates as its origin');
+  const directionsUrl = new URL(await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href'));
+  assert.equal(directionsUrl.searchParams.get('origin'),profile.nearby_address,'Google Maps link must use the saved address as its origin');
+  assert.equal(directionsUrl.searchParams.get('travelmode'),'walking','Google Maps directions must default to walking');
   let candidateCard=page.locator('#nearby-results .nearby-card').filter({hasText:'あすはゆリハビリクリニック'});
   assert(await candidateCard.getByRole('button',{name:'編集',exact:true}).count()===1,'Candidate edit button is missing');
   assert(await candidateCard.getByRole('button',{name:'削除',exact:true}).count()===1,'Candidate delete button is missing');
