@@ -50,7 +50,7 @@ function setAuthenticatedView(ok) {
   $('app-navigation').hidden = !ok;
   $('app-toolbar').hidden = !ok;
   document.querySelectorAll('.app-page').forEach(p => p.hidden = true);
-  $('login-page').hidden = ok; $('home-page').hidden = !ok; $('logout').hidden = !ok;
+  $('login-page').hidden = ok; $('home-page').hidden = !ok; document.querySelectorAll('.logout-button').forEach(button => { button.hidden = !ok; });
   $('header-status').textContent = ok ? 'ログイン中' : 'ログインが必要です';
   if (ok) setScreen('home');
   else { currentScreen = 'home'; screenLoads.clear(); document.title = '下肢装具サポート'; }
@@ -422,7 +422,7 @@ function setScreen(name) {
   window.scrollTo({top:0, behavior:'instant'});
 }
 $('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; const email = $('email').value.trim(); button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
-$('logout').addEventListener('click', () => resetSession('ログアウトしました。'));
+document.querySelectorAll('.logout-button').forEach(button => button.addEventListener('click', () => resetSession('ログアウトしました。')));
 $('personal-link-add').addEventListener('click', () => showPersonalLinkForm());
 $('personal-link-cancel').addEventListener('click', resetPersonalLinkForm);
 $('personal-link-form').addEventListener('submit', async event => {

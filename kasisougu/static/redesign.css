@@ -60,6 +60,9 @@ h1, .next-step h2 { text-wrap: balance; }
 .sidebar-secondary button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 14px; text-align: left; font-size: .9rem; border: 0; border-radius: 12px; }
 .sidebar-secondary svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .sidebar-secondary button[aria-current=page], .mobile-orthosis[aria-current=page] { background: var(--soft); border-color: var(--green); }
+.sidebar-session { margin-top: auto; padding-top: 24px; }
+.sidebar-session button { width: 100%; min-height: 44px; padding: 8px 14px; font-size: .8rem; background: #fff; }
+.site-footer #logout-mobile { display: none; }
 .orthosis-list { margin: 20px 0 34px; }
 .orthosis-flow { display: grid; grid-template-columns: minmax(0,1fr) 42px minmax(0,1fr) 42px minmax(0,1fr); align-items: stretch; gap: 0; }
 .orthosis-group { min-width: 0; border: 1px solid var(--line); border-radius: 16px; padding: 18px; background: #fff; }
@@ -236,7 +239,7 @@ h1, .next-step h2 { text-wrap: balance; }
   .primary-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 3px; background: #fff; border-top: 1px solid var(--line); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px #193f3406; }
   .primary-nav button { flex-direction: column; justify-content: center; gap: 5px; padding: 6px 2px; min-height: 58px; font-size: .68rem; text-align: center; }
   .primary-nav svg { width: 21px; height: 21px; }
-  .nav-long, .sidebar-secondary, .desktop-needs-link { display: none; }
+  .nav-long, .sidebar-secondary, .sidebar-session, .desktop-needs-link { display: none; }
   .nav-short { display: inline; }
   .mobile-orthosis { display: block; font-size: .75rem; padding: 8px 12px; }
   .orthosis-flow { display: flex; flex-direction: column; gap: 8px; }
@@ -254,6 +257,7 @@ h1, .next-step h2 { text-wrap: balance; }
   .section-heading { gap: 12px; }
   .section-heading button { font-size: .85rem; }
   .is-authenticated > .site-footer { padding: 20px 0; margin: 0; }
+  .site-footer #logout-mobile:not([hidden]) { display: block; margin-left: 0; order: -1; }
   .form-panel, .record-content > .detail-section, .record-comparison { padding: 20px; }
   .catalog-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
   .catalog-card { padding: 16px; }
