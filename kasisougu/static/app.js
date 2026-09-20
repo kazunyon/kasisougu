@@ -18,12 +18,6 @@ function prepareNeedsPage() {
   button.append(icon, node('span', '相談したいこと', 'nav-long'), node('span', '相談', 'nav-short'));
   button.type = 'button'; button.dataset.screen = 'needs'; button.classList.add('desktop-needs-link');
   document.querySelector('.primary-nav').insertBefore(button, document.querySelector('[data-screen="consultation"]'));
-  const menu = document.createElement('dialog'); menu.id = 'mobile-consult-menu'; menu.className = 'home-guide-dialog';
-  menu.innerHTML = '<div class="home-guide-dialog-content"><h2>相談</h2><p>続けて相談したい内容を管理するか、相談資料を作るかを選んでください。</p><div class="form-actions"><button class="screen-link primary" type="button" data-screen="needs">相談したいこと</button><button class="screen-link" type="button" data-screen="consultation">相談シート</button></div><form method="dialog"><button type="submit">閉じる</button></form></div>';
-  document.body.append(menu);
-  document.querySelector('.primary-nav [data-screen="consultation"]').addEventListener('click', event => {
-    if (window.matchMedia('(max-width: 760px)').matches) { event.preventDefault(); event.stopImmediatePropagation(); menu.showModal(); }
-  });
 }
 prepareNeedsPage();
 let profile = null, profileLoaded = false;
