@@ -77,7 +77,8 @@ async function authRequest(path, options = {}, accessToken = token) {
 }
 async function select(table, query) { return request(`/rest/v1/${table}?${query}`, {headers: {Accept: 'application/json'}}); }
 async function insert(table, body) { return request(`/rest/v1/${table}`, {method:'POST', headers:{'Content-Type':'application/json',Prefer:'return=representation'}, body:JSON.stringify(body)}); }
-window.KASI_API = {select,insert};
+async function update(table, query, body) { return request(`/rest/v1/${table}?${query}`, {method:'PATCH', headers:{'Content-Type':'application/json',Prefer:'return=representation'}, body:JSON.stringify(body)}); }
+window.KASI_API = {select,insert,update};
 function profileDisplayName() { return profile?.display_name || ''; }
 function applyTextScale(value) {
   const scale = Number(value);

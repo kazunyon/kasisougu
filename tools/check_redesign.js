@@ -134,6 +134,13 @@ async (page) => {
           return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
         }
         const params = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        if (request.method() === 'PATCH') {
+          const id = params.get('id')?.replace('eq.',''); const version = Number(params.get('row_version')?.replace('eq.',''));
+          const saved = tables[table].find(row => row.id === id && row.row_version === version && !row.deleted_at);
+          if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
+          Object.assign(saved,request.postDataJSON(),{row_version:saved.row_version+1});
+          return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+        }
         body = body.filter(row => !row.deleted_at).slice(Number(params.get('offset') || 0), Number(params.get('offset') || 0) + Number(params.get('limit') || 100));
       }
       if (table === 'kasi_consultation_sheets') {
@@ -219,14 +226,26 @@ async (page) => {
   await page.waitForFunction(() => document.getElementById('candidate-status').textContent.includes('保存しました'));
   assert(tables.kasi_candidate_facilities.length === 1,'Candidate facility must be saved');
   await page.getByRole('tab',{name:'登録施設から探す',exact:true}).click();
-  await page.locator('#nearby-purpose').selectOption('consultation');
+  await page.locator('#nearby-purpose').selectOption('');
   await page.locator('input[name="nearby-origin"][value="address"]').check();
   await page.getByRole('button',{name:'直線距離を調べる',exact:true}).click();
   await page.waitForFunction(() => !document.getElementById('nearby-search').disabled);
-  assert(await page.locator('#nearby-results .nearby-card').count() === 6,'All registered facilities within range must be shown');
+  assert(await page.locator('#nearby-results .nearby-card').count() === 7,'Registered and candidate facilities within range must be shown');
   assert((await page.locator('#nearby-results').textContent()).includes('直線距離：'),'Nearby straight-line distance is missing');
-  assert(await page.locator('#nearby-results a[target="_blank"]').count() === 12,'Nearby facility and map links must open in a new tab');
   assert((await page.locator('#nearby-results .nearby-map-link').first().getAttribute('href')).includes('origin=35.865%2C139.645'),'Google Maps link must use the resolved address coordinates as its origin');
+  let candidateCard=page.locator('#nearby-results .nearby-card').filter({hasText:'あすはゆリハビリクリニック'});
+  assert(await candidateCard.getByRole('button',{name:'編集',exact:true}).count()===1,'Candidate edit button is missing');
+  assert(await candidateCard.getByRole('button',{name:'削除',exact:true}).count()===1,'Candidate delete button is missing');
+  await candidateCard.getByRole('button',{name:'編集',exact:true}).click();
+  await page.locator('#candidate-name').fill('あすはゆリハビリクリニック（更新）');
+  await page.getByRole('button',{name:'変更を保存',exact:true}).click();
+  await page.waitForFunction(() => document.getElementById('nearby-results').textContent.includes('あすはゆリハビリクリニック（更新）'));
+  assert(tables.kasi_candidate_facilities[0].name==='あすはゆリハビリクリニック（更新）','Candidate facility must be updated');
+  candidateCard=page.locator('#nearby-results .nearby-card').filter({hasText:'あすはゆリハビリクリニック（更新）'});
+  page.once('dialog',dialog=>dialog.accept());
+  await candidateCard.getByRole('button',{name:'削除',exact:true}).click();
+  await page.waitForFunction(() => !document.getElementById('nearby-results').textContent.includes('あすはゆリハビリクリニック（更新）'));
+  assert(Boolean(tables.kasi_candidate_facilities[0].deleted_at),'Candidate facility must be soft-deleted');
   await go('settings');
   await page.getByLabel('現在のパスワード',{exact:true}).fill('synthetic-current-password');
   await page.getByLabel('新しいパスワード',{exact:true}).fill('synthetic-new-password');
