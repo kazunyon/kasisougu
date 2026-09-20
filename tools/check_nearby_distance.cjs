@@ -31,10 +31,11 @@ const run = expression => vm.runInContext(expression,context);
   assert.equal(rows[0].name,'近く'); // Nearest record is beyond the first page.
   assert.equal(rows[1].name,'候補');
   assert.equal(rows[1].distanceMeters,null);
-  const url = new URL(run('nearbyDirectionsUrl({lat:35,lng:139},{location:{lat:36,lng:140}})'));
+  const url = new URL(run("nearbyDirectionsUrl({lat:35,lng:139,routeOrigin:'埼玉県さいたま市見沼区堀崎町1592'},{address:'埼玉県さいたま市大宮区桜木町1-1',location:{lat:36,lng:140}})"));
   assert.equal(url.searchParams.get('api'),'1');
-  assert.equal(url.searchParams.get('origin'),'35,139');
-  assert.equal(url.searchParams.get('destination'),'36,140');
+  assert.equal(url.searchParams.get('origin'),'埼玉県さいたま市見沼区堀崎町1592');
+  assert.equal(url.searchParams.get('destination'),'埼玉県さいたま市大宮区桜木町1-1');
+  assert.equal(url.searchParams.get('travelmode'),'walking');
   const searchUrl = new URL(run("nearbyMapsSearchUrl('リハビリテーション科',{address:'さいたま市見沼区堀崎町1592'})"));
   assert.equal(searchUrl.searchParams.get('api'),'1');
   assert.equal(searchUrl.searchParams.get('query'),'リハビリテーション科 さいたま市見沼区堀崎町1592');
