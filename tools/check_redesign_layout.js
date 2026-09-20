@@ -4,6 +4,10 @@ async (page) => {
   const go = async screen => {
     const selector = screen === 'orthosis' ? '.sidebar-secondary [data-screen="orthosis"]' : `.primary-nav [data-screen="${screen}"]`;
     await page.locator(selector).click();
+    if (screen === 'consultation' && await page.locator('#mobile-consult-menu').isVisible()) {
+      await page.locator('#mobile-consult-menu [data-screen="consultation"]').click();
+      await page.locator('#mobile-consult-menu').evaluate(dialog => dialog.close());
+    }
     await page.locator(`#${screen}-page`).waitFor({state:'visible'});
     await page.waitForFunction(() => screenLoads.size === 0);
     assert(await page.locator(selector).getAttribute('aria-current') === 'page', `Current page is not marked: ${screen}`);
@@ -23,6 +27,8 @@ async (page) => {
       if (width<=760) {
         const box=await page.locator('.primary-nav').boundingBox();
         assert(box.y+box.height<=901 && box.y>500,'Bottom navigation misplaced');
+        const buttonRows=await page.locator('.primary-nav button').evaluateAll(buttons => buttons.filter(button => getComputedStyle(button).display !== 'none').map(button => Math.round(button.getBoundingClientRect().top)));
+        assert(new Set(buttonRows).size===1,`Bottom navigation wrapped at ${width}px`);
       }
     }
   }
