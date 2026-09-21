@@ -299,6 +299,16 @@ async (page) => {
   assert(await priceGuide.getAttribute('href') === 'https://sogulabblog.com/price/','Lower-limb orthosis price guide link is missing');
   assert(await priceGuide.getAttribute('target') === '_blank','Price guide must open in a new tab');
   assert(await page.getByRole('heading',{name:'固定のお役立ち情報',exact:true}).count() === 1,'Fixed links section is missing');
+  const fixedLinksTab = page.getByRole('tab',{name:'固定のお役立ち情報',exact:true});
+  const personalLinksTab = page.getByRole('tab',{name:'自分で追加したリンク',exact:true});
+  assert(await fixedLinksTab.getAttribute('aria-selected') === 'true','Fixed links tab must be selected initially');
+  assert(await page.locator('#fixed-links-panel').isVisible(),'Fixed links panel must be visible initially');
+  assert(!(await page.locator('#personal-links-panel').isVisible()),'Personal links panel must be hidden initially');
+  await fixedLinksTab.focus();
+  await fixedLinksTab.press('ArrowRight');
+  assert(await personalLinksTab.getAttribute('aria-selected') === 'true','Arrow key must select the personal links tab');
+  assert(await page.locator('#personal-links-panel').isVisible(),'Personal links panel must be visible after switching tabs');
+  assert(!(await page.locator('#fixed-links-panel').isVisible()),'Fixed links panel must be hidden after switching tabs');
   await page.getByRole('button',{name:'＋ リンクを追加',exact:true}).click();
   await page.getByLabel('名前',{exact:true}).fill('病院のお知らせ');
   await page.getByLabel('URL',{exact:true}).fill('https://example.invalid/notice');
@@ -314,6 +324,8 @@ async (page) => {
   await page.evaluate(() => { window.confirm = () => true; });
   await page.getByRole('button',{name:'削除する',exact:true}).click();
   await page.waitForFunction(() => document.getElementById('personal-links-list').textContent.includes('まだ自分用リンクはありません'));
+  await personalLinksTab.press('ArrowLeft');
+  assert(await fixedLinksTab.getAttribute('aria-selected') === 'true','Arrow key must return to the fixed links tab');
   await go('record');
   assert(await page.locator('#record-form').isVisible(),'Current record form did not open');
   await page.getByRole('button',{name:'意味を確認',exact:true}).first().click();
