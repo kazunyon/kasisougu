@@ -221,6 +221,34 @@ h1, .next-step h2 { text-wrap: balance; }
 .orthosis-card { width: min(100%,340px); }
 .orthosis-card h4 { font-size: 1rem; }
 .orthosis-card p { font-size: .8rem; }
+
+/* Keep readable explanatory copy consistent with the page lead (0.9rem). */
+.record-selection,
+.app-page [role=status],
+.app-page .form-panel > p,
+.app-page .photo-field > p,
+.app-page .detail-section > p,
+.app-page .record-concerns > p,
+.app-page .concern-card p,
+.app-page .need-card p,
+.app-page .record-card p,
+.app-page .evaluation-results p,
+.app-page .record-comparison p,
+.home-orthosis-section > p,
+.home-section p:not(.section-kicker),
+.notice p,
+.settings-help,
+.backup-panel p,
+.catalog-card .catalog-card-summary,
+.catalog-card-fact dd,
+.catalog-note p,
+.personal-link-card p,
+.resource-link-card p,
+.nearby-address-field p,
+.nearby-map-searches > p,
+.nearby-details,
+.nearby-source { font-size: .9rem; }
+
 .skip { z-index: 80; }
 @media (max-width:1200px) {
   :root { --sidebar-width: 206px; }
