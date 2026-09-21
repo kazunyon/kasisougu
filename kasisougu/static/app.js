@@ -36,7 +36,7 @@ function appendFormattedText(element, value) {
 }
 function formattedNode(tag, text, className) { const element = node(tag, '', className); return appendFormattedText(element, text); }
 function resetSession(statusMessage = '') {
-  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); window.KASI_NEARBY?.reset?.(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); setLinksTab('fixed'); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); $('password-change-form').reset(); message('password-change-status', ''); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
+  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); window.KASI_NEARBY?.reset?.(); window.KASI_BACKUP?.reset?.(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); setLinksTab('fixed'); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); $('password-change-form').reset(); message('password-change-status', ''); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
   if (statusMessage) { message('auth-status', statusMessage, true); $('email').focus(); }
 }
 function setAuthenticatedView(ok) {
@@ -85,7 +85,6 @@ function showProfile(row) {
   profile = row;
   $('profile-display-name').value = row?.display_name || '';
   applyTextScale(row?.text_scale ?? 100);
-  $('device-storage').checked = row?.device_storage_enabled ?? false;
   $('profile-fields').disabled = false;
   $('profile-save').disabled = false;
   profileLoaded = true;
@@ -97,7 +96,7 @@ async function loadProfile() {
   $('profile-save').disabled = true;
   message('profile-status', '本人設定を読み込み中…');
   try {
-    const rows = await select('kasi_profiles', `select=user_id,display_name,nearby_address,text_scale,device_storage_enabled,row_version,deleted_at&user_id=eq.${currentUser}&limit=1`);
+    const rows = await select('kasi_profiles', `select=user_id,display_name,nearby_address,text_scale,timezone_name,row_version,deleted_at&user_id=eq.${currentUser}&limit=1`);
     if (currentUser !== userId || currentToken !== token) return;
     if (rows[0]?.deleted_at) throw new Error('本人設定を利用できません。管理者に確認してください。');
     showProfile(rows[0] || null);
@@ -522,7 +521,7 @@ $('profile-form').addEventListener('submit', async event => {
   if (!profileLoaded || !token || !userId) return;
   const currentUser = userId, currentToken = token, currentProfile = profile;
   const displayName = $('profile-display-name').value.trim();
-  const data = {display_name:displayName || null,text_scale:Number($('text-scale').value),device_storage_enabled:$('device-storage').checked};
+  const data = {display_name:displayName || null,text_scale:Number($('text-scale').value)};
   if (displayName.length > 80 || !Number.isInteger(data.text_scale) || data.text_scale < 100 || data.text_scale > 200) {
     message('profile-status', '表示名は80文字以内、文字の大きさは100～200%にしてください。', true); return;
   }
@@ -567,8 +566,6 @@ $('password-change-form').addEventListener('submit', async event => {
     message('password-change-status', error.message || 'パスワードを変更できませんでした。', true);
   } finally { button.disabled = false; }
 });
-$('delete-local').addEventListener('click',()=>{if(confirm('この端末の下書きを削除しますか？')){localStorage.removeItem('kasi_record_draft');message('settings-data-status','端末の下書きを削除しました。DBの本人設定は変更していません。')}});
-$('export-data').addEventListener('click',()=>{const b=new Blob([JSON.stringify({orthoses,exported_at:new Date().toISOString()},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='kasisougu-export.json';a.click();URL.revokeObjectURL(a.href)});
 async function navigateTo(screen, action = '') {
   if (!token || !Object.hasOwn(screenNames, screen)) return;
   if (screen === currentScreen && !action) return;

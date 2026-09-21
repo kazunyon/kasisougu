@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('kasisougu/static/app.js', 'utf8');
 const start = source.indexOf("$('password-change-form').addEventListener('submit'");
-const end = source.indexOf("$('delete-local')", start);
+const end = source.indexOf('async function navigateTo', start);
 async function check(failure) {
   let listener;
   const fields = Object.fromEntries(['current-password','new-password','new-password-confirmation'].map(id => [id, {value:id === 'current-password' ? 'fixture-current' : 'fixture-new-password', focus(){}}]));
