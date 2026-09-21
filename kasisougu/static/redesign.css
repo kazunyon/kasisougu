@@ -115,9 +115,9 @@ h1, .next-step h2 { text-wrap: balance; }
 .home-orthosis-section .orthosis-flow-compact .orthosis-step-heading { padding-bottom: 10px; }
 .home-orthosis-section .orthosis-flow-compact .orthosis-card { margin-top: 10px; padding: 12px; }
 .home-orthosis-section .orthosis-flow-compact .orthosis-card p { margin-bottom: 0; }
-.home-orthosis-section .orthosis-flow-compact .orthosis-card.has-home-record-photo { position: relative; min-height: 92px; padding-right: 104px; }
-.home-record-photo { position: absolute; top: 10px; right: 10px; width: 82px; height: 70px; border: 1px solid var(--line); border-radius: 8px; background: #fff; object-fit: contain; }
-.home-record-photo-error { display: block; margin-top: 8px; color: var(--muted); font-size: .7rem; }
+.orthosis-card.has-representative-record-photo { position: relative; min-height: 92px; padding-right: 104px; }
+.representative-record-photo { position: absolute; top: 10px; right: 10px; width: 82px; height: 70px; border: 1px solid var(--line); border-radius: 8px; background: #fff; object-fit: contain; }
+.representative-record-photo-error { display: block; margin-top: 8px; color: var(--muted); font-size: .7rem; }
 .home-grid:has(.recent-records:only-child) { grid-template-columns: 1fr; }
 .home-section { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 25px; min-height: 230px; }
 .home-section h2 { font-size: 1.15rem; }

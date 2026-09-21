@@ -217,6 +217,7 @@ async function deletePersonalLink(item) {
 function renderOrthosisList() {
   $('orthosis-list').replaceChildren(createOrthosisFlow());
   message('orthosis-list-status', orthoses.length ? `${orthoses.length}件の装具を表示しています。` : 'まだ装具がありません。「新しい装具を追加」から登録できます。');
+  if (window.KASI_F04) KASI_F04.renderRepresentativePhotos();
 }
 function populateOrthosis(item) {
   $('orthosis-name').value = item?.nickname || '';
@@ -235,7 +236,7 @@ function renderHome() {
   $('home-orthosis-help').textContent = orthoses.length ? `装具は合計${orthoses.length}件です。使用状況ごとに確認できます。` : 'まだ装具はありません。「自分の装具を開く」から登録できます。';
   $('saved-at').textContent = orthoses.length ? '保存済み' : 'まだ保存されていません';
   if (window.KASI_F04) KASI_F04.renderHomeRecords();
-  if (window.KASI_F04) KASI_F04.renderHomeRepresentativePhotos();
+  if (window.KASI_F04) KASI_F04.renderRepresentativePhotos();
 }
 async function loadHome() { try { await loadOrthoses(); await KASI_F04.load(); message('home-status', ''); } catch (error) { message('home-status', error.message, true); } }
 function resetNeedForm() { editingNeed = null; $('need-form').reset(); $('need-form').hidden = true; $('need-form-title').textContent = '相談したいことを追加'; $('need-cancel').hidden = false; message('need-status', ''); }

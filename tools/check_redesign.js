@@ -216,8 +216,8 @@ async (page) => {
   await page.getByRole('button',{name:'ログインする',exact:true}).click();
   await page.locator('#home-page').waitFor({state:'visible'});
   await page.waitForFunction(() => document.getElementById('saved-at').textContent === '保存済み');
-  await page.locator('#home-orthosis-flow .orthosis-card[data-orthosis-id="orthosis-1"] .home-record-photo').waitFor();
-  assert(await page.locator('#home-orthosis-flow .home-record-photo').count() === 1,'Representative usage-record photo is missing from Home');
+  await page.locator('#home-orthosis-flow .orthosis-card[data-orthosis-id="orthosis-1"] .representative-record-photo').waitFor();
+  assert(await page.locator('#home-orthosis-flow .representative-record-photo').count() === 1,'Representative usage-record photo is missing from Home');
   assert(await page.getByText('装具のこと、使って感じたことを少しずつ残しましょう。',{exact:true}).count()===0,'Removed home lead remains');
   await page.getByRole('button',{name:'最初に読んでほしいこと',exact:true}).click();
   assert(await page.locator('#home-guide-dialog').isVisible(),'Home guide dialog did not open');
@@ -344,6 +344,8 @@ async (page) => {
   assert((await page.locator('#needs-list').textContent()).includes('長時間使うと重さが気になる'),'Need fixture is missing');
   await page.screenshot({path:'output/playwright/redesign-record-desktop.png',fullPage:true});
   await go('orthosis');
+  await page.locator('#orthosis-list .orthosis-card[data-orthosis-id="orthosis-1"] .representative-record-photo').waitFor();
+  assert(await page.locator('#orthosis-list .representative-record-photo').count() === 1,'Representative usage-record photo is missing from My Orthoses');
   assert(JSON.stringify(await page.locator('#orthosis-list .orthosis-step-heading h3').allTextContents()) === JSON.stringify(['過去に使用','現在使用中','試用中']),'Orthosis flow order is incorrect');
   assert(await page.locator('#orthosis-list .orthosis-flow-arrow').count()===2,'Orthosis flow arrows are missing');
   await page.getByRole('button',{name:'詳細を見る',exact:true}).nth(1).click();

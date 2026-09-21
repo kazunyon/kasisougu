@@ -87,7 +87,7 @@ const F04 = (() => {
     records.slice(0, 3).forEach(row => box.append(formattedNode('p', `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具'} · ${row.overall_note || 'その日の感想なし'}`)));
   }
   function clearHomeUrls() { homeRenderSerial++; homeUrls.forEach(url => URL.revokeObjectURL(url)); homeUrls = []; }
-  async function renderHomeRepresentativePhotos() {
+  async function renderRepresentativePhotos() {
     clearHomeUrls();
     const serial = homeRenderSerial, currentToken = token;
     const photosByRecord = new Map(representativeMedia.map(photo => [photo.usage_record_id, photo]));
@@ -97,18 +97,21 @@ const F04 = (() => {
       if (photo && !latestByOrthosis.has(row.user_orthosis_id)) latestByOrthosis.set(row.user_orthosis_id, {photo, row});
     });
     for (const [orthosisId, item] of latestByOrthosis) {
-      const card = [...document.querySelectorAll('#home-orthosis-flow .orthosis-card')].find(element => element.dataset.orthosisId === orthosisId);
-      if (!card) continue;
-      const img = document.createElement('img');
-      img.className = 'home-record-photo';
-      img.alt = item.photo.caption || `${item.row.recorded_on}の代表写真`;
-      card.classList.add('has-home-record-photo'); card.append(img);
+      const cards = [...document.querySelectorAll('#home-orthosis-flow .orthosis-card, #orthosis-list .orthosis-card')].filter(element => element.dataset.orthosisId === orthosisId);
+      if (!cards.length) continue;
+      const images = cards.map(card => {
+        const img = document.createElement('img');
+        img.className = 'representative-record-photo';
+        img.alt = item.photo.caption || `${item.row.recorded_on}の代表写真`;
+        card.classList.add('has-representative-record-photo'); card.append(img);
+        return img;
+      });
       try {
         const response = await storageRequest(storagePath(item.photo.storage_path, true)); const blob = await response.blob();
         if (serial !== homeRenderSerial || token !== currentToken) return;
-        const url = URL.createObjectURL(blob); homeUrls.push(url); img.src = url;
+        const url = URL.createObjectURL(blob); homeUrls.push(url); images.forEach(img => { img.src = url; });
       } catch (error) {
-        img.replaceWith(node('span', '代表写真を表示できません', 'home-record-photo-error'));
+        images.forEach(img => { img.replaceWith(node('span', '代表写真を表示できません', 'representative-record-photo-error')); });
       }
     }
   }
@@ -123,7 +126,7 @@ const F04 = (() => {
     representativeMedia = representatives;
     selected = records.find(row => row.id === selected?.id) || null;
     renderList(); renderHomeRecords();
-    if (!$('home-page').hidden) await renderHomeRepresentativePhotos();
+    if (!$('home-page').hidden || !$('orthosis-page').hidden) await renderRepresentativePhotos();
     if (!$('compare-result').hidden) {
       if ($('compare-first').value && $('compare-second').value) compare();
       else { $('compare-result').hidden = true; message('compare-status', ''); }
@@ -517,6 +520,6 @@ const F04 = (() => {
   $('record-concern-status-code').addEventListener('change', updateConcernResolvedOn);
   $('compare-run').addEventListener('click', compare);
   for (const id of ['compare-first', 'compare-second']) $(id).addEventListener('change', () => { $('compare-result').hidden = true; message('compare-status', ''); });
-  return {init,load,open,renderHomeRecords,renderHomeRepresentativePhotos,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,comparisonTable};
+  return {init,load,open,renderHomeRecords,renderRepresentativePhotos,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,comparisonTable};
 })();
 window.KASI_F04 = F04;
