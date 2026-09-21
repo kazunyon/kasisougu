@@ -3,7 +3,7 @@ async (page) => {
   return await page.evaluate(async () => {
     const source = await (await fetch('./app.js')).text();
     const start = source.indexOf("$('password-change-form').addEventListener('submit'");
-    const end = source.indexOf("$('delete-local')", start);
+    const end = source.indexOf('async function navigateTo', start);
     const results = [];
     for (const fail of [false, true]) {
       const old = document.getElementById('password-change-form');

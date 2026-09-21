@@ -26,10 +26,10 @@ async (page) => {
     {id:'concern-1',usage_record_id:'record-2',noted_on:'2026-09-16',category_code:'pain_pressure',description:'右くるぶし付近が当たる',occurred_timing:'使用開始から2年後',status_code:'planned',action_note:null,resolved_on:null,row_version:1}
   ];
   const photos = [
-    {id:'photo-1',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-1.jpg',original_filename:'装具の写真.jpg',mime_type:'image/jpeg',caption:'装具の写真',sort_order:1,row_version:1},
-    {id:'photo-2',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-2.jpg',original_filename:'追加する写真.jpg',mime_type:'image/jpeg',caption:'追加する写真',sort_order:2,row_version:1},
-    {id:'photo-3',usage_record_id:'record-2',storage_path:'test-user/records/record-2/photo-3.jpg',original_filename:'使用中の写真.jpg',mime_type:'image/jpeg',caption:'使用中',sort_order:0,is_representative:true,row_version:1},
-    {id:'photo-4',usage_record_id:'record-2',storage_path:'test-user/records/record-2/photo-4.jpg',original_filename:'別角度の写真.jpg',mime_type:'image/jpeg',caption:'別角度',sort_order:1,is_representative:false,row_version:1}
+    {id:'photo-1',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-1.jpg',original_filename:'装具の写真.jpg',mime_type:'image/jpeg',byte_size:256,caption:'装具の写真',sort_order:1,row_version:1},
+    {id:'photo-2',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-2.jpg',original_filename:'追加する写真.jpg',mime_type:'image/jpeg',byte_size:256,caption:'追加する写真',sort_order:2,row_version:1},
+    {id:'photo-3',usage_record_id:'record-2',storage_path:'test-user/records/record-2/photo-3.jpg',original_filename:'使用中の写真.jpg',mime_type:'image/jpeg',byte_size:256,caption:'使用中',sort_order:0,is_representative:true,row_version:1},
+    {id:'photo-4',usage_record_id:'record-2',storage_path:'test-user/records/record-2/photo-4.jpg',original_filename:'別角度の写真.jpg',mime_type:'image/jpeg',byte_size:256,caption:'別角度',sort_order:1,is_representative:false,row_version:1}
   ];
   const profile = {user_id:'test-user',display_name:'テスト利用者',nearby_address:null,text_scale:100,device_storage_enabled:false,row_version:1};
   const personalLinks = [];
