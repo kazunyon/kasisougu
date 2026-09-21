@@ -51,7 +51,7 @@ const F04 = (() => {
     selectEl.value = available.find(item => item.id === preferredId)?.id || available[0]?.id || '';
     message('record-orthosis-guide', available.length
       ? `${orthosisTypeLabels[type]}は${available.length}件登録済みです。使った装具を選んでください。`
-      : `${orthosisTypeLabels[type]}は未登録です。「選択した種類の装具を追加」から登録してください。`);
+      : `${orthosisTypeLabels[type]}は未登録です。「装具を追加」から登録してください。`);
   }
   function updateChoices() {
     updateOrthosisChoices($('record-orthosis').value);
@@ -156,7 +156,7 @@ const F04 = (() => {
     $('record-picker').value = pickerValue();
     $('record-delete').hidden = !row && !preferredId;
     $('record-current-state').textContent = row?.record_kind === 'comparison' ? '比較用' : ownershipLabels[orthoses.find(o => o.id === row?.user_orthosis_id)?.ownership_status] || (draftOrthosisId ? '記録未入力' : '未保存');
-    $('record-form-title').textContent = row?.record_kind === 'comparison' ? '比較用の記録を編集' : '使用記録（履歴）';
+    $('record-form-title').textContent = row?.record_kind === 'comparison' ? '比較用の記録を編集' : '使用記録';
     $('record-detail').hidden = true; $('record-form').hidden = false;
     message('record-status', '');
   }

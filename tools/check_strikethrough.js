@@ -5,7 +5,7 @@ async (page) => {
   await page.locator('.primary-nav [data-screen="record"]').click();
   await page.locator('#record-detail').waitFor({state:'visible'});
   await page.locator('#record-edit').click();
-  await page.getByLabel('その日の感想（任意）', {exact:true}).fill(input);
+  await page.getByLabel('感想', {exact:true}).fill(input);
   await page.getByRole('button', {name:'記録を保存', exact:true}).click();
   await page.locator('#record-detail').waitFor({state:'visible'});
   const listNote = page.locator('#record-list .record-card').filter({hasText:'前の文章。'}).locator('p').last();
@@ -15,6 +15,6 @@ async (page) => {
   assert(await detailNote.locator('del').textContent() === '訂正を入れる。', 'Detail view does not render strikethrough text');
   assert(!(await detailNote.textContent()).includes('~~'), 'Detail view exposes strikethrough markers');
   await page.locator('#record-edit').click();
-  assert(await page.getByLabel('その日の感想（任意）', {exact:true}).inputValue() === input, 'Editor does not preserve strikethrough markers');
+  assert(await page.getByLabel('感想', {exact:true}).inputValue() === input, 'Editor does not preserve strikethrough markers');
   return 'PASS: strikethrough renders in list and detail while the editor preserves the markers';
 }
