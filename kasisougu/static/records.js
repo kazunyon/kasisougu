@@ -49,9 +49,6 @@ const F04 = (() => {
     if (!available.length) selectEl.append(emptyOption(`${orthosisTypeLabels[type]}は未登録です`));
     available.forEach(item => { const option = node('option', `${orthosisLabel(item)}（${ownershipLabels[item.ownership_status]}）`); option.value = item.id; selectEl.append(option); });
     selectEl.value = available.find(item => item.id === preferredId)?.id || available[0]?.id || '';
-    message('record-orthosis-guide', available.length
-      ? `${orthosisTypeLabels[type]}は${available.length}件登録済みです。使った装具を選んでください。`
-      : `${orthosisTypeLabels[type]}は未登録です。「装具を追加」から登録してください。`);
   }
   function updateChoices() {
     updateOrthosisChoices($('record-orthosis').value);
@@ -453,7 +450,6 @@ const F04 = (() => {
   }
   makeEvaluationInputs();
   $('record-orthosis-type').addEventListener('change', () => updateOrthosisChoices());
-  $('record-add-orthosis').addEventListener('click', addOrthosis);
   $('record-add').addEventListener('click', () => { if (!editing || confirm('入力中の変更を破棄して、別の日・装具の記録を入力しますか？')) showForm(); });
   $('record-picker').addEventListener('change', async () => {
     const id = $('record-picker').value;
