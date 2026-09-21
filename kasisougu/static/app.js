@@ -132,6 +132,7 @@ function createOrthosisFlow(compact = false) {
     if (!items.length) group.append(node('p', '登録はありません。', 'empty-state'));
     items.forEach(item => {
       const card = node('article', '', 'orthosis-card');
+      card.dataset.orthosisId = item.id;
       card.append(node('h4', item.nickname), node('p', `${item.manufactured_on || (item.manufactured_year ? `${item.manufactured_year}年作製` : '作製日未記入')}`));
       if (!compact) { const detail = node('button', '詳細を見る'); detail.type = 'button'; detail.addEventListener('click', () => openOrthosis(item.id)); card.append(detail); }
       group.append(card);
@@ -234,6 +235,7 @@ function renderHome() {
   $('home-orthosis-help').textContent = orthoses.length ? `装具は合計${orthoses.length}件です。使用状況ごとに確認できます。` : 'まだ装具はありません。「自分の装具を開く」から登録できます。';
   $('saved-at').textContent = orthoses.length ? '保存済み' : 'まだ保存されていません';
   if (window.KASI_F04) KASI_F04.renderHomeRecords();
+  if (window.KASI_F04) KASI_F04.renderHomeRepresentativePhotos();
 }
 async function loadHome() { try { await loadOrthoses(); await KASI_F04.load(); message('home-status', ''); } catch (error) { message('home-status', error.message, true); } }
 function resetNeedForm() { editingNeed = null; $('need-form').reset(); $('need-form').hidden = true; $('need-form-title').textContent = '相談したいことを追加'; $('need-cancel').hidden = false; message('need-status', ''); }
