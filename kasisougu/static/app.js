@@ -36,7 +36,7 @@ function appendFormattedText(element, value) {
 }
 function formattedNode(tag, text, className) { const element = node(tag, '', className); return appendFormattedText(element, text); }
 function resetSession(statusMessage = '') {
-  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); window.KASI_NEARBY?.reset?.(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); $('password-change-form').reset(); message('password-change-status', ''); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
+  clearPhotoUrls(); KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); window.KASI_NEARBY?.reset?.(); token = ''; userId = ''; orthosis = null; orthoses = []; editingOrthosis = null; editingNeed = null; needOrthosisId = ''; personalLinks = []; personalLinksLoaded = false; resetPersonalLinkForm(); setLinksTab('fixed'); $('orthosis-form').reset(); $('orthosis-form').hidden = true; $('need-form').reset(); needs = []; photos = []; profile = null; profileLoaded = false; $('profile-fields').disabled = true; $('profile-save').disabled = true; $('profile-form').reset(); $('password-change-form').reset(); message('password-change-status', ''); applyTextScale(100); $('orthosis-detail').hidden = true; setAuthenticatedView(false);
   if (statusMessage) { message('auth-status', statusMessage, true); $('email').focus(); }
 }
 function setAuthenticatedView(ok) {
@@ -174,6 +174,17 @@ function externalLinkNode(url, label = 'リンクを開く') {
   const link = document.createElement('a'); link.className = 'resource-link'; link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
   link.append(label, node('span', '（新しいタブで開く）'));
   return link;
+}
+function setLinksTab(name, focus = false) {
+  const selected = name === 'personal' ? 'personal' : 'fixed';
+  document.querySelectorAll('[data-links-tab]').forEach(button => {
+    const active = button.dataset.linksTab === selected;
+    button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
+    if (active && focus) button.focus();
+  });
+  $('fixed-links-panel').hidden = selected !== 'fixed';
+  $('personal-links-panel').hidden = selected !== 'personal';
 }
 function resetPersonalLinkForm() {
   editingPersonalLink = null; $('personal-link-form').reset(); $('personal-link-form').hidden = true;
@@ -420,6 +431,21 @@ function setScreen(name) {
 }
 $('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; const email = $('email').value.trim(); button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
 document.querySelectorAll('.logout-button').forEach(button => button.addEventListener('click', () => resetSession('ログアウトしました。')));
+document.querySelectorAll('[data-links-tab]').forEach(button => {
+  button.addEventListener('click', () => setLinksTab(button.dataset.linksTab));
+  button.addEventListener('keydown', event => {
+    const tabs = [...document.querySelectorAll('[data-links-tab]')];
+    const current = tabs.indexOf(event.currentTarget);
+    let next = current;
+    if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    setLinksTab(tabs[next].dataset.linksTab, true);
+  });
+});
 $('personal-link-add').addEventListener('click', () => showPersonalLinkForm());
 $('personal-link-cancel').addEventListener('click', resetPersonalLinkForm);
 $('personal-link-form').addEventListener('submit', async event => {

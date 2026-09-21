@@ -96,7 +96,11 @@
   </section>
   <section id="links-page" class="app-page" hidden aria-labelledby="links-title">
     <div class="page-title"><p class="screen-id">お役立ち情報</p><h1 id="links-title">リンク集</h1><p class="lead">装具について調べたいときに役立つサイトを紹介します。</p></div>
-    <section class="resource-section" aria-labelledby="fixed-links-title">
+    <div class="links-tabs" role="tablist" aria-label="リンク集の表示切り替え">
+      <button id="fixed-links-tab" type="button" role="tab" aria-selected="true" aria-controls="fixed-links-panel" data-links-tab="fixed">固定のお役立ち情報</button>
+      <button id="personal-links-tab" type="button" role="tab" aria-selected="false" aria-controls="personal-links-panel" data-links-tab="personal" tabindex="-1">自分で追加したリンク</button>
+    </div>
+    <section id="fixed-links-panel" class="resource-section links-tab-panel" role="tabpanel" aria-labelledby="fixed-links-tab fixed-links-title" tabindex="0">
       <div class="resource-section-heading"><div><p class="section-kicker">運営からのお知らせ</p><h2 id="fixed-links-title">固定のお役立ち情報</h2></div><p>ここにある情報は変更できません。</p></div>
     <ul class="resource-links">
       <li class="resource-link-card">
@@ -120,7 +124,7 @@
       </li>
     </ul>
     </section>
-    <section class="resource-section personal-links-section" aria-labelledby="personal-links-title">
+    <section id="personal-links-panel" class="resource-section personal-links-section links-tab-panel" role="tabpanel" aria-labelledby="personal-links-tab personal-links-title" tabindex="0" hidden>
       <div class="resource-section-heading"><div><p class="section-kicker">自分用メモ</p><h2 id="personal-links-title">自分で追加したリンク</h2></div><button id="personal-link-add" class="primary" type="button">＋ リンクを追加</button></div>
       <p class="resource-section-help">調べたサイトや、あとで見返したいページを自分用に保存できます。追加したリンクは編集・削除できます。</p>
       <p id="personal-links-status" role="status" aria-live="polite"></p>
