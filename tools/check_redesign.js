@@ -26,8 +26,10 @@ async (page) => {
     {id:'concern-1',usage_record_id:'record-2',noted_on:'2026-09-16',category_code:'pain_pressure',description:'右くるぶし付近が当たる',occurred_timing:'使用開始から2年後',status_code:'planned',action_note:null,resolved_on:null,row_version:1}
   ];
   const photos = [
-    {id:'photo-1',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-1.jpg',original_filename:'装具の写真.jpg',mime_type:'image/jpeg',caption:'装具の写真',sort_order:1},
-    {id:'photo-2',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-2.jpg',original_filename:'追加する写真.jpg',mime_type:'image/jpeg',caption:'追加する写真',sort_order:2}
+    {id:'photo-1',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-1.jpg',original_filename:'装具の写真.jpg',mime_type:'image/jpeg',caption:'装具の写真',sort_order:1,row_version:1},
+    {id:'photo-2',user_orthosis_id:'orthosis-1',storage_path:'test-user/orthoses/orthosis-1/photo-2.jpg',original_filename:'追加する写真.jpg',mime_type:'image/jpeg',caption:'追加する写真',sort_order:2,row_version:1},
+    {id:'photo-3',usage_record_id:'record-2',storage_path:'test-user/records/record-2/photo-3.jpg',original_filename:'使用中の写真.jpg',mime_type:'image/jpeg',caption:'使用中',sort_order:0,is_representative:true,row_version:1},
+    {id:'photo-4',usage_record_id:'record-2',storage_path:'test-user/records/record-2/photo-4.jpg',original_filename:'別角度の写真.jpg',mime_type:'image/jpeg',caption:'別角度',sort_order:1,is_representative:false,row_version:1}
   ];
   const profile = {user_id:'test-user',display_name:'テスト利用者',nearby_address:null,text_scale:100,device_storage_enabled:false,row_version:1};
   const personalLinks = [];
@@ -66,12 +68,19 @@ async (page) => {
       tables.kasi_usage_record_observations.push(...data.p_observations.map((row,i)=>({...row,id:`obs-${saved.id}-${i}`,usage_record_id:saved.id,row_version:1})));
       return route.fulfill({contentType:'application/json',body:JSON.stringify({id:saved.id,row_version:saved.row_version})});
     }
+    if (pathname === '/rest/v1/rpc/kasi_set_usage_record_representative_photo') {
+      const data = request.postDataJSON();
+      const selectedPhoto = photos.find(row => row.id === data.p_media_id && row.usage_record_id === data.p_usage_record_id && !row.deleted_at);
+      if (!selectedPhoto) return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({message:'代表写真を確認できません。'})});
+      photos.filter(row => row.usage_record_id === data.p_usage_record_id && !row.deleted_at).forEach(row => { row.is_representative = row.id === selectedPhoto.id; row.row_version += 1; });
+      return route.fulfill({contentType:'application/json',body:JSON.stringify(selectedPhoto)});
+    }
     if (pathname.startsWith('/auth/v1/token')) body = {access_token:'synthetic-test-session'};
     else if (pathname === '/auth/v1/user') {
       if (request.method() === 'PUT') passwordUpdates.push(request.postDataJSON());
       body = {id:'test-user',email:'test@example.invalid'};
     }
-    else if (pathname.startsWith('/storage/v1/object/')) return route.fulfill({contentType:'application/json',body:'{}'});
+    else if (pathname.startsWith('/storage/v1/object/')) return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="120"><rect width="160" height="120" fill="#dcebdd"/><path d="M45 92V34h48l22 18v40z" fill="#23805d"/><circle cx="65" cy="61" r="12" fill="#fff"/><path d="M95 45v18h20" fill="none" stroke="#fff" stroke-width="6"/></svg>'});
     else if (pathname === '/rest/v1/kasi_usage_record_concerns') {
       if (request.method() === 'GET') body = concerns.filter(row => !row.deleted_at && (!request.url().includes('status_code=neq.resolved') || row.status_code !== 'resolved'));
       else if (request.method() === 'POST') {
@@ -160,6 +169,21 @@ async (page) => {
           return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
         }
       }
+      if (table === 'kasi_user_media') {
+        const params = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        body = photos.filter(row => !row.deleted_at);
+        const usageRecordId = params.get('usage_record_id');
+        if (usageRecordId?.startsWith('eq.')) body = body.filter(row => row.usage_record_id === usageRecordId.slice(3));
+        if (usageRecordId === 'not.is.null') body = body.filter(row => row.usage_record_id);
+        if (params.get('is_representative') === 'eq.true') body = body.filter(row => row.is_representative);
+        if (request.method() === 'PATCH') {
+          const id = params.get('id')?.replace('eq.',''); const version = Number(params.get('row_version')?.replace('eq.',''));
+          const saved = photos.find(row => row.id === id && row.row_version === version);
+          if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
+          Object.assign(saved,request.postDataJSON(),{row_version:saved.row_version+1});
+          return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+        }
+      }
       if (['kasi_usage_records','kasi_user_orthoses'].includes(table)) {
         const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
         body = body.filter(row => !row.deleted_at);
@@ -192,6 +216,8 @@ async (page) => {
   await page.getByRole('button',{name:'ログインする',exact:true}).click();
   await page.locator('#home-page').waitFor({state:'visible'});
   await page.waitForFunction(() => document.getElementById('saved-at').textContent === '保存済み');
+  await page.locator('#home-orthosis-flow .orthosis-card[data-orthosis-id="orthosis-1"] .home-record-photo').waitFor();
+  assert(await page.locator('#home-orthosis-flow .home-record-photo').count() === 1,'Representative usage-record photo is missing from Home');
   assert(await page.getByText('装具のこと、使って感じたことを少しずつ残しましょう。',{exact:true}).count()===0,'Removed home lead remains');
   await page.getByRole('button',{name:'最初に読んでほしいこと',exact:true}).click();
   assert(await page.locator('#home-guide-dialog').isVisible(),'Home guide dialog did not open');
@@ -296,6 +322,12 @@ async (page) => {
   await page.locator('#record-help-dialog').getByRole('button',{name:'閉じる',exact:true}).click();
   assert(await page.locator('#record-picker').inputValue()==='record-2','Current-use orthosis was not preferred');
   assert(await page.locator('#record-detail').isVisible(),'Record photos did not open');
+  assert(await page.locator('input[name="record-representative-photo"]').count() === 2,'Usage-record photos must offer representative selection');
+  assert(await page.locator('input[name="record-representative-photo"]:checked').count() === 1,'Exactly one representative photo must be selected');
+  await page.getByLabel('別角度の写真.jpgを代表写真にする',{exact:true}).check();
+  await page.waitForFunction(() => document.getElementById('record-photo-status').textContent.includes('代表写真を保存しました'));
+  assert(await page.locator('input[name="record-representative-photo"]:checked').count() === 1,'Representative selection must remain exclusive after changing it');
+  assert(photos.find(row => row.id === 'photo-4').is_representative && !photos.find(row => row.id === 'photo-3').is_representative,'Representative flag did not move to the selected photo');
   assert((await page.locator('#record-concern-list').textContent()).includes('右くるぶし付近が当たる'),'Dated concern is missing from the usage record');
   assert(await page.getByLabel('気づいた日',{exact:true}).inputValue()==='2026-09-13','Concern date must be independent and default to the selected usage date');
   assert(await page.locator('.sidebar-secondary button[data-screen="orthosis"] svg').count()===1,'My Orthoses icon missing');

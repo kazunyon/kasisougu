@@ -313,6 +313,7 @@ create table public.kasi_user_media (
   height_px integer check (height_px > 0),
   caption text,
   sort_order smallint not null default 0 check (sort_order between 0 and 99),
+  is_representative boolean not null default false,
   exif_removed boolean not null default false,
   validation_status text not null default 'pending'
     check (validation_status in ('pending', 'accepted', 'rejected')),
@@ -491,6 +492,9 @@ create unique index kasi_user_media_owner_operation_uidx
 create index kasi_user_media_owner_idx on public.kasi_user_media(owner_id) where deleted_at is null;
 create index kasi_user_media_orthosis_idx on public.kasi_user_media(user_orthosis_id) where user_orthosis_id is not null;
 create index kasi_user_media_record_idx on public.kasi_user_media(usage_record_id) where usage_record_id is not null;
+create unique index kasi_user_media_record_representative_uidx
+  on public.kasi_user_media(usage_record_id)
+  where usage_record_id is not null and is_representative and deleted_at is null;
 create index kasi_catalog_media_item_idx on public.kasi_catalog_media(catalog_item_id, sort_order);
 
 create unique index kasi_consultation_sheets_owner_operation_uidx

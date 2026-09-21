@@ -9,7 +9,7 @@ const assistanceLabels = {not_evaluated: '未評価', independent: '自立', par
 const concernCategoryLabels = {pain_pressure:'痛み・圧迫', fit:'フィット・ずれ', putting_on:'着け外し', walking_stability:'歩行・安定性', damage_wear:'破損・劣化', other:'その他'};
 const concernStatusLabels = {open:'未対応', planned:'相談予定', adjusted:'調整済み', resolved:'解決'};
 const F04 = (() => {
-  let records = [], selected = null, editing = null, media = [], urls = [], renderSerial = 0, registeringOrthosis = false, saving = false, draftOrthosisId = '', editingConcern = null;
+  let records = [], selected = null, editing = null, media = [], representativeMedia = [], urls = [], homeUrls = [], renderSerial = 0, homeRenderSerial = 0, registeringOrthosis = false, saving = false, draftOrthosisId = '', editingConcern = null;
   const orthosisTypeLabels = {kafo:'長下肢装具',afo:'短下肢装具',other:'その他'};
   const orthosisGroup = code => code === 'kafo' || code === 'afo' ? code : 'other';
   const orthosisLabel = item => {
@@ -86,15 +86,44 @@ const F04 = (() => {
     if (!records.length) box.append(node('p', '保存された記録はありません。'));
     records.slice(0, 3).forEach(row => box.append(formattedNode('p', `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具'} · ${row.overall_note || 'その日の感想なし'}`)));
   }
+  function clearHomeUrls() { homeRenderSerial++; homeUrls.forEach(url => URL.revokeObjectURL(url)); homeUrls = []; }
+  async function renderHomeRepresentativePhotos() {
+    clearHomeUrls();
+    const serial = homeRenderSerial, currentToken = token;
+    const photosByRecord = new Map(representativeMedia.map(photo => [photo.usage_record_id, photo]));
+    const latestByOrthosis = new Map();
+    records.forEach(row => {
+      const photo = photosByRecord.get(row.id);
+      if (photo && !latestByOrthosis.has(row.user_orthosis_id)) latestByOrthosis.set(row.user_orthosis_id, {photo, row});
+    });
+    for (const [orthosisId, item] of latestByOrthosis) {
+      const card = [...document.querySelectorAll('#home-orthosis-flow .orthosis-card')].find(element => element.dataset.orthosisId === orthosisId);
+      if (!card) continue;
+      const img = document.createElement('img');
+      img.className = 'home-record-photo';
+      img.alt = item.photo.caption || `${item.row.recorded_on}の代表写真`;
+      card.classList.add('has-home-record-photo'); card.append(img);
+      try {
+        const response = await storageRequest(storagePath(item.photo.storage_path, true)); const blob = await response.blob();
+        if (serial !== homeRenderSerial || token !== currentToken) return;
+        const url = URL.createObjectURL(blob); homeUrls.push(url); img.src = url;
+      } catch (error) {
+        img.replaceWith(node('span', '代表写真を表示できません', 'home-record-photo-error'));
+      }
+    }
+  }
   async function load() {
     const rows = await select('kasi_usage_records', 'select=*&deleted_at=is.null&order=recorded_on.desc,created_at.desc');
-    const [obs, concerns] = await Promise.all([
+    const [obs, concerns, representatives] = await Promise.all([
       select('kasi_usage_record_observations', 'select=id,usage_record_id,category_code,result_code,rating,note,row_version&deleted_at=is.null'),
-      select('kasi_usage_record_concerns', 'select=id,usage_record_id,noted_on,category_code,description,occurred_timing,status_code,action_note,resolved_on,row_version&deleted_at=is.null&order=noted_on.desc,created_at.desc')
+      select('kasi_usage_record_concerns', 'select=id,usage_record_id,noted_on,category_code,description,occurred_timing,status_code,action_note,resolved_on,row_version&deleted_at=is.null&order=noted_on.desc,created_at.desc'),
+      select('kasi_user_media', 'select=id,usage_record_id,storage_path,original_filename,caption,mime_type,is_representative&usage_record_id=not.is.null&is_representative=eq.true&deleted_at=is.null')
     ]);
     records = rows.map(row => ({...row, observations: obs.filter(o => o.usage_record_id === row.id), concerns: concerns.filter(item => item.usage_record_id === row.id)}));
+    representativeMedia = representatives;
     selected = records.find(row => row.id === selected?.id) || null;
     renderList(); renderHomeRecords();
+    if (!$('home-page').hidden) await renderHomeRepresentativePhotos();
     if (!$('compare-result').hidden) {
       if ($('compare-first').value && $('compare-second').value) compare();
       else { $('compare-result').hidden = true; message('compare-status', ''); }
@@ -304,10 +333,15 @@ const F04 = (() => {
     if (!media.length) $('record-photo-list').append(node('p', '写真はまだありません。'));
     for (const photo of media) {
       const card = node('figure', '', 'photo-card'); const img = document.createElement('img'); img.alt = photo.caption || photo.original_filename || '使用記録の写真';
+      const representative = node('label', '', 'representative-photo-choice');
+      const representativeInput = document.createElement('input'); representativeInput.type = 'radio'; representativeInput.name = 'record-representative-photo'; representativeInput.checked = photo.is_representative;
+      representativeInput.setAttribute('aria-label', `${photo.original_filename || '写真'}を代表写真にする`);
+      representativeInput.addEventListener('change', () => { if (representativeInput.checked) setRepresentativePhoto(photo); });
+      representative.append(representativeInput, document.createTextNode('代表'));
       const caption = document.createElement('input'); caption.value = photo.caption || ''; caption.maxLength = 200; caption.setAttribute('aria-label', '写真の説明');
       const save = node('button', '説明を保存'); save.type = 'button'; save.addEventListener('click', () => updateCaption(photo, caption.value));
       const remove = node('button', '写真を削除'); remove.type = 'button'; remove.addEventListener('click', () => removePhoto(photo));
-      const label = node('figcaption', photo.original_filename || '写真'); label.append(caption, save, remove); card.append(img, label); $('record-photo-list').append(card);
+      const label = node('figcaption', photo.original_filename || '写真'); label.append(representative, caption, save, remove); card.append(img, label); $('record-photo-list').append(card);
       try {
         const response = await storageRequest(storagePath(photo.storage_path, true)); const blob = await response.blob();
         if (serial !== renderSerial || selected?.id !== id || token !== currentToken) return;
@@ -318,7 +352,7 @@ const F04 = (() => {
   async function loadMedia() {
     if (!selected) return;
     const id = selected.id;
-    const rows = await select('kasi_user_media', `select=id,storage_path,original_filename,caption,mime_type,sort_order,row_version&usage_record_id=eq.${id}&deleted_at=is.null&order=sort_order.asc,created_at.asc`);
+    const rows = await select('kasi_user_media', `select=id,storage_path,original_filename,caption,mime_type,sort_order,is_representative,row_version&usage_record_id=eq.${id}&deleted_at=is.null&order=sort_order.asc,created_at.asc`);
     if (selected?.id === id) { media = rows; await renderMedia(); }
   }
   async function open(id) {
@@ -378,9 +412,22 @@ const F04 = (() => {
       await loadMedia(); message('record-photo-status', '説明を保存しました。');
     } catch (error) { message('record-photo-status', error.message, true); }
   }
+  async function setRepresentativePhoto(photo) {
+    const recordId = selected?.id;
+    if (!recordId) return;
+    const radios = [...$('record-photo-list').querySelectorAll('input[name="record-representative-photo"]')]; radios.forEach(input => { input.disabled = true; });
+    try {
+      await request('/rest/v1/rpc/kasi_set_usage_record_representative_photo', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_usage_record_id:recordId,p_media_id:photo.id})});
+      await load(); await loadMedia(); message('record-photo-status', '代表写真を保存しました。ホームにも表示されます。');
+    } catch (error) {
+      await loadMedia().catch(() => {}); message('record-photo-status', `代表写真を保存できませんでした：${error.message}`, true);
+    }
+  }
   async function removePhoto(photo) {
     if (!confirm('この記録の写真を削除しますか？')) return;
     try {
+      const replacement = photo.is_representative ? media.find(item => item.id !== photo.id) : null;
+      if (replacement) await request('/rest/v1/rpc/kasi_set_usage_record_representative_photo', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_usage_record_id:selected.id,p_media_id:replacement.id})});
       const rows = await request(`/rest/v1/kasi_user_media?id=eq.${photo.id}&row_version=eq.${photo.row_version}`, {method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({deleted_at:new Date().toISOString()})});
       if (!rows.length) throw new Error('写真が別の画面で更新されています。');
       try { await deleteStorageObject(photo.storage_path); }
@@ -388,7 +435,7 @@ const F04 = (() => {
         await request(`/rest/v1/kasi_user_media?id=eq.${photo.id}&row_version=eq.${rows[0].row_version}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleted_at:null})});
         throw error;
       }
-      await loadMedia(); message('record-photo-status', '写真を削除しました。');
+      await load(); await loadMedia(); message('record-photo-status', '写真を削除しました。');
     } catch (error) { message('record-photo-status', error.message, true); }
   }
   async function uploadPhoto(event) {
@@ -402,8 +449,8 @@ const F04 = (() => {
       const extension = {'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[file.type];
       path = `${userId}/records/${recordId}/${crypto.randomUUID()}.${extension}`;
       await storageRequest(storagePath(path), {method:'POST',headers:{'Content-Type':file.type,'x-upsert':'false'},body:file}); uploaded = true;
-      await request('/rest/v1/kasi_user_media', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usage_record_id:recordId,storage_path:path,original_filename:file.name,mime_type:file.type,byte_size:file.size,caption:$('record-photo-caption').value.trim() || null,sort_order:current.length})}); metadataSaved = true;
-      $('record-photo-form').reset(); if (selected?.id === recordId) { await loadMedia(); message('record-photo-status','写真を保存しました。'); }
+      await request('/rest/v1/kasi_user_media', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usage_record_id:recordId,storage_path:path,original_filename:file.name,mime_type:file.type,byte_size:file.size,caption:$('record-photo-caption').value.trim() || null,sort_order:current.length,is_representative:current.length === 0})}); metadataSaved = true;
+      $('record-photo-form').reset(); if (selected?.id === recordId) { await load(); await loadMedia(); message('record-photo-status',current.length === 0 ? '写真を保存し、代表写真に設定しました。' : '写真を保存しました。'); }
     } catch (error) {
       if (uploaded && !metadataSaved) { try { await deleteStorageObject(path); } catch { message('record-photo-status',`保存に失敗し、アップロード済み写真の後片付けも失敗しました：${error.message}`,true); return; } }
       if (metadataSaved) return message('record-photo-status',`写真は保存されましたが表示を更新できませんでした。画面を開き直してください：${error.message}`,true);
@@ -441,7 +488,7 @@ const F04 = (() => {
     message('compare-status', same ? '主要条件がそろっています。評価の違いを専門職と確認してください。' : '条件が異なる項目があります。装具の違いだけによる変化とは断定できません。',!same);
   }
   function reset() {
-    clearUrls(); records = []; selected = null; editing = null; media = []; registeringOrthosis = false; draftOrthosisId = ''; editingConcern = null;
+    clearUrls(); clearHomeUrls(); records = []; selected = null; editing = null; media = []; representativeMedia = []; registeringOrthosis = false; draftOrthosisId = ''; editingConcern = null;
     $('record-picker').replaceChildren(); $('record-current-state').textContent = ''; $('record-form').reset();
     $('record-list').replaceChildren(); $('record-detail').hidden = true; $('record-form').hidden = true;
     $('record-photo-list').replaceChildren(); $('compare-result').replaceChildren(); $('compare-result').hidden = true;
@@ -470,6 +517,6 @@ const F04 = (() => {
   $('record-concern-status-code').addEventListener('change', updateConcernResolvedOn);
   $('compare-run').addEventListener('click', compare);
   for (const id of ['compare-first', 'compare-second']) $(id).addEventListener('change', () => { $('compare-result').hidden = true; message('compare-status', ''); });
-  return {init,load,open,renderHomeRecords,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,comparisonTable};
+  return {init,load,open,renderHomeRecords,renderHomeRepresentativePhotos,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,comparisonTable};
 })();
 window.KASI_F04 = F04;
