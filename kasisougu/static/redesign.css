@@ -448,10 +448,11 @@ h1, .next-step h2 { text-wrap: balance; }
 #record-form > .wide-field { font-size: .8rem; }
 #record-form > .form-grid > label > input,
 #record-form > .form-grid > label > select { font-size: inherit; }
+#record-form > .wide-field > textarea { font-size: inherit; }
 #recorded-on { text-align: left; }
 #recorded-on::-webkit-date-and-time-value { text-align: left; }
 #record-concern-form-title { font-size: .9rem; }
-@media (max-width:760px) { #record-form .form-grid { grid-template-columns: minmax(0,1fr); } }
+@media (max-width:760px) { #record-form .form-grid { grid-template-columns: minmax(0,1fr); } #record-note { min-height: 8em; } }
 
 .record-browser > .section-heading { flex-direction: row; flex-wrap: wrap; align-items: center; }
 .record-browser-actions { justify-content: flex-end; }
@@ -461,3 +462,13 @@ h1, .next-step h2 { text-wrap: balance; }
 
 #record-delete { color: #a32d2d; border-color: #a32d2d; }
 #record-delete:hover { background: #fbeeee; }
+
+/* Use the same compact type scale for data-entry controls throughout the app. */
+.is-authenticated .app-page input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=hidden]):not([type=button]):not([type=submit]),
+.is-authenticated .app-page select,
+.is-authenticated .app-page textarea { font-size: .8rem; }
+.is-authenticated .app-page input[type=date] { text-align: left; }
+.is-authenticated .app-page input[type=date]::-webkit-date-and-time-value { text-align: left; }
+@media (max-width:760px) {
+  .is-authenticated .app-page textarea { min-height: 8em; }
+}
