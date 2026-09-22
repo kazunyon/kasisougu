@@ -16,6 +16,7 @@ const backupCollections = [
   ['media', 'kasi_user_media', 'id,user_orthosis_id,usage_record_id,storage_path,original_filename,mime_type,byte_size,width_px,height_px,caption,sort_order,is_representative,exif_removed,validation_status,created_at,updated_at'],
   ['consultation_sheets', 'kasi_consultation_sheets', 'id,title,consultation_on,display_name,question_text,include_photos,status_code,snapshot_json,snapshot_version,finalized_at,created_at,updated_at'],
   ['personal_links', 'kasi_personal_links', 'id,title,url,note,created_at,updated_at'],
+  ['personal_catalog_items', 'kasi_personal_catalog_items', 'id,title,category_code,summary,material,joint_text,foot_structure,feature_text,caution_text,reference_url,image_url,created_at,updated_at'],
   ['candidate_facilities', 'kasi_candidate_facilities', 'id,name,facility_type,address,phone,google_maps_url,consultation_topic,note,checked_on,latitude,longitude,created_at,updated_at']
 ];
 
@@ -135,6 +136,8 @@ function validateBackup(backup) {
   if (!backup || backup.format !== KASI_BACKUP_FORMAT || backup.version !== KASI_BACKUP_VERSION) throw new Error('装具びよりの完全バックアップファイルではありません。');
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(backup.backup_id || '')) throw new Error('バックアップ識別子を確認できません。');
   if (!backup.data || typeof backup.data !== 'object' || Array.isArray(backup.data)) throw new Error('バックアップのデータ部分が不正です。');
+  // Backups made before the personal catalog was introduced remain restorable.
+  if (backup.data.personal_catalog_items === undefined) backup.data.personal_catalog_items = [];
   [...backupCollections, ...backupRelations].forEach(([key]) => assertBackupArray(backup.data, key));
   const files = assertBackupArray(backup.data, 'files');
   const paths = new Set();
@@ -152,7 +155,7 @@ function backupSummary(backup) {
   const data = backup.data;
   const records = data.usage_records.length;
   const sheets = data.consultation_sheets.length;
-  return `作成日：${new Date(backup.exported_at).toLocaleString('ja-JP')}／装具${data.orthoses.length}件／使用記録${records}件／相談シート${sheets}件／写真${data.files.length}枚`;
+  return `作成日：${new Date(backup.exported_at).toLocaleString('ja-JP')}／装具${data.orthoses.length}件／自分用図鑑${data.personal_catalog_items.length}件／使用記録${records}件／相談シート${sheets}件／写真${data.files.length}枚`;
 }
 
 async function chooseBackupFile(event) {
@@ -204,7 +207,7 @@ async function buildRestorePlan(backup) {
   const data = backup.data;
   const scopes = {
     orthoses:'orthosis', needs:'need', usage_records:'record', observations:'observation', concerns:'concern',
-    media:'media', consultation_sheets:'sheet', personal_links:'link', candidate_facilities:'candidate'
+    media:'media', consultation_sheets:'sheet', personal_links:'link', personal_catalog_items:'personal-catalog', candidate_facilities:'candidate'
   };
   const maps = {};
   const replacements = new Map();
@@ -245,7 +248,7 @@ async function buildRestorePlan(backup) {
     orthoses:copy('orthoses'), needs:copy('needs'), usage_records:copy('usage_records'),
     observations:copy('observations'), concerns:copy('concerns'), media:copy('media'),
     consultation_sheets:copy('consultation_sheets'), personal_links:copy('personal_links'),
-    candidate_facilities:copy('candidate_facilities'), sheet_orthoses:copy('sheet_orthoses'),
+    personal_catalog_items:copy('personal_catalog_items'), candidate_facilities:copy('candidate_facilities'), sheet_orthoses:copy('sheet_orthoses'),
     sheet_records:copy('sheet_records'), sheet_needs:copy('sheet_needs')
   };
   for (const [key, map] of Object.entries(maps)) {
@@ -261,9 +264,9 @@ function base64ToBlob(value, mimeType) {
   return new Blob([bytes], {type:mimeType});
 }
 
-async function callRestoreRpc(payload) {
+async function callRestoreRpc(payload, functionName = 'kasi_restore_backup') {
   assertConfig();
-  const response = await fetch(`${config.url}/rest/v1/rpc/kasi_restore_backup`, {
+  const response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
     method:'POST', headers:apiHeaders({'Content-Type':'application/json'}), body:JSON.stringify({p_backup:payload})
   });
   if (!response.ok) {
@@ -296,7 +299,8 @@ async function restoreCompleteBackup() {
     backupStatus('記録と設定を復元しています…');
     rpcStarted = true;
     const result = await callRestoreRpc(plan.payload);
-    personalLinks = []; personalLinksLoaded = false; KASI_F04.reset(); KASI_F05.reset(); window.KASI_NEARBY?.reset?.();
+    await callRestoreRpc(plan.payload, 'kasi_restore_personal_catalog_items');
+    personalLinks = []; personalLinksLoaded = false; KASI_F03.reset(); KASI_F04.reset(); KASI_F05.reset(); window.KASI_NEARBY?.reset?.();
     await Promise.all([loadProfile(), loadOrthoses()]);
     pendingBackup = null; $('backup-file').value = ''; $('backup-restore-area').hidden = true;
     backupStatus(result?.already_restored ? 'このバックアップはすでに復元済みです。データの二重登録は行いませんでした。' : '完全バックアップを復元しました。各画面を開いて内容を確認してください。');

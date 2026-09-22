@@ -86,6 +86,25 @@ create table public.kasi_personal_links (
   deleted_at timestamptz
 );
 
+create table public.kasi_personal_catalog_items (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title text not null check (char_length(btrim(title)) between 1 and 150),
+  category_code text not null default 'other' check (category_code in ('afo','kafo','foot_orthosis','orthopedic_shoe','other')),
+  summary text not null check (char_length(btrim(summary)) between 1 and 4000),
+  material text check (material is null or char_length(material) <= 500),
+  joint_text text check (joint_text is null or char_length(joint_text) <= 500),
+  foot_structure text check (foot_structure is null or char_length(foot_structure) <= 500),
+  feature_text text check (feature_text is null or char_length(feature_text) <= 2000),
+  caution_text text check (caution_text is null or char_length(caution_text) <= 2000),
+  reference_url text check (reference_url is null or (char_length(reference_url) <= 2048 and reference_url ~ '^https://')),
+  image_url text check (image_url is null or (char_length(image_url) <= 2048 and image_url ~ '^https://')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  row_version bigint not null default 1 check (row_version > 0),
+  deleted_at timestamptz
+);
+
 create table public.kasi_user_orthoses (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
@@ -456,6 +475,8 @@ create index kasi_user_orthoses_owner_updated_idx
   on public.kasi_user_orthoses(owner_id, updated_at desc) where deleted_at is null;
 create index kasi_personal_links_owner_updated_idx
   on public.kasi_personal_links(owner_id, updated_at desc) where deleted_at is null;
+create index kasi_personal_catalog_items_owner_updated_idx
+  on public.kasi_personal_catalog_items(owner_id, updated_at desc) where deleted_at is null;
 create index kasi_user_orthoses_catalog_idx
   on public.kasi_user_orthoses(catalog_item_id) where catalog_item_id is not null;
 
@@ -518,7 +539,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'kasi_profiles', 'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
+    'kasi_profiles', 'kasi_personal_links', 'kasi_personal_catalog_items', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
     'kasi_usage_record_observations', 'kasi_usage_record_concerns', 'kasi_catalog_items', 'kasi_catalog_terms',
     'kasi_catalog_sources', 'kasi_user_media', 'kasi_catalog_media', 'kasi_consultation_sheets'
   ]
@@ -559,7 +580,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'kasi_profiles', 'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
+    'kasi_profiles', 'kasi_personal_links', 'kasi_personal_catalog_items', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records',
     'kasi_usage_record_observations', 'kasi_usage_record_concerns', 'kasi_user_media', 'kasi_consultation_sheets',
     'kasi_consultation_sheet_orthoses', 'kasi_consultation_sheet_records',
     'kasi_consultation_sheet_needs', 'kasi_catalog_items', 'kasi_catalog_terms',
@@ -576,6 +597,7 @@ $$;
 grant select, insert, update on table
   public.kasi_profiles,
   public.kasi_personal_links,
+  public.kasi_personal_catalog_items,
   public.kasi_user_orthoses,
   public.kasi_user_needs,
   public.kasi_usage_records,
@@ -601,7 +623,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'kasi_personal_links', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records', 'kasi_usage_record_observations', 'kasi_usage_record_concerns',
+    'kasi_personal_links', 'kasi_personal_catalog_items', 'kasi_user_orthoses', 'kasi_user_needs', 'kasi_usage_records', 'kasi_usage_record_observations', 'kasi_usage_record_concerns',
     'kasi_user_media', 'kasi_consultation_sheets', 'kasi_consultation_sheet_orthoses',
     'kasi_consultation_sheet_records', 'kasi_consultation_sheet_needs'
   ]

@@ -18,21 +18,27 @@ async (page) => {
   assert(backup.data.orthoses.length === 5, 'Orthoses are missing from backup');
   assert(backup.data.usage_records.length >= 2, 'Usage records are missing from backup');
   assert(backup.data.consultation_sheets.length >= 1, 'Consultation sheets are missing from backup');
+  assert(backup.data.personal_catalog_items.length === 1, 'Personal catalog items are missing from backup');
   assert(backup.data.profile.display_name === 'テスト利用者', 'Profile is missing from backup');
   assert(backup.data.files.length === 4, 'Photo binaries are missing from backup');
   assert(backup.data.files.every(file => file.data_base64.length > 0), 'A photo binary is empty');
 
   let restorePayload = null;
   let restoreCalls = 0;
+  let personalCatalogRestoreCalls = 0;
   await page.route('https://redesign-test.invalid/rest/v1/rpc/kasi_restore_backup', async route => {
     restoreCalls += 1;
     restorePayload = route.request().postDataJSON().p_backup;
     await route.fulfill({contentType:'application/json', body:JSON.stringify({already_restored:restoreCalls > 1, restored_rows:restoreCalls > 1 ? 0 : 20})});
   });
+  await page.route('https://redesign-test.invalid/rest/v1/rpc/kasi_restore_personal_catalog_items', async route => {
+    personalCatalogRestoreCalls += 1;
+    await route.fulfill({contentType:'application/json', body:JSON.stringify({restored_rows:1})});
+  });
 
   const input = page.locator('#backup-file');
   await input.setInputFiles(backupPath);
-  await page.getByText(/装具5件／使用記録\d+件／相談シート\d+件／写真4枚/).waitFor();
+  await page.getByText(/装具5件／自分用図鑑1件／使用記録\d+件／相談シート\d+件／写真4枚/).waitFor();
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', {name:'このバックアップを復元する', exact:true}).click();
   await page.waitForFunction(() => document.getElementById('backup-status').textContent.includes('完全バックアップを復元しました'));
@@ -40,12 +46,14 @@ async (page) => {
   assert(restorePayload.data.orthoses[0].id !== backup.data.orthoses[0].id, 'Restored IDs were not remapped');
   assert(restorePayload.data.media.every(item => item.storage_path.startsWith('test-user/')), 'Restored photo paths are outside the user folder');
   assert(!JSON.stringify(restorePayload.data.consultation_sheets).includes('test-user/orthoses/orthosis-1/photo-1.jpg'), 'Consultation snapshot photo paths were not remapped');
+  assert(restorePayload.data.personal_catalog_items[0].id !== backup.data.personal_catalog_items[0].id, 'Personal catalog IDs were not remapped');
 
   await input.setInputFiles(backupPath);
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', {name:'このバックアップを復元する', exact:true}).click();
   await page.waitForFunction(() => document.getElementById('backup-status').textContent.includes('すでに復元済み'));
   assert(restoreCalls === 2, 'Restore retry did not use the idempotent RPC');
+  assert(personalCatalogRestoreCalls === 2, 'Personal catalog restore did not run on initial restore and retry');
   await page.screenshot({path:'output/playwright/settings-backup-restore.png', fullPage:true});
   await page.setViewportSize({width:390, height:844});
   assert(await page.getByRole('button', {name:'完全バックアップを作る', exact:true}).isVisible(), 'Backup button is not visible on mobile');
@@ -54,6 +62,7 @@ async (page) => {
   await page.screenshot({path:'output/playwright/settings-backup-restore-mobile.png', fullPage:true});
   await page.setViewportSize({width:1440, height:1000});
   await input.setInputFiles(backupPath);
+  await page.locator('#backup-restore-area').waitFor({state:'visible'});
   assert(await page.locator('#backup-restore-area').isVisible(), 'Selected backup summary is not visible');
   await page.locator('#logout').click();
   assert(await input.inputValue() === '', 'Selected backup file was retained after logout');
