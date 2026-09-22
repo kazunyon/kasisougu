@@ -26,6 +26,12 @@ async (page) => {
     const actual = await size(selector);
     assert(Math.abs(actual - baseline) < 0.1, `${selector} is ${actual}px; expected ${baseline}px`);
   }
+  const compactLabel = baseline * (0.8 / 0.9);
+  for (const selector of ['#record-form > .form-grid > label', '#record-form > .form-grid > .record-help-field', '#record-form > .wide-field']) {
+    const actual = await size(selector);
+    assert(Math.abs(actual - compactLabel) < 0.1, `${selector} is ${actual}px; expected ${compactLabel}px`);
+  }
+  assert(Math.abs(await size('#record-concern-form-title') - baseline) < 0.1, 'Concern form heading does not match the compact body size');
 
   const pageChecks = [
     ['home', '.home-orthosis-section > p'],
