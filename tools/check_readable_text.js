@@ -31,6 +31,12 @@ async (page) => {
     const actual = await size(selector);
     assert(Math.abs(actual - compactLabel) < 0.1, `${selector} is ${actual}px; expected ${compactLabel}px`);
   }
+  const footwearSize = await size('#record-footwear');
+  for (const selector of ['#recorded-on', '#record-orthosis-type', '#record-orthosis']) {
+    const actual = await size(selector);
+    assert(Math.abs(actual - footwearSize) < 0.1, `${selector} is ${actual}px; expected footwear size ${footwearSize}px`);
+  }
+  assert(await page.locator('#recorded-on').evaluate(element => getComputedStyle(element).textAlign === 'left'), 'Record date is not left-aligned');
   assert(Math.abs(await size('#record-concern-form-title') - baseline) < 0.1, 'Concern form heading does not match the compact body size');
 
   const pageChecks = [

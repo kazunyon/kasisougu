@@ -25,6 +25,7 @@ async (page) => {
         assert(box.y+box.height<=901 && box.y>500,'Bottom navigation misplaced');
         assert(await page.locator('#mobile-consult-menu').count()===0,'Redundant mobile consultation chooser remains');
         assert(JSON.stringify(await page.locator('.primary-nav .nav-short').allTextContents())===JSON.stringify(['Home','図鑑','記録','相談','シート','近く','Link','設定']),`Unexpected mobile navigation labels at ${width}px`);
+        assert(await page.locator('.primary-nav .nav-short').evaluateAll(labels => labels.every(label => getComputedStyle(label).whiteSpace === 'nowrap' && label.getBoundingClientRect().height <= Number.parseFloat(getComputedStyle(label).lineHeight) * 1.2)),`Bottom navigation label wrapped at ${width}px`);
         const buttonRows=await page.locator('.primary-nav button').evaluateAll(buttons => buttons.filter(button => getComputedStyle(button).display !== 'none').map(button => Math.round(button.getBoundingClientRect().top)));
         assert(new Set(buttonRows).size===1,`Bottom navigation wrapped at ${width}px`);
       }
@@ -44,6 +45,7 @@ async (page) => {
     await go(screen);
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1), `Horizontal overflow with 200% text: ${screen}`);
   }
+  assert(await page.locator('.primary-nav .nav-short').evaluateAll(labels => labels.every(label => getComputedStyle(label).whiteSpace === 'nowrap' && label.getBoundingClientRect().height <= Number.parseFloat(getComputedStyle(label).lineHeight) * 1.2)),'Bottom navigation label wrapped with 200% text');
   await page.locator('#text-scale').fill('100'); await page.locator('#text-scale').dispatchEvent('input');
   await page.locator('.mobile-orthosis').click();
   await page.locator('#orthosis-add').click();
