@@ -443,6 +443,10 @@ h1, .next-step h2 { text-wrap: balance; }
 .record-help-dialog section + section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
 .record-help-dialog h3 { margin: 0 0 7px; font-size: 1rem; }
 #record-form input, #record-form select { min-width: 0; width: 100%; }
+#record-form > .form-grid > label,
+#record-form > .form-grid > .record-help-field,
+#record-form > .wide-field { font-size: .8rem; }
+#record-concern-form-title { font-size: .9rem; }
 @media (max-width:760px) { #record-form .form-grid { grid-template-columns: minmax(0,1fr); } }
 
 .record-browser > .section-heading { flex-direction: row; flex-wrap: wrap; align-items: center; }
