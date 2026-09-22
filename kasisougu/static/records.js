@@ -35,6 +35,16 @@ const F04 = (() => {
     ...records.map(row => ({row, orthosis:orthoses.find(item => item.id === row.user_orthosis_id), value:row.id})),
     ...orthoses.filter(item => !records.some(row => row.user_orthosis_id === item.id)).map(orthosis => ({row:null, orthosis, value:`orthosis:${orthosis.id}`}))
   ].filter(item => item.orthosis).sort(comparePickerItems);
+  function getOrthosisOptions() {
+    const seen = new Set();
+    return pickerItems().filter(item => {
+      if (seen.has(item.orthosis.id)) return false;
+      seen.add(item.orthosis.id); return true;
+    }).map(item => {
+      const status = {owned:'現在使用中',trial:'試用中',past:'過去の記録'}[item.orthosis.ownership_status] || '使用状況未確認';
+      return {id:item.orthosis.id, label:item.row ? title(item.row) : `【${status}】【記録未入力】${orthosisLabel(item.orthosis)}`};
+    });
+  }
   const title = row => {
     const related = orthoses.find(o => o.id === row.user_orthosis_id);
     const status = {owned:'現在使用中', trial:'試用中', past:'過去の記録'}[related?.ownership_status] || '使用状況未確認';
@@ -520,6 +530,6 @@ const F04 = (() => {
   $('record-concern-status-code').addEventListener('change', updateConcernResolvedOn);
   $('compare-run').addEventListener('click', compare);
   for (const id of ['compare-first', 'compare-second']) $(id).addEventListener('change', () => { $('compare-result').hidden = true; message('compare-status', ''); });
-  return {init,load,open,renderHomeRecords,renderRepresentativePhotos,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,comparisonTable};
+  return {init,load,open,renderHomeRecords,renderRepresentativePhotos,clearUrls,reset,orthosisSaved,cancelOrthosisRegistration,leaveOrthosisRegistration,getRecords:() => records,getOrthosisOptions,comparisonTable};
 })();
 window.KASI_F04 = F04;

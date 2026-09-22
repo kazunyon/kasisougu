@@ -3,10 +3,11 @@ const KASI_CONCERNS = (() => {
   let concerns = [], editing = null;
   const ids = ['concern-filter-orthosis', 'concern-orthosis'];
   function options() {
+    const orthosisOptions = KASI_F04.getOrthosisOptions();
     ids.forEach(id => {
       const field = $(id), selected = field.value;
-      field.replaceChildren(new Option(id === 'concern-filter-orthosis' ? 'すべての装具' : '装具を選択してください', ''));
-      orthoses.forEach(item => field.add(new Option(item.nickname || '名称未設定', item.id)));
+      field.replaceChildren(new Option(id === 'concern-filter-orthosis' ? 'すべての装具' : '対象装具を選択', ''));
+      orthosisOptions.forEach(item => field.add(new Option(item.label, item.id)));
       field.value = selected;
     });
   }
@@ -67,6 +68,7 @@ const KASI_CONCERNS = (() => {
     });
   }
   async function load() {
+    await KASI_F04.load();
     options();
     $('concern-list').replaceChildren();
     const currentToken = token;
