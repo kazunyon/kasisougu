@@ -253,7 +253,7 @@ async (page) => {
   for (const screen of ['catalog','record','consultation','nearby','links','settings','orthosis','home']) await go(screen);
   await go('catalog');
   const publicCatalogTab = page.getByRole('tab',{name:'公開されている装具',exact:true});
-  const personalCatalogTab = page.getByRole('tab',{name:'自分で追加したモノ',exact:true});
+  const personalCatalogTab = page.getByRole('tab',{name:'自分で追加した装具',exact:true});
   assert(await publicCatalogTab.getAttribute('aria-selected') === 'true','Public catalog tab must be selected initially');
   await publicCatalogTab.focus(); await publicCatalogTab.press('ArrowRight');
   assert(await personalCatalogTab.getAttribute('aria-selected') === 'true','Arrow key must select the personal catalog tab');

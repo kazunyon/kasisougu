@@ -3,7 +3,7 @@ async (page) => {
   await page.setViewportSize({width:390,height:844});
   await page.locator('.primary-nav [data-screen="catalog"]').click();
   await page.locator('#catalog-page').waitFor({state:'visible'});
-  await page.getByRole('tab',{name:'自分で追加したモノ',exact:true}).click();
+  await page.getByRole('tab',{name:'自分で追加した装具',exact:true}).click();
   await page.locator('#catalog-personal-panel').waitFor({state:'visible'});
   const result = await page.evaluate(() => ({
     noOverflow:document.documentElement.scrollWidth <= window.innerWidth + 1,
