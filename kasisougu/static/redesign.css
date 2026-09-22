@@ -491,3 +491,7 @@ h1, .next-step h2 { text-wrap: balance; }
 #concern-list .concern-card { margin: 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 #concern-list .concern-card h3 { margin: 0 0 8px; font-size: 1rem; }
 #concern-list .concern-card p { margin: 6px 0; overflow-wrap: anywhere; }
+
+#consultation-page > .section-heading h2 { font-size: .95rem; }
+#consultation-page > .section-heading #sheet-add { font-size: .85rem; }
+#consultation-page #sheet-list-status { font-size: .85rem; line-height: 1.55; }
