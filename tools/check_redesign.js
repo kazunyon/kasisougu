@@ -34,6 +34,7 @@ async (page) => {
   const profile = {user_id:'test-user',display_name:'テスト利用者',nearby_address:null,text_scale:100,device_storage_enabled:false,row_version:1};
   const personalLinks = [];
   const nearbyFacilities = Array.from({length:6}, (_, index) => ({id:`facility-${index + 1}`,name:`制度相談テスト施設 ${index + 1}`,address:`埼玉県さいたま市テスト${index + 1}`,prefecture:'埼玉県',municipality:'さいたま市',latitude:35.94 + index / 1000,longitude:139.75 + index / 1000,purpose_codes:['consultation'],phone:'048-000-0000',website_url:`https://example.invalid/facility-${index + 1}`,is_active:true}));
+  const personalCatalogItems = [{id:'personal-catalog-1',title:'相談したい装具',category_code:'kafo',summary:'次回の相談で確認するために保存した装具です。',material:'金属',row_version:1,updated_at:'2026-09-21T00:00:00Z'}];
   const tables = {
     kasi_user_orthoses:orthoses,
     kasi_usage_records:records,
@@ -42,6 +43,7 @@ async (page) => {
     kasi_user_needs:[{id:'need-1',user_orthosis_id:'orthosis-1',need_type:'problem',category_code:'weight',description:'長時間使うと重さが気になる',priority:2,status_code:'active',row_version:1}],
     kasi_profiles:[profile],
     kasi_personal_links:personalLinks,
+    kasi_personal_catalog_items:personalCatalogItems,
     kasi_nearby_facilities:nearbyFacilities,
     kasi_candidate_facilities:[],
     kasi_consultation_sheets:[{id:'sheet-1',title:'次回の相談',consultation_on:'2026-09-28',status_code:'finalized',row_version:1,snapshot_json:{title:'次回の相談',display_name:'テスト利用者',recipient:'リハビリクリニック',consultation_on:'2026-09-28',question_text:'着け外しについて相談したいです。',selected:{orthoses:['orthosis-1'],needs:[],records:[],photos:['photo-1']},orthoses,records:[],photos}}],
@@ -125,6 +127,20 @@ async (page) => {
         const saved = personalLinks.find(row => row.id === id && row.row_version === version);
         if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
         Object.assign(saved, request.postDataJSON(), {row_version:saved.row_version + 1});
+        return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+      }
+    }
+    else if (pathname === '/rest/v1/kasi_personal_catalog_items') {
+      if (request.method() === 'GET') body = personalCatalogItems.filter(row => !row.deleted_at);
+      else if (request.method() === 'POST') {
+        const saved = {...request.postDataJSON(),id:`personal-catalog-${personalCatalogItems.length + 1}`,row_version:1,updated_at:new Date().toISOString()}; personalCatalogItems.push(saved);
+        return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
+      } else {
+        const query = new Map((request.url().split('?')[1] || '').split('&').map(part => part.split('=').map(decodeURIComponent)));
+        const id = query.get('id')?.replace('eq.',''); const version = Number(query.get('row_version')?.replace('eq.',''));
+        const saved = personalCatalogItems.find(row => row.id === id && row.row_version === version);
+        if (!saved) return route.fulfill({contentType:'application/json',body:'[]'});
+        Object.assign(saved,request.postDataJSON(),{row_version:saved.row_version+1,updated_at:new Date().toISOString()});
         return route.fulfill({contentType:'application/json',body:JSON.stringify([saved])});
       }
     }
@@ -235,6 +251,33 @@ async (page) => {
   };
   await page.screenshot({path:'output/playwright/redesign-home-desktop.png',fullPage:true});
   for (const screen of ['catalog','record','consultation','nearby','links','settings','orthosis','home']) await go(screen);
+  await go('catalog');
+  const publicCatalogTab = page.getByRole('tab',{name:'公開されている装具',exact:true});
+  const personalCatalogTab = page.getByRole('tab',{name:'自分で追加したモノ',exact:true});
+  assert(await publicCatalogTab.getAttribute('aria-selected') === 'true','Public catalog tab must be selected initially');
+  await publicCatalogTab.focus(); await publicCatalogTab.press('ArrowRight');
+  assert(await personalCatalogTab.getAttribute('aria-selected') === 'true','Arrow key must select the personal catalog tab');
+  await page.getByRole('heading',{name:'相談したい装具',exact:true}).waitFor();
+  assert(await page.getByRole('heading',{name:'相談したい装具',exact:true}).count() === 1,'Saved personal catalog item is missing');
+  await page.getByRole('button',{name:'＋ 装具を追加',exact:true}).click();
+  await page.locator('#personal-catalog-name').fill('自分で見つけた短下肢装具');
+  await page.locator('#personal-catalog-category').selectOption('afo');
+  await page.locator('#personal-catalog-summary').fill('着け外しについて相談したい装具です。');
+  await page.locator('#personal-catalog-image-url').fill('https://redesign-test.invalid/storage/v1/object/personal-orthosis.png');
+  await page.locator('#personal-catalog-form').getByRole('button',{name:'保存する',exact:true}).click();
+  await page.getByRole('heading',{name:'自分で見つけた短下肢装具',exact:true}).waitFor();
+  let personalCard = page.locator('.personal-catalog-card').filter({hasText:'自分で見つけた短下肢装具'});
+  await personalCard.getByRole('button',{name:'編集する',exact:true}).click();
+  await page.locator('#personal-catalog-summary').fill('更新後：次回の受診で確認します。');
+  await page.locator('#personal-catalog-form').getByRole('button',{name:'保存する',exact:true}).click();
+  await page.getByText('更新後：次回の受診で確認します。',{exact:true}).waitFor();
+  personalCard = page.locator('.personal-catalog-card').filter({hasText:'自分で見つけた短下肢装具'});
+  await page.evaluate(() => { window.confirm = () => true; });
+  await personalCard.getByRole('button',{name:'削除する',exact:true}).click();
+  await page.waitForFunction(() => !document.getElementById('personal-catalog-list').textContent.includes('自分で見つけた短下肢装具'));
+  assert(Boolean(personalCatalogItems.find(row => row.title === '自分で見つけた短下肢装具')?.deleted_at),'Personal catalog item must be soft-deleted');
+  await personalCatalogTab.press('ArrowLeft');
+  assert(await publicCatalogTab.getAttribute('aria-selected') === 'true','Arrow key must return to the public catalog tab');
   await go('nearby');
   assert(await page.locator('#nearby-maps-panel').isVisible(),'Maps search setup must be shown when no address is saved');
   assert(await page.locator('#nearby-map-buttons button').count() === 10,'Ten purpose-specific Google Maps buttons must be shown');

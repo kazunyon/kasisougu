@@ -6,7 +6,9 @@ const F03 = (() => {
     '踵・足首への圧迫', '屋外歩行での安定性', '修理・調整のしやすさ'
   ];
   const termGroups = [['support_scope', '分類'], ['material', '素材'], ['joint', '継手'], ['foot_structure', '足元の構造'], ['feature', '特徴']];
+  const personalCategoryLabels = {afo:'短下肢装具（AFO）', kafo:'長下肢装具（KAFO）', foot_orthosis:'足底装具', orthopedic_shoe:'靴型装具', other:'その他'};
   let items = [], allTerms = [], filter = 'all', keyword = '', chosen = new Set(), view = 'browse', detailId = null, loadCycle = 0, editingItem = null, editableDetailsSupported = true;
+  let catalogTab = 'public', personalItems = [], personalLoaded = false, personalLoadCycle = 0, editingPersonalItem = null;
 
   function nameOf(item) { return item.product_name || item.title; }
   function termsOf(item, group) {
@@ -23,6 +25,13 @@ const F03 = (() => {
   function safeUrl(value) {
     try { const url = new URL(value); return url.protocol === 'https:' ? url.href : null; }
     catch { return null; }
+  }
+  function optionalHttps(value, label) {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const url = safeUrl(trimmed);
+    if (!url) throw new Error(`${label}は「https://」で始まるURLを入力してください。`);
+    return url;
   }
   function sourceNode(link) {
     const source = link.kasi_catalog_sources;
@@ -222,7 +231,7 @@ const F03 = (() => {
   }
   function renderTray() {
     const tray = $('catalog-selection-tray');
-    tray.hidden = $('catalog-page').hidden || view === 'comparison' || chosen.size === 0;
+    tray.hidden = $('catalog-page').hidden || catalogTab !== 'public' || view === 'comparison' || chosen.size === 0;
     document.body.classList.toggle('catalog-has-tray', !tray.hidden);
     $('catalog-selection-count').textContent = `${chosen.size}／3件`;
     $('catalog-selected-items').replaceChildren();
@@ -256,6 +265,110 @@ const F03 = (() => {
     view = 'comparison'; detailId = null;
     $('catalog-browse').hidden = true; $('catalog-detail').hidden = true; $('catalog-comparison').hidden = false;
     renderComparison(); renderTray(); $('catalog-compare-title').focus();
+  }
+  function setCatalogTab(nextTab, focus = false) {
+    catalogTab = nextTab === 'personal' ? 'personal' : 'public';
+    document.querySelectorAll('[data-catalog-tab]').forEach(button => {
+      const selected = button.dataset.catalogTab === catalogTab;
+      button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1;
+    });
+    $('catalog-public-panel').hidden = catalogTab !== 'public';
+    $('catalog-personal-panel').hidden = catalogTab !== 'personal';
+    if (catalogTab === 'personal') {
+      hide();
+      if (!personalLoaded) loadPersonalItems(); else renderPersonalItems();
+    } else renderTray();
+    if (focus) $(`catalog-${catalogTab}-tab`).focus();
+  }
+  function personalImage(item) {
+    const url = safeUrl(item.image_url); if (!url) return null;
+    const figure = node('figure', '', 'catalog-figure personal-catalog-figure');
+    const image = document.createElement('img'); image.className = 'catalog-photo'; image.src = url; image.alt = `${item.title}の写真`; image.loading = 'lazy';
+    image.addEventListener('error', () => figure.remove()); figure.append(image); return figure;
+  }
+  function personalFact(list, label, value) {
+    if (!value) return;
+    const pair = node('div', '', 'catalog-card-fact'); pair.append(node('dt', label), formattedNode('dd', value)); list.append(pair);
+  }
+  function renderPersonalItems() {
+    const host = $('personal-catalog-list'); host.replaceChildren();
+    message('personal-catalog-status', `${personalItems.length}件の自分用装具を表示しています。`);
+    if (!personalItems.length) {
+      host.append(node('p', '自分で追加した装具はまだありません。「＋ 装具を追加」から登録できます。', 'empty-state personal-catalog-empty')); return;
+    }
+    personalItems.forEach(item => {
+      const card = node('article', '', 'catalog-card personal-catalog-card'), picture = personalImage(item);
+      if (picture) card.append(picture);
+      card.append(node('p', personalCategoryLabels[item.category_code] || personalCategoryLabels.other, 'catalog-card-category'), formattedNode('h3', item.title), formattedNode('p', item.summary, 'catalog-card-summary'));
+      const facts = node('dl', '', 'catalog-card-facts');
+      personalFact(facts, '素材', item.material); personalFact(facts, '継手', item.joint_text); personalFact(facts, '足元', item.foot_structure);
+      if (facts.children.length) card.append(facts);
+      for (const [label, value] of [['特徴', item.feature_text], ['注意点・確認したいこと', item.caution_text]]) {
+        if (!value) continue;
+        const section = node('section', '', 'personal-catalog-note'); section.append(node('h4', label), formattedNode('p', value)); card.append(section);
+      }
+      const reference = safeUrl(item.reference_url);
+      if (reference) { const anchor = node('a', '参考ページを開く（新しいタブ）', 'resource-link'); anchor.href = reference; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer'; card.append(anchor); }
+      const actions = node('div', '', 'catalog-card-actions personal-catalog-actions');
+      const edit = node('button', '編集する'); edit.type = 'button'; edit.addEventListener('click', () => showPersonalForm(item));
+      const remove = node('button', '削除する'); remove.type = 'button'; remove.className = 'danger-button'; remove.addEventListener('click', () => deletePersonalItem(item));
+      actions.append(edit, remove); card.append(actions); host.append(card);
+    });
+  }
+  async function loadPersonalItems() {
+    const cycle = ++personalLoadCycle; message('personal-catalog-status', '自分で追加した装具を読み込んでいます…');
+    try {
+      const rows = await select('kasi_personal_catalog_items', 'select=id,title,category_code,summary,material,joint_text,foot_structure,feature_text,caution_text,reference_url,image_url,row_version,updated_at&deleted_at=is.null&order=updated_at.desc');
+      if (cycle !== personalLoadCycle) return;
+      personalItems = rows; personalLoaded = true; renderPersonalItems();
+    } catch (error) {
+      if (cycle !== personalLoadCycle) return;
+      personalItems = []; personalLoaded = false; $('personal-catalog-list').replaceChildren();
+      message('personal-catalog-status', `自分用の図鑑を読み込めませんでした：${error.message}`, true);
+    }
+  }
+  function showPersonalForm(item = null) {
+    editingPersonalItem = item; $('personal-catalog-form').reset();
+    $('personal-catalog-form-title').textContent = item ? '自分用の装具を編集' : '自分用の装具を追加';
+    const values = {
+      'personal-catalog-name':item?.title, 'personal-catalog-material':item?.material, 'personal-catalog-joint':item?.joint_text,
+      'personal-catalog-foot':item?.foot_structure, 'personal-catalog-image-url':item?.image_url,
+      'personal-catalog-reference-url':item?.reference_url, 'personal-catalog-summary':item?.summary,
+      'personal-catalog-feature':item?.feature_text, 'personal-catalog-caution':item?.caution_text
+    };
+    Object.entries(values).forEach(([id, value]) => { $(id).value = value || ''; });
+    $('personal-catalog-category').value = item?.category_code || 'afo';
+    message('personal-catalog-form-status', item ? '内容を変更して保存してください。' : '自分用に残す内容を入力してください。');
+    $('personal-catalog-form').hidden = false; $('personal-catalog-name').focus();
+  }
+  function hidePersonalForm() { editingPersonalItem = null; $('personal-catalog-form').hidden = true; $('personal-catalog-form').reset(); message('personal-catalog-form-status', ''); }
+  async function savePersonalItem(event) {
+    event.preventDefault(); const button = $('personal-catalog-save'), current = editingPersonalItem;
+    try {
+      const data = {
+        title:$('personal-catalog-name').value.trim(), category_code:$('personal-catalog-category').value, summary:$('personal-catalog-summary').value.trim(),
+        material:$('personal-catalog-material').value.trim() || null, joint_text:$('personal-catalog-joint').value.trim() || null,
+        foot_structure:$('personal-catalog-foot').value.trim() || null, feature_text:$('personal-catalog-feature').value.trim() || null,
+        caution_text:$('personal-catalog-caution').value.trim() || null,
+        reference_url:optionalHttps($('personal-catalog-reference-url').value, '参考URL'), image_url:optionalHttps($('personal-catalog-image-url').value, '写真URL')
+      };
+      if (!data.title || !data.summary) throw new Error('名前と概要を入力してください。');
+      button.disabled = true; message('personal-catalog-form-status', '保存しています…');
+      const path = current ? `/rest/v1/kasi_personal_catalog_items?id=eq.${current.id}&row_version=eq.${current.row_version}` : '/rest/v1/kasi_personal_catalog_items';
+      const rows = await request(path, {method:current ? 'PATCH' : 'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(data)});
+      if (!rows.length) throw new Error(current ? '別の画面で更新されています。読み込み直して再度お試しください。' : '保存結果を確認できませんでした。');
+      hidePersonalForm(); await loadPersonalItems(); message('personal-catalog-status', current ? '自分用の装具を更新しました。' : '自分用の装具を追加しました。');
+    } catch (error) { message('personal-catalog-form-status', `保存できませんでした：${error.message}`, true); }
+    finally { button.disabled = false; }
+  }
+  async function deletePersonalItem(item) {
+    if (!confirm(`「${item.title}」を削除しますか？`)) return;
+    try {
+      const rows = await request(`/rest/v1/kasi_personal_catalog_items?id=eq.${item.id}&row_version=eq.${item.row_version}`, {method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({deleted_at:new Date().toISOString()})});
+      if (!rows.length) throw new Error('別の画面で更新されています。読み込み直して再度お試しください。');
+      if (editingPersonalItem?.id === item.id) hidePersonalForm();
+      await loadPersonalItems(); message('personal-catalog-status', '自分用の装具を削除しました。');
+    } catch (error) { message('personal-catalog-status', `削除できませんでした：${error.message}`, true); }
   }
   async function load() {
     const cycle = ++loadCycle;
@@ -291,7 +404,8 @@ const F03 = (() => {
     }
   }
   function reset() {
-    loadCycle++; items = []; allTerms = []; filter = 'all'; keyword = ''; chosen.clear(); view = 'browse'; detailId = null; hideEditor();
+    loadCycle++; personalLoadCycle++; items = []; allTerms = []; filter = 'all'; keyword = ''; chosen.clear(); view = 'browse'; detailId = null; hideEditor();
+    personalItems = []; personalLoaded = false; editingPersonalItem = null; hidePersonalForm(); setCatalogTab('public');
     $('catalog-keyword').value = ''; $('catalog-list').replaceChildren(); $('catalog-detail-body').replaceChildren();
     $('catalog-compare-body').replaceChildren(); $('catalog-browse').hidden = false;
     $('catalog-detail').hidden = true; $('catalog-comparison').hidden = true; $('catalog-selection-tray').hidden = true;
@@ -316,10 +430,29 @@ const F03 = (() => {
     chosen.clear(); syncOptionButtons(); renderTray();
   });
   $('catalog-run-comparison').addEventListener('click', showComparison);
+  document.querySelectorAll('[data-catalog-tab]').forEach(button => {
+    button.addEventListener('click', () => setCatalogTab(button.dataset.catalogTab));
+    button.addEventListener('keydown', event => {
+      const tabs = [...document.querySelectorAll('[data-catalog-tab]')], index = tabs.indexOf(button);
+      let target = null;
+      if (event.key === 'ArrowRight') target = tabs[(index + 1) % tabs.length];
+      if (event.key === 'ArrowLeft') target = tabs[(index - 1 + tabs.length) % tabs.length];
+      if (event.key === 'Home') target = tabs[0];
+      if (event.key === 'End') target = tabs.at(-1);
+      if (!target) return;
+      event.preventDefault(); setCatalogTab(target.dataset.catalogTab, true);
+    });
+  });
+  $('personal-catalog-add').addEventListener('click', () => showPersonalForm());
+  $('personal-catalog-cancel').addEventListener('click', hidePersonalForm);
+  $('personal-catalog-form').addEventListener('submit', savePersonalItem);
   async function resume() {
     // Preserve the search, comparison, detail and unfinished administrator edits.
     if (!items.length) await load();
-    else renderTray();
+    if (catalogTab === 'personal') {
+      setCatalogTab('personal');
+      if (!personalLoaded) await loadPersonalItems();
+    } else renderTray();
   }
   return {load, reset, hide, resume};
 })();
