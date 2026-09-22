@@ -486,3 +486,8 @@ h1, .next-step h2 { text-wrap: balance; }
 @media (max-width:760px) {
   .is-authenticated .app-page textarea { min-height: 8em; }
 }
+
+#concern-list { display: grid; gap: 14px; margin: 18px 0 24px; }
+#concern-list .concern-card { margin: 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+#concern-list .concern-card h3 { margin: 0 0 8px; font-size: 1rem; }
+#concern-list .concern-card p { margin: 6px 0; overflow-wrap: anywhere; }

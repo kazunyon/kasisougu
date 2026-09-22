@@ -1,9 +1,9 @@
 'use strict';
 const F05 = (() => {
-  let sheets = [], selected = null, needsForSheet = [], concernsForSheet = [], photosForSheet = [], previewUrls = [], previewSerial = 0;
+  let sheets = [], selected = null, concernsForSheet = [], photosForSheet = [], previewUrls = [], previewSerial = 0;
   const text = value => value === null || value === undefined || value === '' ? '未記入' : String(value);
   const orthosisName = id => orthoses.find(row => row.id === id)?.nickname || '装具';
-  const concernOrthosisName = item => orthosisName(KASI_F04.getRecords().find(row => row.id === item.usage_record_id)?.user_orthosis_id);
+  const concernOrthosisName = item => orthosisName(item.user_orthosis_id || KASI_F04.getRecords().find(row => row.id === item.usage_record_id)?.user_orthosis_id);
   function clearUrls() { previewSerial++; previewUrls.forEach(url => URL.revokeObjectURL(url)); previewUrls = []; }
   function checkList(id, items, label, checkedIds) {
     const box = $(id); box.replaceChildren();
@@ -29,8 +29,6 @@ const F05 = (() => {
   function renderSelections(saved = {}) {
     const chosen = saved.selected || {};
     checkList('sheet-orthoses', orthoses, row => `${ownershipLabels[row.ownership_status]} · ${row.nickname}`, chosen.orthoses || []);
-    checkList('sheet-needs', needsForSheet, row => `${row.need_type === 'problem' ? '困りごと' : '希望'} · ${orthosisName(row.user_orthosis_id)} · ${row.description}`, chosen.needs || []);
-    checkList('sheet-records', KASI_F04.getRecords(), row => `${row.recorded_on} · ${orthosisName(row.user_orthosis_id)} · ${row.overall_note || 'その日の感想なし'}`, chosen.records || []);
     checkList('sheet-concerns', concernsForSheet, row => `${row.noted_on} · ${concernOrthosisName(row)} · ${concernCategoryLabels[row.category_code] || 'その他'} · ${row.description}`, chosen.concerns || []);
     checkList('sheet-photos', photosForSheet, row => `${row.usage_record_id ? '使用記録' : '装具'} · ${row.caption || row.original_filename || '写真'}`, chosen.photos || []);
     renderPhotoTarget();
@@ -58,11 +56,10 @@ const F05 = (() => {
   }
   async function init() {
     const formVisible = !$('consultation-form').hidden, previewVisible = !$('consultation-preview').hidden;
-    const chosen = formVisible ? {orthoses:selectedIds('sheet-orthoses'),needs:selectedIds('sheet-needs'),records:selectedIds('sheet-records'),concerns:selectedIds('sheet-concerns'),photos:selectedIds('sheet-photos')} : null;
+    const chosen = formVisible ? {orthoses:selectedIds('sheet-orthoses'),concerns:selectedIds('sheet-concerns'),photos:selectedIds('sheet-photos')} : null;
     await loadOrthoses(); await KASI_F04.load();
-    [needsForSheet, concernsForSheet, photosForSheet] = await Promise.all([
-      select('kasi_user_needs', 'select=id,user_orthosis_id,need_type,category_code,description,priority,status_code&deleted_at=is.null&order=created_at.asc'),
-      select('kasi_usage_record_concerns', 'select=id,usage_record_id,noted_on,category_code,description,occurred_timing,status_code,action_note,resolved_on&deleted_at=is.null&status_code=neq.resolved&order=noted_on.desc'),
+    [concernsForSheet, photosForSheet] = await Promise.all([
+      select('kasi_usage_record_concerns', 'select=id,user_orthosis_id,usage_record_id,noted_on,category_code,description,occurred_timing,status_code,action_note,resolved_on&deleted_at=is.null&order=noted_on.desc'),
       select('kasi_user_media', 'select=id,user_orthosis_id,usage_record_id,storage_path,original_filename,mime_type,caption,sort_order&deleted_at=is.null&order=created_at.asc')
     ]);
     await load(); renderSelections(chosen ? {selected:chosen} : {});
@@ -98,10 +95,9 @@ const F05 = (() => {
   }
   function buildSnapshot() {
     const ids = {
-      orthoses: selectedIds('sheet-orthoses'), needs: selectedIds('sheet-needs'),
-      records: selectedIds('sheet-records'), concerns: selectedIds('sheet-concerns'), photos: selectedIds('sheet-photos')
+      orthoses: selectedIds('sheet-orthoses'), needs: selected?.snapshot_json?.selected?.needs || [],
+      records: selected?.snapshot_json?.selected?.records || [], concerns: selectedIds('sheet-concerns'), photos: selectedIds('sheet-photos')
     };
-    const records = KASI_F04.getRecords();
     return {
       version: 1, captured_at: new Date().toISOString(), selected: ids,
       title: $('sheet-title').value.trim() || '相談シート', display_name: $('sheet-display-name').value.trim(),
@@ -112,17 +108,8 @@ const F05 = (() => {
         side_code: row.side_code, orthosis_type_code: row.orthosis_type_code,
         manufactured_on: row.manufactured_on, manufactured_year: row.manufactured_year, manufacturer_name: row.manufacturer_name
       })),
-      needs: ids.needs.map(id => needsForSheet.find(row => row.id === id)).filter(Boolean).map(row => ({
-        id: row.id, orthosis_name: orthosisName(row.user_orthosis_id), need_type: row.need_type,
-        category_code: row.category_code, description: row.description, priority: row.priority, status_code: row.status_code
-      })),
-      records: ids.records.map(id => records.find(row => row.id === id)).filter(Boolean).map(row => ({
-        id: row.id, orthosis_name: orthosisName(row.user_orthosis_id), recorded_on: row.recorded_on,
-        footwear: row.footwear, usage_setting: row.usage_setting, assistance_level: row.assistance_level,
-        duration_minutes: row.duration_minutes, overall_note: row.overall_note,
-        observations: recordCategories.map(([code]) => row.observations?.find(item => item.category_code === code)).filter(Boolean)
-          .map(item => ({category_code:item.category_code,result_code:item.result_code,rating:item.rating,note:item.note}))
-      })),
+      needs: selected?.snapshot_json?.needs || [],
+      records: selected?.snapshot_json?.records || [],
       concerns: ids.concerns.map(id => concernsForSheet.find(row => row.id === id)).filter(Boolean).map(row => ({
         id:row.id, orthosis_name:concernOrthosisName(row), noted_on:row.noted_on, category_code:row.category_code,
         description:row.description, occurred_timing:row.occurred_timing, status_code:row.status_code,
@@ -213,7 +200,7 @@ const F05 = (() => {
       const rows = await request('/rest/v1/kasi_user_media', {method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({user_orthosis_id:orthosisId,storage_path:path,original_filename:file.name,mime_type:file.type,byte_size:file.size,caption:$('sheet-photo-caption').value.trim() || null,sort_order:current.length})});
       if (!rows.length) throw new Error('写真の情報を保存できませんでした。');
       metadataSaved = true;
-      const chosen = {orthoses:selectedIds('sheet-orthoses'),needs:selectedIds('sheet-needs'),records:selectedIds('sheet-records'),concerns:selectedIds('sheet-concerns'),photos:selectedIds('sheet-photos')};
+      const chosen = {orthoses:selectedIds('sheet-orthoses'),concerns:selectedIds('sheet-concerns'),photos:selectedIds('sheet-photos')};
       photosForSheet.push(rows[0]);
       chosen.photos.push(rows[0].id);
       renderSelections({selected:chosen});
@@ -308,7 +295,7 @@ const F05 = (() => {
   $('sheet-revise').addEventListener('click',createRevision);
   $('print-consultation').addEventListener('click',() => window.print());
   function reset() {
-    clearUrls(); sheets = []; selected = null; needsForSheet = []; concernsForSheet = []; photosForSheet = [];
+    clearUrls(); sheets = []; selected = null; concernsForSheet = []; photosForSheet = [];
     $('sheet-list').replaceChildren(); $('consultation-form').hidden = true;
     $('consultation-preview').hidden = true; $('consultation-preview-body').replaceChildren();
   }

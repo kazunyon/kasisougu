@@ -82,7 +82,7 @@ const F04 = (() => {
     updateChoices();
   }
   function renderHomeRecords() {
-    const box = $('record-summary'); box.replaceChildren();
+    const box = $('record-summary'); if (!box) return; box.replaceChildren();
     if (!records.length) box.append(node('p', '保存された記録はありません。'));
     records.slice(0, 3).forEach(row => box.append(formattedNode('p', `${row.recorded_on} · ${orthoses.find(o => o.id === row.user_orthosis_id)?.nickname || '装具'} · ${row.overall_note || 'その日の感想なし'}`)));
   }
