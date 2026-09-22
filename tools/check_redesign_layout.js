@@ -44,6 +44,7 @@ async (page) => {
   for (const screen of ['home','catalog','record','consultation','links','settings']) {
     await go(screen);
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1), `Horizontal overflow with 200% text: ${screen}`);
+    assert(await page.locator(`#${screen}-page textarea`).evaluateAll(elements => elements.every(element => Number.parseFloat(getComputedStyle(element).minHeight) >= Number.parseFloat(getComputedStyle(element).fontSize) * 8 - 1)),`A mobile text area is not tall enough with 200% text: ${screen}`);
   }
   assert(await page.locator('.primary-nav .nav-short').evaluateAll(labels => labels.every(label => getComputedStyle(label).whiteSpace === 'nowrap' && label.getBoundingClientRect().height <= Number.parseFloat(getComputedStyle(label).lineHeight) * 1.2)),'Bottom navigation label wrapped with 200% text');
   await page.locator('#text-scale').fill('100'); await page.locator('#text-scale').dispatchEvent('input');
