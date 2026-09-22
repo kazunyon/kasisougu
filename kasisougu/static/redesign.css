@@ -279,7 +279,7 @@ h1, .next-step h2 { text-wrap: balance; }
   .is-authenticated .header-status { display: block; }
   .app-sidebar { display: contents; }
   .primary-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); gap: 3px; background: #fff; border-top: 1px solid var(--line); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px #193f3406; }
-  .primary-nav button { flex-direction: column; justify-content: center; gap: 5px; padding: 6px 2px; min-height: 58px; font-size: .68rem; text-align: center; }
+  .primary-nav button { flex-direction: column; justify-content: center; gap: 5px; padding: 6px 2px; min-height: 58px; font-size: clamp(10px,2.8vw,12px); line-height: 1.2; text-align: center; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }
   .primary-nav svg { width: 21px; height: 21px; }
   .nav-long, .sidebar-secondary, .sidebar-session, .desktop-needs-link { display: none; }
   .nav-short { display: inline; }
@@ -446,6 +446,10 @@ h1, .next-step h2 { text-wrap: balance; }
 #record-form > .form-grid > label,
 #record-form > .form-grid > .record-help-field,
 #record-form > .wide-field { font-size: .8rem; }
+#record-form > .form-grid > label > input,
+#record-form > .form-grid > label > select { font-size: inherit; }
+#recorded-on { text-align: left; }
+#recorded-on::-webkit-date-and-time-value { text-align: left; }
 #record-concern-form-title { font-size: .9rem; }
 @media (max-width:760px) { #record-form .form-grid { grid-template-columns: minmax(0,1fr); } }
 
