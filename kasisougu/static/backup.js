@@ -12,7 +12,7 @@ const backupCollections = [
   ['needs', 'kasi_user_needs', 'id,user_orthosis_id,need_type,category_code,description,priority,status_code,created_at,updated_at'],
   ['usage_records', 'kasi_usage_records', 'id,user_orthosis_id,recorded_on,footwear,usage_setting,assistance_level,duration_minutes,distance_meters,overall_note,record_kind,created_at,updated_at'],
   ['observations', 'kasi_usage_record_observations', 'id,usage_record_id,category_code,result_code,rating,note,created_at,updated_at'],
-  ['concerns', 'kasi_usage_record_concerns', 'id,usage_record_id,noted_on,category_code,description,occurred_timing,status_code,action_note,resolved_on,created_at,updated_at'],
+  ['concerns', 'kasi_usage_record_concerns', 'id,user_orthosis_id,usage_record_id,noted_on,category_code,description,occurred_timing,status_code,action_note,resolved_on,created_at,updated_at'],
   ['media', 'kasi_user_media', 'id,user_orthosis_id,usage_record_id,storage_path,original_filename,mime_type,byte_size,width_px,height_px,caption,sort_order,is_representative,exif_removed,validation_status,created_at,updated_at'],
   ['consultation_sheets', 'kasi_consultation_sheets', 'id,title,consultation_on,display_name,question_text,include_photos,status_code,snapshot_json,snapshot_version,finalized_at,created_at,updated_at'],
   ['personal_links', 'kasi_personal_links', 'id,title,url,note,created_at,updated_at'],

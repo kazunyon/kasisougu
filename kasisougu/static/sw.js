@@ -1,5 +1,5 @@
-const CACHE = 'kasisougu-shell-v38';
-const FILES = ['/', '/static/style.css', '/static/s03-s04.css', '/static/f04-f05.css', '/static/redesign.css', '/static/app.js', '/static/backup.js', '/static/catalog.js', '/static/records.js', '/static/consultation.js', '/static/nearby-search.js', '/static/manifest.webmanifest', '/static/brand-logo.png', '/static/icon-192.png', '/static/icon-512.png'];
+const CACHE = 'kasisougu-shell-v39';
+const FILES = ['/', '/static/style.css', '/static/s03-s04.css', '/static/f04-f05.css', '/static/redesign.css', '/static/app.js', '/static/backup.js', '/static/catalog.js', '/static/records.js', '/static/concerns.js', '/static/consultation.js', '/static/nearby-search.js', '/static/manifest.webmanifest', '/static/brand-logo.png', '/static/icon-192.png', '/static/icon-512.png'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('kasisougu-shell-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', event => {
