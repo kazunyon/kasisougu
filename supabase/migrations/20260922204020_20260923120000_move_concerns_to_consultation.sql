@@ -267,3 +267,5 @@ grant execute on function public.kasi_restore_backup(jsonb) to authenticated;
 
 notify pgrst, 'reload schema';
 commit;
+
+;
