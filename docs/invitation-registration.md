@@ -1,19 +1,19 @@
 # 招待制の新規利用登録を設定する
 
-この機能は、6桁キーが一致した申込者へ招待メールを送る。ブラウザからSupabase Authの通常サインアップは呼び出さない。運用開始前に、DBマイグレーション、Edge Function、Supabase Auth設定、招待キー、招待メールをすべて設定する。
+この機能では、運営担当者から案内された6桁キーが一致した申込者に、招待メールを送ります。アプリからSupabase Authの通常の新規登録（サインアップ）は行いません。利用を始める前に、データベースの変更（マイグレーション）、Edge Function、Supabase Authの設定、招待キー、招待メールを設定してください。
 
 ## 仕組み
 
 1. 利用者がアプリでメールアドレスと6桁キーを入力する。
-2. `request-invitation` Edge Functionがキーを照合し、IPとメールアドレスごとの回数制限を適用する。
-3. キーが正しい場合だけ、Auth Admin APIから招待メールを送る。
-4. 招待リンクでメールを確認し、パスワードを設定するとアプリへログインする。
+2. `request-invitation` Edge Function（Supabase上で動くサーバー処理）がキーを照合し、接続元IPアドレスとメールアドレスごとの申込回数を制限する。
+3. キーが正しい場合に限り、Supabase Authの管理用APIから招待メールを送る。
+4. 利用者がメール内の招待リンクを開いてメールアドレスを確認し、パスワードを設定すると、アプリにログインできる。
 
-Supabase Authの通常メール登録を無効にする。Edge Functionだけを招待発行口とし、サービス用キーはサーバー側に置く。6桁キーは共有鍵であり、利用者の本人確認にはならない。誤入力はIPごとに15分で5回まで、招待申込は同一メールで1時間に3回、同一IPで1時間に10回までを初期値とする。共有回線による誤制限を検証してから本番に適用する。
+Supabase Authの通常のメール新規登録を無効にしてください。招待を発行する入口はEdge Functionに限定し、サービス用キーはサーバー側だけに保存します。6桁キーは対象者へ共有する合言葉であり、申込者本人の身元を確認するものではありません。初期の回数制限は、キーの誤入力をIPアドレスごとに15分間で5回まで、招待申込を同一メールアドレスで1時間に3回まで、同一IPアドレスで1時間に10回までとします。共有回線の利用者が誤って制限されないことを検証してから、本番環境に適用してください。
 
 ## 初回導入
 
-最初に検証用Supabaseプロジェクトで一通り動かし、問題がないことを確認してから本番プロジェクトにも同じ設定を行う。以下のCLIコマンドは、リポジトリのルートフォルダー（`supabase`フォルダーがある場所）で実行する。
+まず検証用Supabaseプロジェクトですべての手順を実施し、問題がないことを確かめてから、本番プロジェクトにも設定します。以下のコマンドは、Node.jsとnpmが使える環境で、リポジトリのルートフォルダー（`supabase`フォルダーがある場所）から実行してください。Supabase CLIは`npx supabase`で呼び出します。初回は必要なCLIパッケージが自動で取得される場合があります。
 
 ### 検証用プロジェクト
 
@@ -21,14 +21,14 @@ Supabase Authの通常メール登録を無効にする。Edge Functionだけを
 2. CLIを検証用プロジェクトへ接続する。`<検証用project-ref>`はDashboardに表示されるプロジェクトIDに置き換える。
 
    ```bash
-   supabase link --project-ref <検証用project-ref>
+   npx supabase link --project-ref <検証用project-ref>
    ```
 
 3. 適用されるマイグレーションを確認してからDBへ反映する。
 
    ```bash
-   supabase db push --dry-run
-   supabase db push
+   npx supabase db push --dry-run
+   npx supabase db push
    ```
 
    `20260923130000_invitation_registration.sql`が適用対象に含まれていることを確認する。この処理で、登録キーのHMACを置く非公開テーブルと、申込回数を制限する処理が作られる。メールアドレスとIPアドレスそのものは記録せず、HMAC値を一時的に保存する。
@@ -46,7 +46,7 @@ Supabase Authの通常メール登録を無効にする。Edge Functionだけを
 6. CLIが検証用プロジェクトに接続されていることを確認し、Edge Function用の秘密値を登録する。
 
    ```bash
-   supabase secrets set --env-file supabase/.invitation-secrets.env
+   npx supabase secrets set --env-file supabase/.invitation-secrets.env
    ```
 
    このファイルに入っているのは照合用などのpepper（HMAC計算用秘密値）です。`SUPABASE_URL`とAuth管理用キーはSupabaseが関数へ提供するため、自分でファイルへ追加したり、HTML・JavaScript・GitHub Pagesへ置いたりしないでください。
@@ -54,7 +54,7 @@ Supabase Authの通常メール登録を無効にする。Edge Functionだけを
 7. 招待申込用のEdge Functionを検証用プロジェクトへ配置する。
 
    ```bash
-   supabase functions deploy request-invitation
+   npx supabase functions deploy request-invitation
    ```
 
    関数のJWT検証は無効にしてあります。申込者はログイン前に利用するためです。関数内では、キー照合、接続元の確認、DBによる申込回数制限を行います。
@@ -70,9 +70,9 @@ Supabase Authの通常メール登録を無効にする。Edge Functionだけを
 
 ### 本番プロジェクト
 
-検証環境で確認できたら、本番用のproject-refにCLIを接続し直し、手順1〜10と同じ設定を本番プロジェクトにも行う。本番でも通常のメール新規登録を無効にし、登録キーのSQL、秘密値、Edge Functionは本番プロジェクトへ個別に適用する。CLIの接続先を間違えないよう、各コマンドの前に対象プロジェクトを確認する。
+検証環境で問題がないことを確認したら、CLIの接続先を本番用project-refへ切り替え、手順1〜10と同じ設定を本番プロジェクトにも行います。本番環境でも通常のメール新規登録を無効にしてください。登録キーのSQL、秘密値、Edge Functionは、それぞれ本番プロジェクトへ適用します。誤った環境へ変更を加えないよう、コマンドを実行する前に接続先のプロジェクトを確認してください。
 
-アプリのコード変更は、Supabase側の準備とは別にGitHub Pagesへ公開する必要がある。Supabaseの設定とアプリ公開の両方が済むまでは、招待制登録は利用できない。
+アプリのコード変更は、Supabase側の準備とは別にGitHub Pagesへ公開する必要があります。Supabaseの設定とアプリの公開が両方完了するまでは、招待制登録を利用できません。
 
 ## 受入確認
 
