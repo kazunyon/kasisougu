@@ -1,0 +1,4 @@
+[functions.request-invitation]
+# This endpoint is intentionally public for unauthenticated invite requests.
+# It validates the shared code and applies database-backed rate limits itself.
+verify_jwt = false

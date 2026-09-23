@@ -6,6 +6,7 @@ frontend/dist/
 frontend/*.tsbuildinfo
 backend/target/
 .env
+supabase/.invitation-secrets.env
 .idea/
 .vscode/
 tmp/pdf*/

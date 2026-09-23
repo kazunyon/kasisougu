@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#23805d">
+<title>招待の確認 | 装具びより</title>
+<link rel="stylesheet" href="./style.css">
+<style>main{max-width:640px;margin:2rem auto;padding:1rem}.invite-card{border:1.5px solid var(--line);border-radius:10px;background:var(--soft);padding:clamp(20px,5vw,36px)}h1{font-size:clamp(1.5rem,5vw,2rem);line-height:1.4}.invite-card label{display:block;font-weight:700;margin:14px 0 5px}.invite-card input{display:block;width:100%;min-height:48px;border:1.5px solid var(--line);background:#fff;border-radius:7px;padding:10px;color:var(--ink)}.invite-card button{width:100%;margin-top:18px}.invite-card [hidden]{display:none!important}#invitation-status{min-height:1.7em}.invite-error{color:#9e271d}</style>
+<script src="./pages-config.js"></script><script defer src="./invitation.js"></script>
+</head>
+<body><main>
+<section class="invite-card" aria-labelledby="invitation-title">
+<h1 id="invitation-title">招待を確認しています</h1>
+<p id="invitation-status" role="status" aria-live="polite">メールの招待リンクを確認しています…</p>
+<section id="invitation-password-panel" hidden>
+<p id="invitation-account"></p>
+<p>新しいパスワードを8文字以上で設定してください。</p>
+<form id="invitation-password-form">
+<label for="invitation-password">新しいパスワード</label>
+<input id="invitation-password" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+<label for="invitation-password-confirm">新しいパスワード（確認）</label>
+<input id="invitation-password-confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+<button id="invitation-password-submit" type="submit" class="primary">パスワードを設定する</button>
+</form>
+</section>
+<p><a href="./">ログイン画面へ戻る</a></p>
+<p>招待メールのリンクは他の人に共有しないでください。</p>
+</section>
+</main></body></html>

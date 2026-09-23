@@ -1,6 +1,9 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const config = window.KASISOUGU_SUPABASE_CONFIG || {};
+const inviteLoginFragment = new URLSearchParams(location.hash.slice(1));
+let inviteLoginAccessToken = inviteLoginFragment.get('type') === 'invite-login' ? inviteLoginFragment.get('invite_access_token') || '' : '';
+if (inviteLoginAccessToken) history.replaceState(null, '', location.pathname + location.search);
 let token = '', userId = '', orthosis = null, orthoses = [], editingOrthosis = null;
 let photos = [], photoUrls = [], photoRenderId = 0;
 let profile = null, profileLoaded = false;
@@ -30,7 +33,7 @@ function setAuthenticatedView(ok) {
   $('login-page').hidden = ok; $('home-page').hidden = !ok; document.querySelectorAll('.logout-button').forEach(button => { button.hidden = !ok; });
   $('header-status').textContent = ok ? 'ログイン中' : 'ログインが必要です';
   if (ok) setScreen('home');
-  else { currentScreen = 'home'; screenLoads.clear(); document.title = '下肢装具サポート'; }
+  else { currentScreen = 'home'; screenLoads.clear(); document.title = '下肢装具サポート'; $('invite-request-panel').hidden = true; $('login-form-panel').hidden = false; $('show-invite-request').setAttribute('aria-expanded', 'false'); $('invite-request-form').reset(); }
 }
 function assertConfig() { if (!config.url || !config.publishableKey) throw new Error('公開設定を確認してください。'); }
 async function request(path, options = {}) { const {headers: extraHeaders = {}, ...rest} = options; assertConfig(); const response = await fetch(`${config.url}${path}`, {...rest, headers: apiHeaders(extraHeaders)}); if (!response.ok) { const body = await response.json().catch(() => ({})); const detail = body.message || body.msg || ''; if (response.status === 401 && /jwt expired/i.test(detail)) { resetSession('ログインの有効期限が切れました。もう一度ログインしてください'); throw new Error('ログインの有効期限が切れました。もう一度ログインしてください'); } throw new Error(detail || '処理できませんでした。'); } const body = await response.text(); return body ? JSON.parse(body) : null; }
@@ -354,6 +357,36 @@ function setScreen(name) {
   window.scrollTo({top:0, behavior:'instant'});
 }
 $('login-form').addEventListener('submit', async event => { event.preventDefault(); const button = event.submitter; const email = $('email').value.trim(); button.disabled = true; message('auth-status', 'ログインしています…'); try { const data = await request('/auth/v1/token?grant_type=password', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: $('password').value})}); token = data.access_token; userId = (await request('/auth/v1/user')).id; $('password').value = ''; setAuthenticatedView(true); await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]); } catch { token = ''; userId = ''; message('auth-status', 'メールアドレスまたはパスワードを確認してください。', true); } finally { button.disabled = false; } });
+$('show-invite-request').addEventListener('click', () => { $('login-form-panel').hidden = true; $('invite-request-panel').hidden = false; $('show-invite-request').setAttribute('aria-expanded', 'true'); $('invite-email').value = $('email').value.trim(); $('invite-email').focus(); });
+$('show-login').addEventListener('click', () => { $('invite-request-panel').hidden = true; $('login-form-panel').hidden = false; $('show-invite-request').setAttribute('aria-expanded', 'false'); $('email').focus(); });
+$('invite-request-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget, button = $('invite-request-submit');
+  const email = $('invite-email').value.trim(), code = $('invite-code').value;
+  if (!/^[0-9]{6}$/.test(code)) { message('invite-request-status', '登録キーは半角数字6桁で入力してください。', true); return; }
+  if (!config.url || !config.publishableKey) { message('invite-request-status', '公開設定を確認できません。管理者に連絡してください。', true); return; }
+  button.disabled = true; message('invite-request-status', '招待を申し込んでいます…');
+  try {
+    const response = await fetch(`${config.url}/functions/v1/request-invitation`, {method:'POST', cache:'no-store', headers:{apikey:config.publishableKey, 'Content-Type':'application/json'}, body:JSON.stringify({email, code})});
+    const result = await response.json().catch(() => ({}));
+    if (response.status === 429) throw new Error('申込回数の上限に達しました。時間をおいてからお試しください。');
+    if (!response.ok) throw new Error('招待を申し込めませんでした。通信を確認して時間をおいてお試しください。');
+    message('invite-request-status', result.message || '該当する場合は招待メールが届きます。受信トレイと迷惑メールをご確認ください。');
+  } catch (error) { message('invite-request-status', error.message || '通信できませんでした。時間をおいて再度お試しください。', true); }
+  finally { $('invite-code').value = ''; button.disabled = false; }
+});
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!inviteLoginAccessToken) return;
+  const accessToken = inviteLoginAccessToken; inviteLoginAccessToken = '';
+  token = accessToken;
+  try {
+    userId = (await request('/auth/v1/user')).id;
+    if (!userId) throw new Error('招待を確認できません。');
+    setAuthenticatedView(true);
+    await Promise.all([loadHome(), KASI_F03.load(), loadProfile()]);
+    message('home-status', '招待を承諾し、ログインしました。');
+  } catch { resetSession('招待後のログインを確認できませんでした。メールアドレスと新しいパスワードでログインしてください。'); }
+});
 document.querySelectorAll('.logout-button').forEach(button => button.addEventListener('click', () => resetSession('ログアウトしました。')));
 document.querySelectorAll('[data-links-tab]').forEach(button => {
   button.addEventListener('click', () => setLinksTab(button.dataset.linksTab));
