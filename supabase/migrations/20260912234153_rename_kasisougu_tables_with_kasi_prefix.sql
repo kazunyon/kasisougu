@@ -1,0 +1,36 @@
+
+alter table public.consultation_sheet_orthoses rename to kasi_consultation_sheet_orthoses;
+alter table public.consultation_sheet_records rename to kasi_consultation_sheet_records;
+alter table public.consultation_sheet_needs rename to kasi_consultation_sheet_needs;
+alter table public.kasi_consultation_sheet_orthoses rename constraint sheet_orthoses_sheet_owner_fk to kasi_sheet_orthoses_sheet_owner_fk;
+alter table public.kasi_consultation_sheet_orthoses rename constraint sheet_orthoses_orthosis_owner_fk to kasi_sheet_orthoses_orthosis_owner_fk;
+alter table public.kasi_consultation_sheet_records rename constraint sheet_records_sheet_owner_fk to kasi_sheet_records_sheet_owner_fk;
+alter table public.kasi_consultation_sheet_records rename constraint sheet_records_record_owner_fk to kasi_sheet_records_record_owner_fk;
+alter table public.kasi_consultation_sheet_needs rename constraint sheet_needs_sheet_owner_fk to kasi_sheet_needs_sheet_owner_fk;
+alter table public.kasi_consultation_sheet_needs rename constraint sheet_needs_need_owner_fk to kasi_sheet_needs_need_owner_fk;
+
+alter table public.user_media rename to kasi_user_media;
+alter table public.usage_record_observations rename to kasi_usage_record_observations;
+alter table public.usage_records rename to kasi_usage_records;
+alter table public.user_needs rename to kasi_user_needs;
+alter table public.user_orthoses rename to kasi_user_orthoses;
+alter table public.kasi_user_needs rename constraint user_needs_orthosis_owner_fk to kasi_user_needs_orthosis_owner_fk;
+alter table public.kasi_usage_records rename constraint usage_records_orthosis_owner_fk to kasi_usage_records_orthosis_owner_fk;
+alter table public.kasi_usage_record_observations rename constraint observations_record_owner_fk to kasi_observations_record_owner_fk;
+alter table public.kasi_user_media rename constraint user_media_orthosis_owner_fk to kasi_user_media_orthosis_owner_fk;
+alter table public.kasi_user_media rename constraint user_media_record_owner_fk to kasi_user_media_record_owner_fk;
+
+alter table public.catalog_media rename to kasi_catalog_media;
+alter table public.catalog_item_sources rename to kasi_catalog_item_sources;
+alter table public.catalog_item_terms rename to kasi_catalog_item_terms;
+alter table public.catalog_sources rename to kasi_catalog_sources;
+alter table public.catalog_terms rename to kasi_catalog_terms;
+alter table public.catalog_items rename to kasi_catalog_items;
+alter table public.kasi_user_orthoses rename constraint user_orthoses_catalog_item_fk to kasi_user_orthoses_catalog_item_fk;
+
+alter table public.consultation_sheets rename to kasi_consultation_sheets;
+alter table public.profiles rename to kasi_profiles;
+alter table private.app_user_roles rename to kasi_app_user_roles;
+alter table private.idempotency_keys rename to kasi_idempotency_keys;
+alter table private.audit_events rename to kasi_audit_events;
+;
