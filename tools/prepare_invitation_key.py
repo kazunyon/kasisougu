@@ -66,7 +66,7 @@ def main() -> None:
     print("INSERT INTO private.kasi_invitation_codes (code_hmac, expires_at) VALUES ('" + digest + "', now() + interval '90 days');")
     if SECRET_FILE.exists():
         print('\nDeploy/update Edge Function secrets with:')
-        print('supabase secrets set --env-file supabase/.invitation-secrets.env')
+        print('npx supabase secrets set --env-file supabase/.invitation-secrets.env')
 
 
 if __name__ == '__main__':
