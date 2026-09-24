@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<title>管理者支援 | 装具びより</title>
+<link rel="stylesheet" href="./admin.css">
+<script src="./pages-config.js"></script><script defer src="./admin.js"></script>
+</head><body>
+<header><div class="wrap head"><div><strong>装具びより</strong><span>管理者支援ツール</span></div><button id="logout" type="button" hidden>ログアウト</button></div></header>
+<main class="wrap">
+<p id="status" class="status" role="status" aria-live="polite"></p>
+<section id="login-panel" class="card narrow">
+<h1>管理者ログイン</h1><p>管理者として登録されたアカウントでログインしてください。</p>
+<form id="login-form"><label>メールアドレス<input id="email" type="email" required autocomplete="username"></label>
+<label>パスワード<input id="password" type="password" required autocomplete="current-password"></label>
+<button class="primary" type="submit">ログイン</button></form>
+<p><a href="./recovery.html">パスワードを忘れた場合</a></p></section>
+<section id="bootstrap-panel" class="card narrow" hidden>
+<h1>初回管理者の登録</h1><p>初回設定ツールが発行した確認コードを入力します。すでに管理責任者が登録済みの場合は利用できません。</p>
+<form id="bootstrap-form"><label>初回設定の確認コード<input id="bootstrap-token" type="password" required autocomplete="off"></label>
+<button class="primary" type="submit">このアカウントを管理責任者にする</button></form></section>
+<div id="dashboard" hidden>
+<nav aria-label="管理メニュー"><button data-view="home" class="active">ホーム</button><button data-view="key">登録キー</button><button data-view="users">利用者</button><button data-view="audit">操作履歴</button></nav>
+<section id="home" class="view"><h1>ホーム</h1><p id="welcome"></p><div class="grid">
+<article class="card"><h2>登録キー</h2><p id="home-key">確認中…</p><button data-view="key">登録キーを管理する</button></article>
+<article class="card"><h2>利用者</h2><p>招待メールの送信や利用状況の確認を行います。</p><button data-view="users">利用者を管理する</button></article>
+<article class="card"><h2>操作履歴</h2><p>管理者が行った操作を確認します。</p><button data-view="audit">履歴を見る</button></article>
+</div></section>
+<section id="key" class="view" hidden><h1>登録キー</h1><div class="card"><p id="key-state">確認中…</p>
+<p>新しいキーを発行すると、現在のキーは直ちに使えなくなります。新しいキーの有効期間は90日です。</p>
+<div class="actions"><button id="rotate" class="primary">新しい6桁のキーを発行</button><button id="stop" class="danger">現在のキーを停止</button></div>
+<div id="new-key" class="secret" hidden><strong>新しい登録キー：<span id="code"></span></strong><p>この画面を閉じると、同じキーは再表示できません。対象の利用者へ安全な方法で伝えてください。</p><button id="hide-key">表示を閉じる</button></div></div></section>
+<section id="users" class="view" hidden><h1>利用者</h1><div class="card" id="invite-panel"><h2>招待メールを送る</h2><form id="invite-form" class="row"><label>メールアドレス<input id="invite-email" type="email" required></label><button class="primary">招待する</button></form><p>登録済みの方へ再送する場合は、先に利用状況を確認してください。</p></div>
+<div class="card"><h2>利用者一覧</h2><p>50件ずつ表示します。メールアドレスでこのページ内を絞り込めます。</p><label>表示中の利用者を検索<input id="user-filter" type="search" placeholder="メールアドレス"></label><div class="table-wrap"><table><thead><tr><th>メールアドレス</th><th>登録日</th><th>状態</th><th>操作</th></tr></thead><tbody id="user-rows"></tbody></table></div><div class="pager"><button id="users-prev">前へ</button><span id="users-page"></span><button id="users-next">次へ</button></div></div></section>
+<section id="audit" class="view" hidden><h1>操作履歴</h1><div class="card"><p>日時の新しい順に50件ずつ表示します。</p><div class="table-wrap"><table><thead><tr><th>日時</th><th>操作</th><th>対象</th><th>担当者ID</th></tr></thead><tbody id="audit-rows"></tbody></table></div><div class="pager"><button id="audit-prev">前へ</button><span id="audit-page"></span><button id="audit-next">次へ</button></div></div></section>
+</div></main>
+<dialog id="confirm-dialog"><form method="dialog"><h2 id="confirm-title"></h2><p id="confirm-text"></p><div class="actions"><button value="cancel">やめる</button><button value="confirm" class="primary">実行する</button></div></form></dialog>
+</body></html>
