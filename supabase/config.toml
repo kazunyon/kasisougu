@@ -2,3 +2,8 @@
 # This endpoint is intentionally public for unauthenticated invite requests.
 # It validates the shared code and applies database-backed rate limits itself.
 verify_jwt = false
+
+[functions.admin-management]
+# A publishable key is not a JWT. The function validates the caller's user
+# access token with Auth and checks the database role for every request.
+verify_jwt = false
