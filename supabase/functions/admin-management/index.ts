@@ -96,8 +96,10 @@ Deno.serve(async request => {
     if (action === "key_status" && has(roles, "system_operator", "invitation_operator"))
       return reply(requestOrigin, 200, {key:await rpc("kasi_admin_key_status")});
     if (action === "key_rotate" && has(roles, "system_operator")) {
+      const memo = typeof payload.memo === "string" ? payload.memo.trim() : "";
+      if (!memo || memo.length > 100) return reply(requestOrigin, 400, {message:"発行先のメモを1〜100文字で入力してください。"});
       const code = sixDigits();
-      const result = await rpc("kasi_admin_rotate_key", {p_actor_id:actor, p_code_hmac:await digest(code)});
+      const result = await rpc("kasi_admin_rotate_key", {p_actor_id:actor, p_code_hmac:await digest(code), p_memo:memo});
       return reply(requestOrigin, 200, {key:result, code});
     }
     if (action === "key_stop" && has(roles, "system_operator"))

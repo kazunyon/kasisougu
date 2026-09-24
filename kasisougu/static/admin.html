@@ -63,13 +63,15 @@
         <section id="key" class="view" hidden>
           <div class="page-heading"><div><h1>登録キー管理</h1><p>新規利用登録に使う6桁のキーを管理します。</p></div></div>
           <article class="card key-current">
-            <div class="card-heading"><h2>現在の登録キー</h2><span id="key-badge" class="badge">確認中</span></div>
+            <div class="card-heading"><h2>有効な登録キー</h2><span id="key-badge" class="badge">確認中</span></div>
             <div id="key-state" class="key-state">確認中…</div>
             <div class="key-facts"><div><span>有効期限</span><strong id="key-expires">—</strong></div><div><span>残り日数</span><strong id="key-days">—</strong></div><div><span>登録キー</span><strong>安全のため非表示</strong></div></div>
-            <p class="muted">新しいキーを発行すると、現在のキーはすぐに使えなくなります。</p>
-            <div class="actions"><button id="stop" type="button" class="danger">現在のキーを停止</button><button id="rotate" type="button" class="primary">新しい6桁のキーを発行</button></div>
+            <p class="muted">新しいキーを発行しても、現在有効なキーはそのまま使えます。登録受付を止めると、すべてのキーが無効になります。</p>
+            <label class="key-memo-label" for="key-memo">発行先のメモ（例：中村月秋）</label><input id="key-memo" type="text" maxlength="100" autocomplete="off" placeholder="誰に渡すキーか入力してください">
+            <div class="actions"><button id="stop" type="button" class="danger">すべてのキーを停止</button><button id="rotate" type="button" class="primary">新しい6桁のキーを発行</button></div>
             <div id="new-key" class="secret" hidden><strong>新しい登録キー：<span id="code"></span></strong><p>このキーは再表示できません。利用者へ安全な方法で伝えてください。</p><button id="hide-key" type="button">表示を閉じる</button></div>
           </article>
+          <article class="card"><h2>有効なキーの発行先</h2><div id="active-key-list" class="active-key-list"></div></article>
           <div class="key-lower">
             <article class="card"><h2>更新履歴</h2><div class="table-wrap"><table><thead><tr><th>日時</th><th>操作</th><th>担当者ID</th></tr></thead><tbody id="key-history-rows"></tbody></table></div></article>
             <article class="card guidance"><h2>登録キーについて</h2><p>新しいキーの有効期間は90日です。</p><p>キーを停止した後に登録を再開するには、新しいキーを発行してください。</p></article>
