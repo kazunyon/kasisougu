@@ -26,7 +26,12 @@
       return data;
     } catch (error) {
       if (error.name === 'AbortError') throw new Error('通信が完了しませんでした。操作結果を確認してから再試行してください。');
-      if (error instanceof TypeError) throw new Error('Supabase に接続できませんでした。ブラウザーの拡張機能や通信フィルターが Supabase を遮断していないか確認してください。');
+      if (error instanceof TypeError) {
+        const message = path.startsWith('/functions/v1/admin-management')
+          ? '管理機能に接続できません。Supabase の admin-management 関数と秘密値の配置を確認してください。'
+          : '認証サーバーに接続できません。通信環境を確認してください。';
+        throw new Error(message);
+      }
       throw error;
     } finally { clearTimeout(timer); }
   }
