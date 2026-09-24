@@ -70,12 +70,20 @@
     const active = key.status === 'active', expired = key.status === 'expired';
     const label = active ? '有効' : expired ? '期限切れ' : '停止中';
     $('home-key').textContent = label;
-    $('home-key-detail').textContent = active ? `有効期限：${date(key.expires_at)}` : '有効な登録キーはありません';
-    $('key-state').textContent = active ? '現在、新規利用登録を受け付けています。' : '現在、新規利用登録は受け付けていません。';
-    $('key-badge').textContent = label; $('key-badge').className = `badge ${active ? '' : expired ? 'pending' : 'neutral'}`;
+    $('home-key-detail').textContent = active ? `有効なキー：${key.active_count}件` : '有効な登録キーはありません';
+    $('key-state').textContent = active ? `現在、有効な登録キー${key.active_count}件で新規利用登録を受け付けています。` : '現在、新規利用登録は受け付けていません。';
+    $('key-badge').textContent = active ? `${key.active_count}件有効` : label; $('key-badge').className = `badge ${active ? '' : expired ? 'pending' : 'neutral'}`;
     $('key-expires').textContent = date(key.expires_at);
     $('key-days').textContent = active && key.expires_at ? `${Math.max(0, Math.ceil((new Date(key.expires_at) - new Date()) / 86400000))}日` : '—';
     $('stop').disabled = !active;
+    const list = $('active-key-list'); list.replaceChildren();
+    if (!key.keys?.length) { list.textContent = '有効なキーはありません。'; return; }
+    for (const item of key.keys) {
+      const row = document.createElement('div'); row.className = 'active-key-row';
+      const memo = document.createElement('strong'); memo.textContent = item.memo || '発行先メモなし';
+      const expiry = document.createElement('span'); expiry.textContent = `発行：${date(item.created_at)} ／ 期限：${date(item.expires_at)}`;
+      row.append(memo, expiry); list.append(row);
+    }
   }
   async function loadKey() {
     renderKey((await api('key_status')).key);
@@ -207,8 +215,10 @@
   $('logout').addEventListener('click', () => { logout(); status('ログアウトしました。'); });
   document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => showView(button.dataset.view).catch(error => status(error.message, true))));
   $('rotate').addEventListener('click', () => run($('rotate'), async () => {
-    if (!await confirmAction('新しい登録キーを発行しますか', '新しい6桁の登録キーを発行します。', '今の登録キーは直ちに使えなくなります。')) return;
-    const result = await api('key_rotate'); renderKey(result.key); $('code').textContent = result.code; $('new-key').hidden = false; status('新しい登録キーを発行しました。');
+    const memo = $('key-memo').value.trim();
+    if (!memo) { $('key-memo').focus(); throw new Error('発行先のメモを入力してください。'); }
+    if (!await confirmAction('新しい登録キーを発行しますか', `「${memo}」向けのキーを追加します。現在有効なキーはそのまま使えます。`)) return;
+    const result = await api('key_rotate', {memo}); renderKey(result.key); $('key-memo').value = ''; $('code').textContent = result.code; $('new-key').hidden = false; status('新しい登録キーを発行しました。');
     if (auditor()) await loadKeyHistory();
   }));
   async function loadKeyHistory() {
@@ -220,7 +230,7 @@
     for (const item of rows.slice(0, 5)) { const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, actions[item.action]); appendCell(row, item.actor_id); }
   }
   $('stop').addEventListener('click', () => run($('stop'), async () => {
-    if (!await confirmAction('登録キーを停止しますか', '現在の登録キーを停止します。', '新しいキーを発行するまで、新規利用登録を受け付けません。')) return;
+    if (!await confirmAction('登録キーを停止しますか', '有効な登録キーをすべて停止します。', '新しいキーを発行するまで、新規利用登録を受け付けません。')) return;
     const result = await api('key_stop'); renderKey(result.key); $('new-key').hidden = true; $('code').textContent = ''; status('登録キーを停止しました。');
     if (auditor()) await loadKeyHistory();
   }));
