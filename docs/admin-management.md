@@ -4,22 +4,28 @@
 
 ## 使い始める前に
 
-- Supabase Dashboard へ入れる担当者、Node.js/npm、Python 3.12 を用意します。
+- Supabase Dashboard へ入れる担当者、Node.js/npm、Python 3.12 を用意します。事前にターミナルで `npx supabase login` を実行してください。
 - 既存の招待運用から移行する場合は、`supabase/.invitation-secrets.env` を安全な保管先から元に戻します。登録キーの照合用秘密値を変更すると、以前のキーは利用できなくなります。
 - 管理者として使うアカウントは、事前に招待を受け、メール確認とパスワード設定を済ませてください。
 - Dashboard の Authentication で通常の新規登録を停止し、招待メールの送信元・SMTP と Redirect URL を設定します。これらは CLI だけでは完了しません。
 
 ## 初回設定（L01）
 
-リポジトリのルートで、接続したいプロジェクトの ref を指定して実行します。
+リポジトリのルートで、初回設定画面を開きます。
+
+```powershell
+python tools/admin_setup_gui.py
+```
+
+画面を使わずに進める場合や、Supabase CLI が接続時にパスワード入力を求める場合は、対話型コマンドを利用できます。
 
 ```powershell
 python tools/setup_admin_management.py --project-ref YOUR_PROJECT_REF
 ```
 
-別のURLで検証する場合は、`--app-origin https://example.jp` と `--redirect-url https://example.jp/kasisougu/invitation.html` も指定します。ツールは接続先の再入力を求め、未適用 migration の一覧を表示します。**一覧には管理機能以外の変更も含まれることがあります。** 内容を確認して「反映」と入力すると、`npx supabase db push`、`npx supabase secrets set`、2つの Edge Function の配置が進みます。
+別のURLで検証する場合は、画面の「アプリのオリジン」と「招待メールの戻り先」を変更します。コマンドでは `--app-origin https://example.jp` と `--redirect-url https://example.jp/kasisougu/invitation.html` を指定します。画面では接続先を確認し、未適用 migration の一覧を見てから「設定を反映」を押します。コマンドでは project-ref を再入力し、一覧を見て「反映」と入力します。**一覧には管理機能以外の変更も含まれることがあります。** 内容を確認して進めてください。
 
-プロジェクトごとの秘密値ファイルは `supabase/.admin-secrets-<project-ref>.env` です。Git の対象外ですが、別の安全な保管先にも保存してください。既存の秘密値ファイルがある場合、ツールは登録キーと申込回数制限の秘密値を引き継ぎます。再実行時は同じファイルを使います。
+プロジェクトごとの秘密値ファイルは `supabase/.admin-secrets-<project-ref>.env` です。Git の対象外ですが、別の安全な保管先にも保存してください。既存の秘密値ファイルがある場合、ツールは登録キーと申込回数制限の秘密値を引き継ぎます。再実行時は同じファイルを使います。画面の「1. 接続先と変更内容を確認」で一覧を見てから、「2. 設定を反映」を押します。
 
 GitHub Pages へ管理画面が公開された後、`https://kazunyon.github.io/kasisougu/admin.html` を開き、確認済みのアカウントでログインします。初回だけ、設定ツールが最後に表示した確認コードを入力して、管理責任者を登録します。この操作は、管理責任者がまだ1人もいない場合に限り成功します。
 

@@ -35,21 +35,19 @@ def read_env(path: Path) -> dict[str, str]:
     return result
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="装具びより 管理者支援ツールの初回設定")
-    parser.add_argument("--project-ref", required=True, help="Supabase Dashboard に表示される project ref")
-    parser.add_argument("--app-origin", default="https://kazunyon.github.io", help="アプリの https オリジン")
-    parser.add_argument("--redirect-url", default="https://kazunyon.github.io/kasisougu/invitation.html")
-    args = parser.parse_args()
-    if not REF.fullmatch(args.project_ref):
-        parser.error("project-ref は Supabase の20文字の英小文字・数字で指定してください。")
-    parsed = urlparse(args.app_origin)
+def validate(project_ref: str, app_origin: str, redirect_url: str) -> None:
+    if not REF.fullmatch(project_ref):
+        raise ValueError("project-ref は Supabase の20文字の英小文字・数字で指定してください。")
+    parsed = urlparse(app_origin)
     if parsed.scheme != "https" or not parsed.netloc or parsed.path or parsed.query or parsed.fragment:
-        parser.error("app-origin はパスを含まない https オリジンで指定してください。")
-    if not args.redirect_url.startswith(args.app_origin + "/"):
-        parser.error("redirect-url は app-origin の配下にしてください。")
+        raise ValueError("app-origin はパスを含まない https オリジンで指定してください。")
+    if not redirect_url.startswith(app_origin + "/"):
+        raise ValueError("redirect-url は app-origin の配下にしてください。")
 
-    path = ROOT / "supabase" / f".admin-secrets-{args.project_ref}.env"
+
+def prepare_secrets(project_ref: str, app_origin: str, redirect_url: str) -> tuple[Path, dict[str, str]]:
+    validate(project_ref, app_origin, redirect_url)
+    path = ROOT / "supabase" / f".admin-secrets-{project_ref}.env"
     values = read_env(path)
     old = read_env(ROOT / "supabase" / ".invitation-secrets.env")
     for name in ("INVITATION_CODE_PEPPER", "INVITATION_RATE_PEPPER"):
@@ -57,13 +55,26 @@ def main() -> None:
             values[name] = old.get(name) or secrets.token_hex(32)
     if not values.get("ADMIN_BOOTSTRAP_TOKEN"):
         values["ADMIN_BOOTSTRAP_TOKEN"] = secrets.token_urlsafe(48)
-    values["APP_ORIGIN"] = args.app_origin
-    values["INVITATION_REDIRECT_URL"] = args.redirect_url
+    values["APP_ORIGIN"] = app_origin
+    values["INVITATION_REDIRECT_URL"] = redirect_url
     path.write_text("\n".join(f"{name}={value}" for name, value in values.items()) + "\n", encoding="utf-8")
     try:
         os.chmod(path, 0o600)
     except OSError:
         pass
+    return path, values
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="装具びより 管理者支援ツールの初回設定")
+    parser.add_argument("--project-ref", required=True, help="Supabase Dashboard に表示される project ref")
+    parser.add_argument("--app-origin", default="https://kazunyon.github.io", help="アプリの https オリジン")
+    parser.add_argument("--redirect-url", default="https://kazunyon.github.io/kasisougu/invitation.html")
+    args = parser.parse_args()
+    try:
+        path, values = prepare_secrets(args.project_ref, args.app_origin, args.redirect_url)
+    except ValueError as error:
+        parser.error(str(error))
     print(f"秘密値を Git 管理外の {path} に準備しました。安全な保管先にも保存してください。")
     print("招待メールの送信元・SMTP、通常登録の停止、Auth Redirect URL は Dashboard で設定してください。")
     print(f"接続先 project-ref: {args.project_ref}")
