@@ -6,7 +6,7 @@
 
 - Supabase Dashboard へ入れる担当者、Node.js/npm、Python 3.12 を用意します。事前にターミナルで `npx supabase login` を実行してください。
 - 既存の招待運用から移行する場合は、`supabase/.invitation-secrets.env` を安全な保管先から元に戻します。登録キーの照合用秘密値を変更すると、以前のキーは利用できなくなります。
-- 管理者として使うアカウントは、事前に招待を受け、メール確認とパスワード設定を済ませてください。
+- 管理者として使うアカウントは、事前に招待を受け、メール確認とパスワード設定を済ませてください。まだ誰も登録されていない場合は、初回の1人を Supabase Dashboard の Authentication → Users から招待します。管理画面で登録キーを発行できるのは、この初回管理者の登録後です。
 - Dashboard の Authentication で通常の新規登録を停止し、招待メールの送信元・SMTP と Redirect URL を設定します。これらは CLI だけでは完了しません。
 
 ## 初回設定（L01）
