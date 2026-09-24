@@ -26,7 +26,7 @@
       return data;
     } catch (error) {
       if (error.name === 'AbortError') throw new Error('通信が完了しませんでした。操作結果を確認してから再試行してください。');
-      if (error instanceof TypeError) throw new Error('通信できませんでした。接続を確認してください。');
+      if (error instanceof TypeError) throw new Error('Supabase に接続できませんでした。ブラウザーの拡張機能や通信フィルターが Supabase を遮断していないか確認してください。');
       throw error;
     } finally { clearTimeout(timer); }
   }
