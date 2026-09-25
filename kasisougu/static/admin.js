@@ -3,12 +3,14 @@
   const $ = id => document.getElementById(id);
   const config = window.KASISOUGU_SUPABASE_CONFIG || {};
   const labels = {home:'管理ホーム',key:'登録キー管理',users:'利用者管理',audit:'操作履歴'};
-  const actions = {bootstrap:'初回管理者登録',key_rotate:'登録キー発行',key_stop:'登録キー停止',invite:'招待送信',invite_failed:'招待失敗',invite_resend:'招待再送',invite_resend_failed:'招待再送失敗',user_suspend:'利用停止',user_resume:'利用再開',user_delete:'利用者削除',role_grant:'権限付与',role_revoke:'権限解除'};
+  const actions = {bootstrap:'初回管理者登録',key_rotate:'登録キー発行',key_update:'発行先メモ変更',key_delete:'登録キー削除',key_stop:'登録キー停止',invite:'招待送信',invite_failed:'招待失敗',invite_resend:'招待再送',invite_resend_failed:'招待再送失敗',user_suspend:'利用停止',user_resume:'利用再開',user_delete:'利用者削除',role_grant:'権限付与',role_revoke:'権限解除'};
   let token = '', roles = [], users = [], auditRows = [];
   let userPage = 1, userNext = false, auditPage = 1, auditNext = false;
+  let editingKeyId = '';
   const owner = () => roles.includes('system_operator');
   const invitation = () => owner() || roles.includes('invitation_operator');
   const auditor = () => owner() || roles.includes('audit_reader');
+  const auditTarget = item => item.target_email || item.target_user_id || item.detail?.memo || '—';
   const date = value => value ? new Date(value).toLocaleString('ja-JP') : '—';
   const shortDate = value => value ? new Date(value).toLocaleDateString('ja-JP') : '—';
   function status(message, error = false) {
@@ -80,9 +82,24 @@
     if (!key.keys?.length) { list.textContent = '有効なキーはありません。'; return; }
     for (const item of key.keys) {
       const row = document.createElement('div'); row.className = 'active-key-row';
+      const info = document.createElement('div'); info.className = 'active-key-info';
       const memo = document.createElement('strong'); memo.textContent = item.memo || '発行先メモなし';
       const expiry = document.createElement('span'); expiry.textContent = `発行：${date(item.created_at)} ／ 期限：${date(item.expires_at)}`;
-      row.append(memo, expiry); list.append(row);
+      info.append(memo, expiry); row.append(info);
+      if (owner()) {
+        const buttons = document.createElement('div'); buttons.className = 'row-actions active-key-actions';
+        const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'メモを変更';
+        edit.addEventListener('click', () => { editingKeyId = item.id; $('edit-key-memo').value = item.memo; $('key-edit-dialog').showModal(); });
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'danger'; remove.textContent = '削除';
+        remove.addEventListener('click', () => run(remove, async () => {
+          if (!await confirmAction('登録キーを削除しますか', `「${item.memo}」の登録キーを削除します。`, '削除したキーはすぐに使えなくなり、元に戻せません。')) return;
+          const result = await api('key_delete', {key_id:item.id}); renderKey(result.key);
+          $('new-key').hidden = true; $('code').textContent = '';
+          status('登録キーを削除しました。'); if (auditor()) await loadKeyHistory();
+        }));
+        buttons.append(edit, remove); row.append(buttons);
+      }
+      list.append(row);
     }
   }
   async function loadKey() {
@@ -118,7 +135,7 @@
     if (!result.rows.length) emptyRow(body, 4, '操作履歴はありません。');
     for (const item of result.rows.slice(0, 5)) {
       const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, actions[item.action] || item.action);
-      appendCell(row, item.target_email || item.target_user_id || '—');
+      appendCell(row, auditTarget(item));
       row.insertCell().append(badge(item.action.endsWith('_failed') ? '失敗' : '成功', item.action.endsWith('_failed') ? 'failed' : ''));
     }
   }
@@ -204,7 +221,7 @@
     if (!visible.length) emptyRow(body, 5, '該当する操作履歴はありません。');
     for (const item of visible) {
       const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, item.actor_id);
-      appendCell(row, actions[item.action] || item.action); appendCell(row, item.target_email || item.target_user_id || '—');
+      appendCell(row, actions[item.action] || item.action); appendCell(row, auditTarget(item));
       row.insertCell().append(badge(item.action.endsWith('_failed') ? '失敗' : '成功', item.action.endsWith('_failed') ? 'failed' : ''));
     }
     $('audit-page').textContent = `${auditPage}ページ`; $('audit-prev').disabled = auditPage <= 1; $('audit-next').disabled = !auditNext;
@@ -230,11 +247,11 @@
   }));
   async function loadKeyHistory() {
     const body = $('key-history-rows'); body.replaceChildren();
-    if (!auditor()) { emptyRow(body, 3, '更新履歴を確認する権限がありません。'); return; }
+    if (!auditor()) { emptyRow(body, 4, '更新履歴を確認する権限がありません。'); return; }
     const result = await api('audit', {page:1});
-    const rows = result.rows.filter(item => item.action === 'key_rotate' || item.action === 'key_stop');
-    if (!rows.length) emptyRow(body, 3, '直近50件に登録キーの操作はありません。');
-    for (const item of rows.slice(0, 5)) { const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, actions[item.action]); appendCell(row, item.actor_id); }
+    const rows = result.rows.filter(item => ['key_rotate', 'key_update', 'key_delete', 'key_stop'].includes(item.action));
+    if (!rows.length) emptyRow(body, 4, '直近50件に登録キーの操作はありません。');
+    for (const item of rows.slice(0, 5)) { const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, actions[item.action]); appendCell(row, auditTarget(item)); appendCell(row, item.actor_id); }
   }
   $('stop').addEventListener('click', () => run($('stop'), async () => {
     if (!await confirmAction('登録キーを停止しますか', '有効な登録キーをすべて停止します。', '新しいキーを発行するまで、新規利用登録を受け付けません。')) return;
@@ -242,6 +259,14 @@
     if (auditor()) await loadKeyHistory();
   }));
   $('hide-key').addEventListener('click', () => { $('new-key').hidden = true; $('code').textContent = ''; });
+  $('cancel-key-edit').addEventListener('click', () => $('key-edit-dialog').close());
+  $('key-edit-form').addEventListener('submit', event => { event.preventDefault(); run(event.submitter, async () => {
+    const memo = $('edit-key-memo').value.trim();
+    if (!memo) { $('edit-key-memo').focus(); throw new Error('発行先のメモを入力してください。'); }
+    const result = await api('key_update', {key_id:editingKeyId, memo});
+    $('key-edit-dialog').close(); renderKey(result.key); status('発行先のメモを変更しました。');
+    if (auditor()) await loadKeyHistory();
+  }); });
   $('open-invite').addEventListener('click', () => $('invite-dialog').showModal());
   $('close-invite').addEventListener('click', () => $('invite-dialog').close());
   $('cancel-invite').addEventListener('click', () => $('invite-dialog').close());

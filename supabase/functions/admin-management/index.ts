@@ -102,6 +102,22 @@ Deno.serve(async request => {
       const result = await rpc("kasi_admin_rotate_key", {p_actor_id:actor, p_code_hmac:await digest(code), p_memo:memo});
       return reply(requestOrigin, 200, {key:result, code});
     }
+    if (action === "key_update" && has(roles, "system_operator")) {
+      const keyId = typeof payload.key_id === "string" ? payload.key_id : "";
+      const memo = typeof payload.memo === "string" ? payload.memo.trim() : "";
+      if (!uuid.test(keyId) || !memo || memo.length > 100)
+        return reply(requestOrigin, 400, {message:"発行先のメモを1〜100文字で入力してください。"});
+      const changed = await rpc("kasi_admin_update_key", {p_actor_id:actor, p_key_id:keyId, p_memo:memo});
+      return changed ? reply(requestOrigin, 200, {key:await rpc("kasi_admin_key_status")})
+        : reply(requestOrigin, 404, {message:"有効な登録キーが見つかりません。"});
+    }
+    if (action === "key_delete" && has(roles, "system_operator")) {
+      const keyId = typeof payload.key_id === "string" ? payload.key_id : "";
+      if (!uuid.test(keyId)) return reply(requestOrigin, 400, {message:"対象の登録キーを確認してください。"});
+      const deleted = await rpc("kasi_admin_delete_key", {p_actor_id:actor, p_key_id:keyId});
+      return deleted ? reply(requestOrigin, 200, {key:await rpc("kasi_admin_key_status")})
+        : reply(requestOrigin, 404, {message:"有効な登録キーが見つかりません。"});
+    }
     if (action === "key_stop" && has(roles, "system_operator"))
       return reply(requestOrigin, 200, {key:await rpc("kasi_admin_stop_key", {p_actor_id:actor})});
     if (action === "invite" && has(roles, "system_operator", "invitation_operator")) {
