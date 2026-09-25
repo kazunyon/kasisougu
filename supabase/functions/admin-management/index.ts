@@ -151,6 +151,36 @@ Deno.serve(async request => {
       await audit(actor, action === "suspend" ? "user_suspend" : "user_resume", target, targetData.user.email ?? null);
       return reply(requestOrigin, 200, {message:action === "suspend" ? "利用を停止しました。" : "利用を再開しました。"});
     }
+    if (action === "delete_user" && has(roles, "system_operator")) {
+      const target = typeof payload.user_id === "string" ? payload.user_id : "";
+      if (!uuid.test(target) || target === actor) return reply(requestOrigin, 400, {message:"対象の利用者を確認してください。"});
+      const {data: targetData, error: targetError} = await admin.auth.admin.getUserById(target);
+      if (targetError || !targetData.user) return reply(requestOrigin, 404, {message:"利用者が見つかりません。"});
+      if (!targetData.user.banned_until || new Date(targetData.user.banned_until) <= new Date())
+        return reply(requestOrigin, 409, {message:"停止中の利用者だけ削除できます。先に利用を停止してください。"});
+      const targetRoles: string[] = await rpc("kasi_admin_roles", {p_user_id:target});
+      if (has(targetRoles, "system_operator")) return reply(requestOrigin, 403, {message:"管理責任者は削除できません。"});
+
+      // Supabase Auth prevents deleting users who own Storage objects. Remove their
+      // private media through the Storage API before deleting the account.
+      const paths: string[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const {data, error} = await admin.from("kasi_user_media").select("storage_path")
+          .eq("owner_id", target).order("storage_path", {ascending:true}).range(offset, offset + 999);
+        if (error) fail();
+        paths.push(...(data ?? []).map(row => row.storage_path).filter((path): path is string => typeof path === "string"));
+        if (!data || data.length < 1000) break;
+      }
+      for (let offset = 0; offset < paths.length; offset += 1000) {
+        const {error} = await admin.storage.from("kasi_user-media").remove(paths.slice(offset, offset + 1000));
+        if (error) fail();
+      }
+      const {error: deleteError} = await admin.auth.admin.deleteUser(target);
+      if (deleteError) return reply(requestOrigin, 409, {message:"写真は削除されましたが、利用者の削除に失敗しました。もう一度削除を実行してください。"});
+      try { await audit(actor, "user_delete", target); }
+      catch { console.error("admin-management audit failed", "user_delete"); }
+      return reply(requestOrigin, 200, {message:"利用者と関連データを削除しました。"});
+    }
     if (action === "audit" && has(roles, "system_operator", "audit_reader")) {
       const page = parsePage(payload.page);
       const rows = await rpc("kasi_admin_audit_page", {p_offset:(page-1)*50, p_limit:50});

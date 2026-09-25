@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id);
   const config = window.KASISOUGU_SUPABASE_CONFIG || {};
   const labels = {home:'管理ホーム',key:'登録キー管理',users:'利用者管理',audit:'操作履歴'};
-  const actions = {bootstrap:'初回管理者登録',key_rotate:'登録キー発行',key_stop:'登録キー停止',invite:'招待送信',invite_failed:'招待失敗',invite_resend:'招待再送',invite_resend_failed:'招待再送失敗',user_suspend:'利用停止',user_resume:'利用再開',role_grant:'権限付与',role_revoke:'権限解除'};
+  const actions = {bootstrap:'初回管理者登録',key_rotate:'登録キー発行',key_stop:'登録キー停止',invite:'招待送信',invite_failed:'招待失敗',invite_resend:'招待再送',invite_resend_failed:'招待再送失敗',user_suspend:'利用停止',user_resume:'利用再開',user_delete:'利用者削除',role_grant:'権限付与',role_revoke:'権限解除'};
   let token = '', roles = [], users = [], auditRows = [];
   let userPage = 1, userNext = false, auditPage = 1, auditNext = false;
   const owner = () => roles.includes('system_operator');
@@ -171,6 +171,13 @@
           if (!await confirmAction(`利用を${state === 'suspended' ? '再開' : '停止'}しますか`, `${user.email} の利用状態を変更します。`, state === 'suspended' ? '' : '停止中は、この利用者はログインできなくなります。')) return;
           await api(state === 'suspended' ? 'resume' : 'suspend', {user_id:user.id}); status('利用状態を更新しました。'); await loadUsers();
         })); buttons.append(control);
+        if (state === 'suspended') {
+          const remove = document.createElement('button'); remove.textContent = '削除'; remove.className = 'danger';
+          remove.addEventListener('click', () => run(remove, async () => {
+            if (!await confirmAction('利用者を完全に削除しますか', `${user.email} のアカウントと関連データを削除します。`, '装具・利用記録・相談シート・写真を含み、元に戻せません。')) return;
+            const result = await api('delete_user', {user_id:user.id}); status(result.message); await loadUsers();
+          })); buttons.append(remove);
+        }
         const details = document.createElement('details'), summary = document.createElement('summary'), menu = document.createElement('div');
         summary.textContent = '権限'; menu.className = 'role-menu'; details.append(summary, menu);
         for (const [role, title] of [['invitation_operator','招待担当'],['audit_reader','履歴閲覧']]) {
