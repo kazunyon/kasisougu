@@ -3,12 +3,14 @@
   const $ = id => document.getElementById(id);
   const config = window.KASISOUGU_SUPABASE_CONFIG || {};
   const labels = {home:'管理ホーム',key:'登録キー管理',users:'利用者管理',audit:'操作履歴'};
-  const actions = {bootstrap:'初回管理者登録',key_rotate:'登録キー発行',key_stop:'登録キー停止',invite:'招待送信',invite_failed:'招待失敗',invite_resend:'招待再送',invite_resend_failed:'招待再送失敗',user_suspend:'利用停止',user_resume:'利用再開',role_grant:'権限付与',role_revoke:'権限解除'};
+  const actions = {bootstrap:'初回管理者登録',key_rotate:'登録キー発行',key_update:'発行先メモ変更',key_delete:'登録キー削除',key_stop:'登録キー停止',invite:'招待送信',invite_failed:'招待失敗',invite_resend:'招待再送',invite_resend_failed:'招待再送失敗',user_suspend:'利用停止',user_resume:'利用再開',user_delete:'利用者削除',role_grant:'権限付与',role_revoke:'権限解除'};
   let token = '', roles = [], users = [], auditRows = [];
   let userPage = 1, userNext = false, auditPage = 1, auditNext = false;
+  let editingKeyId = '';
   const owner = () => roles.includes('system_operator');
   const invitation = () => owner() || roles.includes('invitation_operator');
   const auditor = () => owner() || roles.includes('audit_reader');
+  const auditTarget = item => item.target_email || item.target_user_id || item.detail?.memo || '—';
   const date = value => value ? new Date(value).toLocaleString('ja-JP') : '—';
   const shortDate = value => value ? new Date(value).toLocaleDateString('ja-JP') : '—';
   function status(message, error = false) {
@@ -70,12 +72,35 @@
     const active = key.status === 'active', expired = key.status === 'expired';
     const label = active ? '有効' : expired ? '期限切れ' : '停止中';
     $('home-key').textContent = label;
-    $('home-key-detail').textContent = active ? `有効期限：${date(key.expires_at)}` : '有効な登録キーはありません';
-    $('key-state').textContent = active ? '現在、新規利用登録を受け付けています。' : '現在、新規利用登録は受け付けていません。';
-    $('key-badge').textContent = label; $('key-badge').className = `badge ${active ? '' : expired ? 'pending' : 'neutral'}`;
+    $('home-key-detail').textContent = active ? `有効なキー：${key.active_count}件` : '有効な登録キーはありません';
+    $('key-state').textContent = active ? `現在、有効な登録キー${key.active_count}件で新規利用登録を受け付けています。` : '現在、新規利用登録は受け付けていません。';
+    $('key-badge').textContent = active ? `${key.active_count}件有効` : label; $('key-badge').className = `badge ${active ? '' : expired ? 'pending' : 'neutral'}`;
     $('key-expires').textContent = date(key.expires_at);
     $('key-days').textContent = active && key.expires_at ? `${Math.max(0, Math.ceil((new Date(key.expires_at) - new Date()) / 86400000))}日` : '—';
     $('stop').disabled = !active;
+    const list = $('active-key-list'); list.replaceChildren();
+    if (!key.keys?.length) { list.textContent = '有効なキーはありません。'; return; }
+    for (const item of key.keys) {
+      const row = document.createElement('div'); row.className = 'active-key-row';
+      const info = document.createElement('div'); info.className = 'active-key-info';
+      const memo = document.createElement('strong'); memo.textContent = item.memo || '発行先メモなし';
+      const expiry = document.createElement('span'); expiry.textContent = `発行：${date(item.created_at)} ／ 期限：${date(item.expires_at)}`;
+      info.append(memo, expiry); row.append(info);
+      if (owner()) {
+        const buttons = document.createElement('div'); buttons.className = 'row-actions active-key-actions';
+        const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'メモを変更';
+        edit.addEventListener('click', () => { editingKeyId = item.id; $('edit-key-memo').value = item.memo; $('key-edit-dialog').showModal(); });
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'danger'; remove.textContent = '削除';
+        remove.addEventListener('click', () => run(remove, async () => {
+          if (!await confirmAction('登録キーを削除しますか', `「${item.memo}」の登録キーを削除します。`, '削除したキーはすぐに使えなくなり、元に戻せません。')) return;
+          const result = await api('key_delete', {key_id:item.id}); renderKey(result.key);
+          $('new-key').hidden = true; $('code').textContent = '';
+          status('登録キーを削除しました。'); if (auditor()) await loadKeyHistory();
+        }));
+        buttons.append(edit, remove); row.append(buttons);
+      }
+      list.append(row);
+    }
   }
   async function loadKey() {
     renderKey((await api('key_status')).key);
@@ -110,7 +135,7 @@
     if (!result.rows.length) emptyRow(body, 4, '操作履歴はありません。');
     for (const item of result.rows.slice(0, 5)) {
       const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, actions[item.action] || item.action);
-      appendCell(row, item.target_email || item.target_user_id || '—');
+      appendCell(row, auditTarget(item));
       row.insertCell().append(badge(item.action.endsWith('_failed') ? '失敗' : '成功', item.action.endsWith('_failed') ? 'failed' : ''));
     }
   }
@@ -163,6 +188,13 @@
           if (!await confirmAction(`利用を${state === 'suspended' ? '再開' : '停止'}しますか`, `${user.email} の利用状態を変更します。`, state === 'suspended' ? '' : '停止中は、この利用者はログインできなくなります。')) return;
           await api(state === 'suspended' ? 'resume' : 'suspend', {user_id:user.id}); status('利用状態を更新しました。'); await loadUsers();
         })); buttons.append(control);
+        if (state === 'suspended') {
+          const remove = document.createElement('button'); remove.textContent = '削除'; remove.className = 'danger';
+          remove.addEventListener('click', () => run(remove, async () => {
+            if (!await confirmAction('利用者を完全に削除しますか', `${user.email} のアカウントと関連データを削除します。`, '装具・利用記録・相談シート・写真を含み、元に戻せません。')) return;
+            const result = await api('delete_user', {user_id:user.id}); status(result.message); await loadUsers();
+          })); buttons.append(remove);
+        }
         const details = document.createElement('details'), summary = document.createElement('summary'), menu = document.createElement('div');
         summary.textContent = '権限'; menu.className = 'role-menu'; details.append(summary, menu);
         for (const [role, title] of [['invitation_operator','招待担当'],['audit_reader','履歴閲覧']]) {
@@ -189,7 +221,7 @@
     if (!visible.length) emptyRow(body, 5, '該当する操作履歴はありません。');
     for (const item of visible) {
       const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, item.actor_id);
-      appendCell(row, actions[item.action] || item.action); appendCell(row, item.target_email || item.target_user_id || '—');
+      appendCell(row, actions[item.action] || item.action); appendCell(row, auditTarget(item));
       row.insertCell().append(badge(item.action.endsWith('_failed') ? '失敗' : '成功', item.action.endsWith('_failed') ? 'failed' : ''));
     }
     $('audit-page').textContent = `${auditPage}ページ`; $('audit-prev').disabled = auditPage <= 1; $('audit-next').disabled = !auditNext;
@@ -207,24 +239,34 @@
   $('logout').addEventListener('click', () => { logout(); status('ログアウトしました。'); });
   document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => showView(button.dataset.view).catch(error => status(error.message, true))));
   $('rotate').addEventListener('click', () => run($('rotate'), async () => {
-    if (!await confirmAction('新しい登録キーを発行しますか', '新しい6桁の登録キーを発行します。', '今の登録キーは直ちに使えなくなります。')) return;
-    const result = await api('key_rotate'); renderKey(result.key); $('code').textContent = result.code; $('new-key').hidden = false; status('新しい登録キーを発行しました。');
+    const memo = $('key-memo').value.trim();
+    if (!memo) { $('key-memo').focus(); throw new Error('発行先のメモを入力してください。'); }
+    if (!await confirmAction('新しい登録キーを発行しますか', `「${memo}」向けのキーを追加します。現在有効なキーはそのまま使えます。`)) return;
+    const result = await api('key_rotate', {memo}); renderKey(result.key); $('key-memo').value = ''; $('code').textContent = result.code; $('new-key').hidden = false; status('新しい登録キーを発行しました。');
     if (auditor()) await loadKeyHistory();
   }));
   async function loadKeyHistory() {
     const body = $('key-history-rows'); body.replaceChildren();
-    if (!auditor()) { emptyRow(body, 3, '更新履歴を確認する権限がありません。'); return; }
+    if (!auditor()) { emptyRow(body, 4, '更新履歴を確認する権限がありません。'); return; }
     const result = await api('audit', {page:1});
-    const rows = result.rows.filter(item => item.action === 'key_rotate' || item.action === 'key_stop');
-    if (!rows.length) emptyRow(body, 3, '直近50件に登録キーの操作はありません。');
-    for (const item of rows.slice(0, 5)) { const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, actions[item.action]); appendCell(row, item.actor_id); }
+    const rows = result.rows.filter(item => ['key_rotate', 'key_update', 'key_delete', 'key_stop'].includes(item.action));
+    if (!rows.length) emptyRow(body, 4, '直近50件に登録キーの操作はありません。');
+    for (const item of rows.slice(0, 5)) { const row = body.insertRow(); appendCell(row, date(item.occurred_at)); appendCell(row, actions[item.action]); appendCell(row, auditTarget(item)); appendCell(row, item.actor_id); }
   }
   $('stop').addEventListener('click', () => run($('stop'), async () => {
-    if (!await confirmAction('登録キーを停止しますか', '現在の登録キーを停止します。', '新しいキーを発行するまで、新規利用登録を受け付けません。')) return;
+    if (!await confirmAction('登録キーを停止しますか', '有効な登録キーをすべて停止します。', '新しいキーを発行するまで、新規利用登録を受け付けません。')) return;
     const result = await api('key_stop'); renderKey(result.key); $('new-key').hidden = true; $('code').textContent = ''; status('登録キーを停止しました。');
     if (auditor()) await loadKeyHistory();
   }));
   $('hide-key').addEventListener('click', () => { $('new-key').hidden = true; $('code').textContent = ''; });
+  $('cancel-key-edit').addEventListener('click', () => $('key-edit-dialog').close());
+  $('key-edit-form').addEventListener('submit', event => { event.preventDefault(); run(event.submitter, async () => {
+    const memo = $('edit-key-memo').value.trim();
+    if (!memo) { $('edit-key-memo').focus(); throw new Error('発行先のメモを入力してください。'); }
+    const result = await api('key_update', {key_id:editingKeyId, memo});
+    $('key-edit-dialog').close(); renderKey(result.key); status('発行先のメモを変更しました。');
+    if (auditor()) await loadKeyHistory();
+  }); });
   $('open-invite').addEventListener('click', () => $('invite-dialog').showModal());
   $('close-invite').addEventListener('click', () => $('invite-dialog').close());
   $('cancel-invite').addEventListener('click', () => $('invite-dialog').close());
