@@ -71,9 +71,9 @@
             <div class="actions"><button id="stop" type="button" class="danger">すべてのキーを停止</button><button id="rotate" type="button" class="primary">新しい6桁のキーを発行</button></div>
             <div id="new-key" class="secret" hidden><strong>新しい登録キー：<span id="code"></span></strong><p>このキーは再表示できません。利用者へ安全な方法で伝えてください。</p><button id="hide-key" type="button">表示を閉じる</button></div>
           </article>
-          <article class="card"><h2>有効なキーの発行先</h2><div id="active-key-list" class="active-key-list"></div></article>
+          <article class="card"><h2>有効なキーの発行先</h2><p class="muted">発行先メモは利用者登録とは別です。不要になったキーはここから削除できます。</p><div id="active-key-list" class="active-key-list"></div></article>
           <div class="key-lower">
-            <article class="card"><h2>更新履歴</h2><div class="table-wrap"><table><thead><tr><th>日時</th><th>操作</th><th>担当者ID</th></tr></thead><tbody id="key-history-rows"></tbody></table></div></article>
+            <article class="card"><h2>更新履歴</h2><div class="table-wrap"><table><thead><tr><th>日時</th><th>操作</th><th>発行先</th><th>担当者ID</th></tr></thead><tbody id="key-history-rows"></tbody></table></div></article>
             <article class="card guidance"><h2>登録キーについて</h2><p>新しいキーの有効期間は90日です。</p><p>キーを停止した後に登録を再開するには、新しいキーを発行してください。</p></article>
           </div>
         </section>
@@ -102,6 +102,7 @@
       </main>
     </div>
   </div>
+  <dialog id="key-edit-dialog"><div class="dialog-body"><h2>発行先のメモを変更</h2><form id="key-edit-form"><label>発行先のメモ<input id="edit-key-memo" type="text" maxlength="100" required autocomplete="off"></label><div class="actions end"><button type="button" id="cancel-key-edit">キャンセル</button><button class="primary" type="submit">変更を保存</button></div></form></div></dialog>
   <dialog id="invite-dialog"><div class="dialog-body"><div class="dialog-heading"><h2>新しく招待する</h2><button id="close-invite" type="button" aria-label="閉じる">×</button></div><p>利用者のメールアドレスを入力してください。</p><form id="invite-form"><label>メールアドレス<input id="invite-email" type="email" required></label><div class="actions end"><button type="button" id="cancel-invite">キャンセル</button><button class="primary" type="submit">招待メールを送る</button></div></form></div></dialog>
   <dialog id="confirm-dialog"><form method="dialog" class="dialog-body"><h2 id="confirm-title"></h2><p id="confirm-text"></p><p id="confirm-warning" class="warning" hidden></p><div class="actions end"><button value="cancel">キャンセル</button><button value="confirm" class="primary">実行する</button></div></form></dialog>
 </body>
