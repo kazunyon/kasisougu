@@ -276,14 +276,14 @@ const F05 = (() => {
     if (snapshot.needs?.length) { const area=section(body,'相談したいこと'); snapshot.needs.forEach(row => paragraph(area,`${row.need_type === 'problem' ? '困りごと' : '希望'}（${row.orthosis_name}）`,row.description)); }
     if (snapshot.records?.length) { const area=section(body,'使用記録'); snapshot.records.forEach(row => paragraph(area,`${row.recorded_on}・${row.orthosis_name}`,row.overall_note || 'その日の感想なし')); if (snapshot.records.length >= 2) area.append(comparisonForSnapshot(snapshot.records)); else { const row=snapshot.records[0]; recordCategories.forEach(([code,label]) => { const obs=row.observations?.find(item => item.category_code === code); paragraph(area,label,`${resultLabels[obs?.result_code || 'not_evaluated']}${obs?.note ? `：${obs.note}` : ''}`); }); } }
     if (snapshot.concerns?.length) { const area=section(body,'気になったこと・変化'); snapshot.concerns.forEach(row => paragraph(area,`${row.noted_on}・${row.orthosis_name}・${concernCategoryLabels[row.category_code] || 'その他'}`,`${row.description}（${concernStatusLabels[row.status_code] || '未対応'}）${row.action_note ? `／対応内容：${row.action_note}` : ''}`)); }
+    const questions=section(body,'聞きたいこと'); questions.append(formattedNode('p',text(snapshot.question_text)));
+    const answers=section(body,'専門家の記入欄'); answers.classList.add('sheet-answers-section'); answers.append(node('div','','expert-writing-space'));
     if (snapshot.photos?.length) { const area=section(body,'写真'), gallery=node('div','','sheet-photo-grid'); area.classList.add('sheet-photos-section'); area.append(gallery);
       for (const photo of snapshot.photos) { const figure=node('figure','','sheet-photo'), image=document.createElement('img'); image.alt=photo.caption || photo.original_filename || '写真'; figure.append(image,node('figcaption',photo.caption || photo.original_filename || photo.source)); gallery.append(figure);
         try { const response=await storageRequest(storagePath(photo.storage_path,true)); const blob=await response.blob(); if(serial !== previewSerial || !token) return; const url=URL.createObjectURL(blob); previewUrls.push(url); image.src=url; }
         catch(error) { image.replaceWith(node('p',`写真を表示できません：${error.message}`,'error')); }
       }
     }
-    const questions=section(body,'聞きたいこと'); questions.append(formattedNode('p',text(snapshot.question_text)));
-    const answers=section(body,'専門家の記入欄'); answers.append(node('div','','expert-writing-space'));
     $('consultation-preview').hidden=false;
   }
   $('sheet-add').addEventListener('click', newSheet);
