@@ -4,11 +4,39 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('kasisougu/static/nearby-search.js','utf8');
 const context = vm.createContext({
-  URLSearchParams, window:{}, document:{querySelector:() => ({})}
+  URLSearchParams, AbortController, setTimeout, clearTimeout, window:{}, document:{querySelector:() => ({})}
 });
 vm.runInContext(source,context);
 const run = expression => vm.runInContext(expression,context);
 (async () => {
+  const address = '東京都千代田区丸の内1-9-1';
+  context.fetch = async (url, options) => {
+    assert.equal(new URL(url).searchParams.get('q'), address);
+    assert.ok(options.signal);
+    return {ok:true,json:async () => [{geometry:{coordinates:[139.767,35.681]}}]};
+  };
+  const origin = await run(`nearbyGeocodeAddress(${JSON.stringify(address)})`);
+  assert.equal(origin.lat,35.681);
+  assert.equal(origin.routeOrigin,address);
+  for (const response of [
+    {ok:false},
+    {ok:true,json:async () => { throw new SyntaxError('maintenance HTML'); }},
+    {ok:true,json:async () => ({error:'unavailable'})},
+    {ok:true,json:async () => [{geometry:{coordinates:[null,null]}}]}
+  ]) {
+    context.fetch = async () => response;
+    await assert.rejects(run(`nearbyGeocodeAddress(${JSON.stringify(address)})`),/サービスに接続できません.*現在地から検索/);
+  }
+  context.fetch = async () => { throw new TypeError('network failure'); };
+  await assert.rejects(run(`nearbyGeocodeAddress(${JSON.stringify(address)})`),/サービスに接続できません/);
+  context.fetch = async () => ({ok:true,json:async () => []});
+  await assert.rejects(run(`nearbyGeocodeAddress(${JSON.stringify(address)})`),/住所が正しくても検索できない/);
+  let cleared = false;
+  context.setTimeout = callback => { queueMicrotask(callback); return 1; };
+  context.clearTimeout = () => { cleared = true; };
+  context.fetch = (_url,{signal}) => new Promise((_resolve,reject) => signal.addEventListener('abort',() => reject(new Error('timeout'))));
+  await assert.rejects(run(`nearbyGeocodeAddress(${JSON.stringify(address)})`),/サービスに接続できません/);
+  assert.equal(cleared,true);
   assert.equal(run('nearbyCoordinates(null,139)'),null);
   assert.equal(run('nearbyCoordinates(91,139)'),null);
   assert.equal(run('nearbyStraightLineMeters({lat:0,lng:0},{lat:0,lng:0})'),0);
