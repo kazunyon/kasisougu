@@ -48,45 +48,48 @@
         <p id="status" class="status" role="status" aria-live="polite"></p>
         <section id="home" class="view">
           <div class="page-heading"><div><h1>管理ホーム</h1><p>登録キーと利用者の状況を確認できます。</p></div></div>
+          <h2 class="section-title">現在の状況</h2>
           <div class="metric-grid">
             <article class="card metric"><div class="metric-label">登録キーの状態</div><div id="home-key" class="metric-value">確認中…</div><p id="home-key-detail" class="metric-note"></p><button type="button" class="text-action" data-view="key">登録キー管理を見る <span aria-hidden="true">→</span></button></article>
             <article class="card metric"><div class="metric-label">招待中の利用者</div><div id="home-pending" class="metric-value">確認中…</div><p class="metric-note">登録を待っている利用者</p><button type="button" class="text-action" data-view="users">利用者管理を見る <span aria-hidden="true">→</span></button></article>
             <article class="card metric"><div class="metric-label">利用中の利用者</div><div id="home-active" class="metric-value">確認中…</div><p class="metric-note">停止中：<span id="home-suspended">—</span></p><button type="button" class="text-action" data-view="users">利用者管理を見る <span aria-hidden="true">→</span></button></article>
           </div>
           <div class="home-lower">
+            <article class="card next-card" id="home-next-card"><div><h2>次に行うこと</h2><p id="home-next">状況を確認しています…</p></div><button id="home-next-button" type="button" class="primary" data-view="users">利用者を確認する</button></article>
             <article class="card"><div class="card-heading"><h2>最近の操作</h2><button type="button" class="text-action" data-view="audit">すべて見る →</button></div><div class="table-wrap"><table><thead><tr><th>日時</th><th>操作</th><th>対象</th><th>結果</th></tr></thead><tbody id="home-audit-rows"></tbody></table></div></article>
-            <article class="card next-card"><h2>次に行うこと</h2><p id="home-next">状況を確認しています…</p><button id="home-next-button" type="button" class="primary" data-view="users">利用者を確認する</button></article>
           </div>
-          <p class="info-note">ここには管理者が確認できる最新の情報を表示します。</p>
         </section>
 
         <section id="key" class="view" hidden>
           <div class="page-heading"><div><h1>登録キー管理</h1><p>新規利用登録に使う6桁のキーを管理します。</p></div></div>
-          <article class="card key-current">
-            <div class="card-heading"><h2>有効な登録キー</h2><span id="key-badge" class="badge">確認中</span></div>
-            <div id="key-state" class="key-state">確認中…</div>
-            <div class="key-facts"><div><span>有効期限</span><strong id="key-expires">—</strong></div><div><span>残り日数</span><strong id="key-days">—</strong></div><div><span>登録キー</span><strong>安全のため非表示</strong></div></div>
-            <p class="muted">新しいキーを発行しても、現在有効なキーはそのまま使えます。登録受付を止めると、すべてのキーが無効になります。</p>
-            <label class="key-memo-label" for="key-memo">発行先のメモ（例：中村月秋）</label><input id="key-memo" type="text" maxlength="100" autocomplete="off" placeholder="誰に渡すキーか入力してください">
-            <div class="actions"><button id="stop" type="button" class="danger">すべてのキーを停止</button><button id="rotate" type="button" class="primary">新しい6桁のキーを発行</button></div>
-            <div id="new-key" class="secret" hidden><strong>新しい登録キー：<span id="code"></span></strong><p>このキーは再表示できません。利用者へ安全な方法で伝えてください。</p><button id="hide-key" type="button">表示を閉じる</button></div>
-          </article>
-          <article class="card"><h2>有効なキーの発行先</h2><p class="muted">発行先メモは利用者登録とは別です。不要になったキーはここから削除できます。</p><div id="active-key-list" class="active-key-list"></div></article>
-          <div class="key-lower">
-            <article class="card"><h2>更新履歴</h2><div class="table-wrap"><table><thead><tr><th>日時</th><th>操作</th><th>発行先</th><th>担当者ID</th></tr></thead><tbody id="key-history-rows"></tbody></table></div></article>
-            <article class="card guidance"><h2>登録キーについて</h2><p>新しいキーの有効期間は90日です。</p><p>キーを停止した後に登録を再開するには、新しいキーを発行してください。</p></article>
+          <div class="key-overview">
+            <article class="card key-current">
+              <div class="card-heading"><h2>現在の登録キー</h2><span id="key-badge" class="badge">確認中</span></div>
+              <p id="key-state" class="key-state">確認中…</p>
+              <div class="key-facts"><div><span>有効期限</span><strong id="key-expires">—</strong></div><div><span>残り日数</span><strong id="key-days">—</strong></div></div>
+              <div class="key-stop-area"><p>登録受付を止めると、すべてのキーが無効になります。</p><button id="stop" type="button" class="danger">すべてのキーを停止</button></div>
+            </article>
+            <article class="card key-issue" id="key-issue-card">
+              <h2>新しいキーを発行</h2>
+              <p class="muted">有効期間は90日です。現在有効なキーも期限まで使えます。</p>
+              <label class="key-memo-label" for="key-memo">発行先のメモ</label><input id="key-memo" type="text" maxlength="100" autocomplete="off" placeholder="渡す相手の名前などを入力">
+              <button id="rotate" type="button" class="primary">6桁のキーを発行</button>
+              <div id="new-key" class="secret" hidden><strong>新しい登録キー：<span id="code"></span></strong><p>このキーは再表示できません。利用者へ安全な方法で伝えてください。</p><button id="hide-key" type="button">表示を閉じる</button></div>
+            </article>
           </div>
+          <article class="card key-list-card"><h2>有効なキーの発行先</h2><p class="muted">発行先メモは利用者登録とは別です。不要になったキーはここから削除できます。</p><div id="active-key-list" class="active-key-list"></div></article>
+          <article class="card key-history-card"><h2>更新履歴</h2><div class="table-wrap"><table><thead><tr><th>日時</th><th>操作</th><th>発行先</th><th>担当者ID</th></tr></thead><tbody id="key-history-rows"></tbody></table></div></article>
         </section>
 
         <section id="users" class="view" hidden>
           <div class="page-heading"><div><h1>利用者管理</h1><p>招待と利用状況を確認できます。</p></div><button id="open-invite" type="button" class="primary">＋ 新しく招待する</button></div>
           <article class="card">
             <div class="filters"><label>利用者を検索<input id="user-filter" type="search" placeholder="メールアドレスで検索"></label><label>利用状況<select id="user-state-filter"><option value="">すべて</option><option value="pending">招待中</option><option value="active">利用中</option><option value="suspended">停止中</option></select></label></div>
+            <p class="filter-help">検索と絞り込みは、現在表示しているページの利用者に適用されます。</p>
             <div class="table-heading"><h2>利用者一覧</h2><span id="user-count"></span></div>
             <div class="table-wrap"><table><thead><tr><th>メールアドレス</th><th>登録状況</th><th>利用状況</th><th>招待日</th><th>操作</th></tr></thead><tbody id="user-rows"></tbody></table></div>
             <div class="pager"><span id="users-page"></span><button id="users-prev" type="button">前へ</button><button id="users-next" type="button">次へ</button></div>
           </article>
-          <p class="info-note">検索と絞り込みは、現在表示しているページの利用者に適用されます。</p>
         </section>
 
         <section id="audit" class="view" hidden>
