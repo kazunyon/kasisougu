@@ -5,6 +5,20 @@ const F05 = (() => {
   const orthosisName = id => orthoses.find(row => row.id === id)?.nickname || '装具';
   const concernOrthosisName = item => orthosisName(item.user_orthosis_id || KASI_F04.getRecords().find(row => row.id === item.usage_record_id)?.user_orthosis_id);
   function clearUrls() { previewSerial++; previewUrls.forEach(url => URL.revokeObjectURL(url)); previewUrls = []; }
+  function resizeQuestion() {
+    const field = $('consultation-question');
+    if (!field.getClientRects().length) return;
+    const style = getComputedStyle(field);
+    const lineHeight = parseFloat(style.lineHeight);
+    const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+    const minimum = lineHeight * 5 + padding + border;
+    const maximum = lineHeight * 50 + padding + border;
+    field.style.height = '0px';
+    const contentHeight = field.scrollHeight + border;
+    field.style.height = `${Math.min(maximum, Math.max(minimum, contentHeight))}px`;
+    field.style.overflowY = contentHeight > maximum ? 'auto' : 'hidden';
+  }
   function checkList(id, items, label, checkedIds) {
     const box = $(id); box.replaceChildren();
     if (!items.length) box.append(node('p', '選べる項目はありません。', 'empty-state'));
@@ -73,6 +87,7 @@ const F05 = (() => {
     $('sheet-form-title').textContent = '新しい相談シート'; renderSelections();
     $('sheet-revision-note').hidden = true; $('sheet-select-grid').hidden = false;
     $('consultation-form').hidden = false; $('consultation-preview').hidden = true; clearUrls();
+    resizeQuestion();
     message('consultation-status', ''); $('sheet-title').focus();
   }
   function open(id) {
@@ -91,6 +106,7 @@ const F05 = (() => {
     renderSelections(snapshot); $('sheet-form-title').textContent = isRevision ? '相談シートを編集' : '下書きを編集';
     $('sheet-revision-note').hidden = !isRevision; $('sheet-select-grid').hidden = false;
     $('consultation-form').hidden = false; $('consultation-preview').hidden = true;
+    resizeQuestion();
     message('consultation-status', ''); $('sheet-title').focus();
   }
   function buildSnapshot() {
@@ -286,6 +302,13 @@ const F05 = (() => {
     }
     $('consultation-preview').hidden=false;
   }
+  $('consultation-question').addEventListener('input', resizeQuestion);
+  let questionWidth = 0;
+  new ResizeObserver(entries => {
+    const width = entries[0].contentRect.width;
+    if (width > 0 && width !== questionWidth) { questionWidth = width; resizeQuestion(); }
+  }).observe($('consultation-question'));
+  window.addEventListener('resize', resizeQuestion);
   $('sheet-add').addEventListener('click', newSheet);
   $('sheet-cancel').addEventListener('click', () => { $('consultation-form').hidden=true; message('consultation-status','編集をやめました。'); });
   $('sheet-preview-button').addEventListener('click', () => showPreview(buildSnapshot()).catch(error => message('consultation-status',error.message,true)));
