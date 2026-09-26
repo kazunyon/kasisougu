@@ -109,11 +109,15 @@ tbody tr:hover{background:#fbfdfb}
 #dashboard .sidebar-brand img{filter:brightness(1.025);mix-blend-mode:multiply}
 #dashboard .nav-caption,#dashboard .sidebar-foot{color:#758078}
 #dashboard .sidebar-foot{border-top:0}
+#dashboard .sidebar-foot #logout{background:transparent;color:#59645d;border-color:#cdd5cf;font-size:.9rem;min-height:40px}
+#dashboard .sidebar-foot #logout:hover{background:#eef2ef}
+@media(min-width:721px){#dashboard .sidebar{position:sticky;top:0;height:100vh;align-self:flex-start}}
 #dashboard .side-nav button{position:relative;background:transparent;border-radius:0;color:#59645d}
 #dashboard .side-nav button.active{background:transparent;color:#283d30}
 #dashboard .side-nav button.active::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;background:#526158}
 #dashboard .side-nav button:not(.active):hover{background:transparent;color:#283d30;text-decoration:underline}
 @media(max-width:720px){
+  #dashboard .sidebar-foot{display:block;margin-top:0;padding:10px 16px}
   #dashboard .side-nav{border-bottom:1px solid #e4e9e5}
   #dashboard .side-nav button.active::before{left:8px;right:8px;top:auto;bottom:0;width:auto;height:2px}
 }

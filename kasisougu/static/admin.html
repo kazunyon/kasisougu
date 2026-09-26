@@ -37,12 +37,12 @@
         <button type="button" data-view="users"><span aria-hidden="true">♙</span>利用者管理</button>
         <button type="button" data-view="audit"><span aria-hidden="true">▤</span>操作履歴</button>
       </nav>
-      <div class="sidebar-foot">管理者専用</div>
+      <div class="sidebar-foot"><button id="logout" type="button">ログアウト</button></div>
     </aside>
     <div class="workspace">
       <header class="topbar">
         <div class="breadcrumb">管理者支援ツール <span aria-hidden="true">›</span> <strong id="breadcrumb-current">管理ホーム</strong></div>
-        <div class="topbar-right"><span id="environment-badge" class="environment-badge">本番環境</span><span id="role-label" class="role-label">管理者</span><button id="logout" type="button">ログアウト</button></div>
+        <div class="topbar-right"><span id="environment-badge" class="environment-badge">本番環境</span><span id="role-label" class="role-label">管理者</span></div>
       </header>
       <main class="content">
         <p id="status" class="status" role="status" aria-live="polite"></p>
