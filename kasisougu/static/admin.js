@@ -123,10 +123,14 @@
       $('home-active').textContent = `${active}人${suffix}`;
       $('home-suspended').textContent = `${suspended}人${suffix}`;
       $('home-next').textContent = pending ? `${pending}人の利用者が登録を待っています。招待の状況を確認してください。` : '招待中の利用者はいません。必要な場合は新しく招待してください。';
+      $('home-next-card').classList.toggle('quiet', !pending);
+      $('home-next-button').classList.toggle('primary', !!pending);
     } else {
       $('home-key').textContent = '閲覧権限なし'; $('home-key-detail').textContent = '';
       $('home-pending').textContent = '—'; $('home-active').textContent = '—'; $('home-suspended').textContent = '—';
       $('home-next').textContent = '操作履歴を確認できます。';
+      $('home-next-card').classList.add('quiet');
+      $('home-next-button').classList.remove('primary');
       $('home-next-button').dataset.view = 'audit'; $('home-next-button').textContent = '操作履歴を見る';
     }
     const body = $('home-audit-rows'); body.replaceChildren();
@@ -156,7 +160,7 @@
     $('entry-shell').hidden = true; $('dashboard').hidden = false;
     $('role-label').textContent = owner() ? '管理責任者' : invitation() ? '招待担当者' : '履歴閲覧者';
     if (invitation()) { $('home-next-button').dataset.view = 'users'; $('home-next-button').textContent = '利用者を確認する'; }
-    $('rotate').hidden = !owner(); $('stop').hidden = !owner(); $('open-invite').hidden = !invitation();
+    $('key-issue-card').hidden = !owner(); $('stop').hidden = !owner(); $('open-invite').hidden = !invitation();
     for (const button of document.querySelectorAll('[data-view]')) {
       if (button.dataset.view === 'key' || button.dataset.view === 'users') button.hidden = !invitation();
       if (button.dataset.view === 'audit') button.hidden = !auditor();
@@ -183,13 +187,13 @@
         })); buttons.append(resend);
       }
       if (owner()) {
-        const control = document.createElement('button'); control.textContent = state === 'suspended' ? '再開' : '停止';
+        const control = document.createElement('button'); control.className = 'row-action-main'; control.textContent = state === 'suspended' ? '利用再開' : '利用停止';
         control.addEventListener('click', () => run(control, async () => {
           if (!await confirmAction(`利用を${state === 'suspended' ? '再開' : '停止'}しますか`, `${user.email} の利用状態を変更します。`, state === 'suspended' ? '' : '停止中は、この利用者はログインできなくなります。')) return;
           await api(state === 'suspended' ? 'resume' : 'suspend', {user_id:user.id}); status('利用状態を更新しました。'); await loadUsers();
         })); buttons.append(control);
         if (state === 'suspended') {
-          const remove = document.createElement('button'); remove.textContent = '削除'; remove.className = 'danger';
+          const remove = document.createElement('button'); remove.textContent = '削除'; remove.className = 'danger row-action-delete';
           remove.addEventListener('click', () => run(remove, async () => {
             if (!await confirmAction('利用者を完全に削除しますか', `${user.email} のアカウントと関連データを削除します。`, '装具・利用記録・相談シート・写真を含み、元に戻せません。')) return;
             const result = await api('delete_user', {user_id:user.id}); status(result.message); await loadUsers();

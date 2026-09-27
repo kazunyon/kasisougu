@@ -21,7 +21,25 @@ function nearbyCurrentPosition() {
     {enableHighAccuracy:false,timeout:10000,maximumAge:300000}
   ));
 }
-async function nearbyGeocodeAddress(address) { const response = await fetch(`${KASI_NEARBY_GEOCODER}?q=${encodeURIComponent(address)}`); if (!response.ok) throw new Error('住所を確認し、都道府県から入力してください。'); const rows = await response.json(), coordinates = nearbyCoordinates(rows?.[0]?.geometry?.coordinates?.[1],rows?.[0]?.geometry?.coordinates?.[0]); if (!coordinates) throw new Error('住所を確認し、都道府県から入力してください。'); return {...coordinates,label:address,routeOrigin:address}; }
+async function nearbyGeocodeAddress(address) {
+  const unavailable = '住所の位置検索サービスに接続できませんでした。時間をおいて再検索するか、「現在地から検索」または「Google Mapsで探す」をお試しください。';
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 10000);
+  let rows;
+  try {
+    const response = await fetch(`${KASI_NEARBY_GEOCODER}?q=${encodeURIComponent(address)}`, {signal:controller.signal});
+    if (!response.ok) throw new Error(unavailable);
+    rows = await response.json();
+    if (!Array.isArray(rows)) throw new Error(unavailable);
+  } catch {
+    throw new Error(unavailable);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!rows.length) throw new Error('入力した住所の位置を検索サービスで見つけられませんでした。住所が正しくても検索できない場合があります。「現在地から検索」または「Google Mapsで探す」も利用できます。');
+  const coordinates = nearbyCoordinates(rows[0]?.geometry?.coordinates?.[1],rows[0]?.geometry?.coordinates?.[0]);
+  if (!coordinates) throw new Error(unavailable);
+  return {...coordinates,label:address,routeOrigin:address};
+}
 async function nearbyOrigin(condition) { if (condition.origin === 'current') return nearbyCurrentPosition(); if (!condition.address) throw new Error('検索する住所を入力してください。'); return nearbyGeocodeAddress(condition.address); }
 async function nearbySelectAll(table, select, extra = {}) {
   const all = [], size = 100;

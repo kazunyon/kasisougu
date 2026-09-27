@@ -33,7 +33,7 @@ for icon in manifest['icons']:
     icon['src'] = './' + Path(icon['src']).name
 (target / 'manifest.webmanifest').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
 
-cache_files = ['index.html', 'style.css', 's03-s04.css', 'f04-f05.css', 'redesign.css', 'pages-config.js', 'app.js', 'catalog.js', 'records.js', 'consultation.js', 'nearby-search.js', 'invitation.html', 'invitation.js', 'admin.html', 'admin.css', 'admin.js', 'manifest.webmanifest', 'brand-logo.png', 'icon-192.png', 'icon-512.png']
+cache_files = ['index.html', 'style.css', 's03-s04.css', 'f04-f05.css', 'redesign.css', 'pages-config.js', 'app.js', 'catalog.js', 'records.js', 'consultation.js', 'nearby-search.js', 'invitation.html', 'invitation.js', 'admin.html', 'admin.css', 'admin.js', 'manifest.webmanifest', 'brand-logo.png', 'admin-brand-logo.png', 'icon-192.png', 'icon-512.png']
 cache_fingerprint = hashlib.sha256()
 for filename in cache_files:
     cache_fingerprint.update(filename.encode('utf-8'))
@@ -41,7 +41,7 @@ for filename in cache_files:
 cache_name = f'kasisougu-pages-shell-{cache_fingerprint.hexdigest()[:12]}'
 
 service_worker = '''const CACHE = '__CACHE_NAME__';
-const FILES = ['./', './index.html', './style.css', './s03-s04.css', './f04-f05.css', './redesign.css', './pages-config.js', './app.js', './catalog.js', './records.js', './consultation.js', './nearby-search.js', './invitation.html', './invitation.js', './admin.html', './admin.css', './admin.js', './manifest.webmanifest', './brand-logo.png', './icon-192.png', './icon-512.png'];
+const FILES = ['./', './index.html', './style.css', './s03-s04.css', './f04-f05.css', './redesign.css', './pages-config.js', './app.js', './catalog.js', './records.js', './consultation.js', './nearby-search.js', './invitation.html', './invitation.js', './admin.html', './admin.css', './admin.js', './manifest.webmanifest', './brand-logo.png', './admin-brand-logo.png', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('kasisougu-pages-shell-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {
